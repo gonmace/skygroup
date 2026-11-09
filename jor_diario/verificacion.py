@@ -11,14 +11,15 @@ VELOCIDAD_MAX_MS = 55      # ≈200 km/h entre dos lecturas consecutivas: más q
 PRECISION_MIN_CREIBLE_M = 1  # un GPS real de celular no reporta menos de ~3 m; <1 m es típico de ubicaciones simuladas
 
 MOTIVOS = {
-    'sin_geocerca': 'La sede no tiene ubicación configurada.',
     'pocas_lecturas': 'No se recibieron suficientes lecturas de GPS.',
     'lectura_vieja': 'La lectura de GPS no es reciente.',
     'precision': 'La precisión del GPS es insuficiente.',
     'precision_sospechosa': 'La precisión reportada por el GPS no es creíble.',
     'salto_imposible': 'Las lecturas de GPS saltan una distancia imposible.',
     'fuera_geocerca': 'Estás fuera del radio de la sede.',
+    # Etiquetas históricas (ya no se generan): se conservan para mostrar jornadas antiguas.
     'no_movil': 'No se marcó desde un celular.',
+    'cierre_pc': 'Cerrada desde un computador.',
 }
 
 
@@ -42,7 +43,7 @@ def _lectura(l):
     return {'lat': lat, 'lon': lon, 'acc': acc, 'ts': ts}
 
 
-def verificar_presencia(sede, lecturas, ahora=None):
+def verificar_presencia(sede, lecturas, ahora=None, min_lecturas=MIN_LECTURAS):
     """→ {'ok', 'motivos', 'avisos', 'distancia_m', 'precision_m', 'lat', 'lon'}.
 
     `sede`: objeto con `lat`, `lon`, `radio_m`, `precision_max_m` (o None). `lecturas`: lista de
@@ -53,9 +54,10 @@ def verificar_presencia(sede, lecturas, ahora=None):
                 key=lambda l: l['ts'])
     res = {'ok': False, 'motivos': motivos, 'avisos': avisos, 'distancia_m': None, 'precision_m': None,
            'lat': None, 'lon': None}
-    if sede is None or sede.lat is None or sede.lon is None:
-        motivos.append('sin_geocerca')
-    if len(ls) < MIN_LECTURAS:
+    con_sede = sede is not None and sede.lat is not None and sede.lon is not None
+    if not con_sede:
+        avisos.append('sin_geocerca')   # sede sin ubicación: solo se captura dónde marcó; no bloquea ni exige aprobación
+    if len(ls) < min_lecturas:
         motivos.append('pocas_lecturas')
         return res
     mejor = min(ls, key=lambda l: l['acc'])
@@ -64,7 +66,7 @@ def verificar_presencia(sede, lecturas, ahora=None):
         motivos.append('lectura_vieja')
     if mejor['acc'] < PRECISION_MIN_CREIBLE_M:
         motivos.append('precision_sospechosa')
-    elif sede is not None and mejor['acc'] > sede.precision_max_m:
+    elif con_sede and mejor['acc'] > sede.precision_max_m:
         motivos.append('precision')
     for a, b in zip(ls, ls[1:]):
         dt = b['ts'] - a['ts']
@@ -74,14 +76,10 @@ def verificar_presencia(sede, lecturas, ahora=None):
             break
     if len({(l['lat'], l['lon'], l['acc']) for l in ls}) == 1:
         avisos.append('lecturas_identicas')   # normal con ubicación por Wi-Fi; solo informa a quien revisa
-    if 'sin_geocerca' not in motivos:
+    if con_sede:
         res['distancia_m'] = round(distancia_m(mejor['lat'], mejor['lon'], float(sede.lat), float(sede.lon)), 1)
         if res['distancia_m'] > sede.radio_m:
             motivos.append('fuera_geocerca')
     res['ok'] = not motivos
     return res
 
-
-def es_movil(user_agent):
-    ua = (user_agent or '').lower()
-    return any(x in ua for x in ('android', 'iphone', 'ipad', 'mobile'))

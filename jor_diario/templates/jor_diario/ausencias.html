@@ -23,7 +23,7 @@
           <span>{{ a.get_tipo_display }} · {{ a.desde|date:"d/m/Y" }}–{{ a.hasta|date:"d/m/Y" }}</span>
           <span class="badge badge-sm {% if a.estado == 'aprobada' %}badge-success{% elif a.estado == 'rechazada' %}badge-error{% else %}badge-warning{% endif %}">{{ a.get_estado_display }}</span>
           {% if a.nota %}<span class="text-base-content/60">{{ a.nota }}</span>{% endif %}
-          {% if a.estado == 'pendiente' or gestiona %}<form method="post" action="{% url 'jor_diario:ausencia_eliminar' a.pk %}" class="ml-auto" data-confirmar="¿Eliminar esta ausencia?">{% csrf_token %}<button class="btn btn-ghost btn-xs">{% if a.estado == 'pendiente' %}Cancelar{% else %}Eliminar{% endif %}</button></form>{% endif %}
+          {% if a.estado == 'pendiente' or gestiona %}<form method="post" action="{% url 'jor_diario:ausencia_eliminar' a.pk %}" class="ml-auto" data-confirmar="¿Eliminar esta ausencia?">{% csrf_token %}<button class="btn btn-error btn-outline btn-sm gap-1">{% if a.estado == 'pendiente' %}{% include "components/icon.html" with name="ban" cls="size-4" %}Cancelar{% else %}{% include "components/icon.html" with name="trash" cls="size-4" %}Eliminar{% endif %}</button></form>{% endif %}
         </div>
       {% empty %}<p class="text-sm text-base-content/50">No tienes ausencias.</p>{% endfor %}
     </div></div>
@@ -40,7 +40,7 @@
   {% if form %}
   <form method="post" class="card h-fit bg-base-100"><div class="card-body gap-3">
     {% csrf_token %}<h2 class="font-semibold">{% if gestiona %}Registrar ausencia{% else %}Solicitar ausencia{% endif %}</h2>
-    {% include "components/campos.html" %}
+    {% include "components/campos.html" with una_columna=True %}
     <button type="submit" class="btn btn-primary">{% if gestiona %}Registrar{% else %}Enviar solicitud{% endif %}</button>
   </div></form>
   {% endif %}

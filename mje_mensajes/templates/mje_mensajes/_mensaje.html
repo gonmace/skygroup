@@ -1,8 +1,9 @@
 {% load mensajes_extras %}
 {% with propio=m.autor_id|default_if_none:0 %}
 <div class="chat {% if propio == request.user.pk %}chat-end{% else %}chat-start{% endif %} group" data-msj-id="{{ m.pk }}">
-  {% if propio != request.user.pk and conv.tipo != 'directo' %}<div class="chat-header text-xs text-base-content/60">{{ m.nombre_autor }}</div>{% endif %}
-  <div class="chat-bubble max-w-[85%] break-words text-sm {% if propio == request.user.pk %}chat-bubble-primary{% endif %}" data-msj-burbuja>
+  {% if propio != request.user.pk and conv.tipo != 'directo' %}<div class="chat-image"><span class="msj-avatar msj-avatar-sm" aria-hidden="true">{{ m.autor.iniciales|default:"?" }}</span></div>
+  <div class="chat-header mb-0.5 text-xs font-medium text-base-content/65">{{ m.nombre_autor }}</div>{% endif %}
+  <div class="chat-bubble msj-burbuja max-w-[85%] break-words text-[15px] {% if propio == request.user.pk %}chat-bubble-primary{% endif %}" data-msj-burbuja>
     {% for a in m.adjuntos.all %}
       {% if a.es_imagen %}
         <a href="{% url 'mje_mensajes:adjunto' a.pk %}" target="_blank" rel="noopener" class="mb-1 block"><img src="{% url 'mje_mensajes:adjunto_miniatura' a.pk %}" alt="{{ a.nombre }}" loading="lazy" class="max-h-48 rounded-lg"></a>
@@ -15,7 +16,7 @@
   <div class="chat-footer flex items-center gap-2 text-xs text-base-content/50 {% if propio == request.user.pk %}justify-end{% endif %}">
     <time datetime="{{ m.creado|date:'c' }}">{{ m.creado|date:"H:i" }}</time>{% if m.editado %}<span>· editado</span>{% endif %}
     {% if propio == request.user.pk %}
-      <span class="flex gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-100">
+      <span class="flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-70">
         <button type="button" class="btn btn-ghost btn-xs btn-square text-info" data-msj-editar="{{ m.pk }}" aria-label="Editar mensaje">{% include "components/icon.html" with name="pencil" cls="size-3.5" %}</button>
         <button type="button" class="btn btn-ghost btn-xs btn-square text-error" data-msj-borrar="{{ m.pk }}" aria-label="Borrar mensaje">{% include "components/icon.html" with name="trash" cls="size-3.5" %}</button>
       </span>

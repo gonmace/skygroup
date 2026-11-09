@@ -6,7 +6,7 @@
         {% include "components/icon.html" with name="clock" cls="size-3.5" %}{{ t.vence|date:"d/m" }}
       </span>
     {% endif %}
-    {% if t.num_comments %}<span class="inline-flex shrink-0 items-center gap-1" title="Mensajes">💬 {{ t.num_comments }}</span>{% endif %}
+    {% if t.num_comments %}<span class="inline-flex shrink-0 items-center gap-1" title="Mensajes">{% include "components/icon.html" with name="chat" cls="size-3.5" %}{{ t.num_comments }}</span>{% endif %}
   </div>
   {% include "tar_tickets/parciales/_grupo_avatares.html" with asignaciones=asignaciones %}
 </div>

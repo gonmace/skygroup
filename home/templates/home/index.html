@@ -11,15 +11,17 @@
       <p class="mx-auto mt-3 max-w-xl text-base-content/70">Registros de campo, tareas y jornadas del equipo en una sola plataforma, separada por empresa.</p>
       <a href="{% url 'cuentas:login' %}" class="btn btn-primary mt-6">Iniciar sesión</a>
     </header>
-    <div class="grid gap-4 md:grid-cols-3">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {% for m in lanzador_publico %}
-      <section class="card bg-base-100">
-        <div class="card-body gap-3">
-          <span class="grid size-12 place-items-center rounded-xl {{ m.clases }}">{% include "components/icon.html" with name=m.icono cls="size-6" %}</span>
-          <h2 class="card-title">{{ m.nombre }}</h2>
-          <p class="text-sm text-base-content/70">{{ m.descripcion }}</p>
+      <div class="mod-card {{ m.clases|cut:'mod-chip' }}{% if m.codigo == 'apu' %} mod-card-pronto{% endif %}">
+        {% if m.codigo == "apu" %}<span class="mod-cinta">Próximamente</span>{% endif %}
+        <span class="mod-card-glow" aria-hidden="true"></span>
+        <span class="mod-card-icon mod-chip">{% include "components/icon.html" with name=m.icono cls="size-8" %}</span>
+        <div class="relative min-w-0 flex-1">
+          <h2 class="text-lg font-semibold leading-tight">{% if m.resalte %}{{ m.nombre_base }} <span class="mod-ia">{% include "components/icon.html" with name="sparkles" cls="size-3.5" %}{{ m.resalte }}</span>{% else %}{{ m.nombre }}{% endif %}</h2>
+          <p class="mt-1 text-sm text-base-content/70">{{ m.descripcion }}</p>
         </div>
-      </section>
+      </div>
       {% endfor %}
     </div>
   </div>

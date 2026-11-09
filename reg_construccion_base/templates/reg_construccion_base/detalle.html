@@ -27,7 +27,7 @@
         <dt class="text-base-content/60">Supervisor</dt><dd>{{ r.responsable_nombre }}</dd>
         {% if r.emitido_en %}<dt class="text-base-content/60">Emitida</dt><dd>{{ r.emitido_en|date:"d/m/Y H:i" }}{% if r.emitido_por %} · {{ r.emitido_por.get_full_name|default:r.emitido_por.email }}{% endif %}</dd>{% endif %}
       </dl>
-      {% if r.concluido %}<p class="text-sm text-base-content/60">La visita está emitida y es de solo lectura. Para corregirla, crea una revisión.</p>{% endif %}
+      {% if r.concluido %}<p class="text-sm text-base-content/60">La visita está emitida y es de solo lectura.{% if puede_reabrir %} Puedes reabrirla con el interruptor «Emitida» o crear una revisión.{% else %} Solo un administrador puede reabrirla; también puedes crear una revisión.{% endif %}</p>{% endif %}
     {% endif %}
   </div></section>
 

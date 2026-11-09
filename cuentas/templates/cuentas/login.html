@@ -1,24 +1,47 @@
 {% extends "cuentas/_auth_base.html" %}
 {% block title %}Iniciar sesión{% endblock %}
 {% block auth_titulo %}Iniciar sesión{% endblock %}
+{% block auth_subtitulo %}{% if empresa %}Accede a tu espacio de {{ marca }}{% else %}Accede a tu cuenta{% endif %}{% endblock %}
 {% block auth_cuerpo %}
+{% for m in messages %}<div class="alert alert-{% if m.tags == 'error' %}error{% else %}info{% endif %} alert-soft mb-4 text-sm">{{ m }}</div>{% endfor %}
 <form method="post" class="flex flex-col gap-4">
   {% csrf_token %}
   {% if form.non_field_errors %}
-    <div class="alert alert-error text-sm">{{ form.non_field_errors.0 }}</div>
+    <div class="alert alert-error alert-soft text-sm">{{ form.non_field_errors.0 }}</div>
   {% endif %}
-  <label class="form-control w-full">
-    <span class="label-text mb-1">{{ form.username.label }}</span>
-    {{ form.username }}
-    {% for e in form.username.errors %}<span class="text-error text-sm">{{ e }}</span>{% endfor %}
-  </label>
-  <label class="form-control w-full">
-    <span class="label-text mb-1">{{ form.password.label }}</span>
-    {{ form.password }}
-  </label>
+  <div>
+    <label for="{{ form.username.id_for_label }}" class="mb-1.5 block text-sm font-medium">{{ form.username.label }}</label>
+    <div class="relative [&_input]:h-12 [&_input]:rounded-xl [&_input]:pl-11">
+      <span class="pointer-events-none absolute inset-y-0 left-3.5 z-10 grid place-items-center text-base-content/40">{% include "components/icon.html" with name="mail" cls="size-5" %}</span>
+      {{ form.username }}
+    </div>
+    {% for e in form.username.errors %}<p class="mt-1 text-sm text-error">{{ e }}</p>{% endfor %}
+  </div>
+  <div>
+    <div class="mb-1.5 flex items-baseline justify-between">
+      <label for="{{ form.password.id_for_label }}" class="text-sm font-medium">{{ form.password.label }}</label>
+      <a href="{% url 'cuentas:password_reset' %}" class="link link-hover text-xs text-base-content/60">¿Olvidaste tu contraseña?</a>
+    </div>
+    <div class="relative [&_input]:h-12 [&_input]:rounded-xl [&_input]:px-11">
+      <span class="pointer-events-none absolute inset-y-0 left-3.5 z-10 grid place-items-center text-base-content/40">{% include "components/icon.html" with name="lock" cls="size-5" %}</span>
+      {{ form.password }}
+      <button type="button" data-ver-clave="{{ form.password.id_for_label }}" aria-label="Mostrar contraseña" aria-pressed="false"
+              class="absolute inset-y-0 right-1.5 z-10 grid w-10 place-items-center rounded-lg text-base-content/60 hover:text-base-content">
+        <span data-ojo class="opacity-40">{% include "components/icon.html" with name="eye" cls="size-5" %}</span>
+      </button>
+    </div>
+    {% for e in form.password.errors %}<p class="mt-1 text-sm text-error">{{ e }}</p>{% endfor %}
+  </div>
   <input type="hidden" name="next" value="{{ next }}">
-  <button type="submit" class="btn btn-primary">Entrar</button>
-  <a href="{% url 'cuentas:password_reset' %}" class="link link-hover text-sm text-center">Olvidé mi contraseña</a>
-  {% if registro_abierto %}<a href="{% url 'cuentas:registro' %}" class="link link-hover text-sm text-center">¿Tienes correo de la empresa? Crea tu acceso</a>{% endif %}
+  <button type="submit" class="btn btn-primary mt-1 h-12 w-full rounded-xl text-base">Entrar</button>
+  {% if nextcloud %}
+    <div class="divider my-0 text-xs text-base-content/50">o continúa con</div>
+    <a href="{% url 'cuentas:nextcloud_iniciar' %}{% if next %}?next={{ next|urlencode }}{% endif %}" class="btn btn-outline h-12 w-full rounded-xl">
+      {% include "components/icon.html" with name="cloud" cls="size-5" %}{{ nextcloud.texto_boton }}
+    </a>
+  {% endif %}
+  {% if registro_abierto %}
+    <p class="mt-1 text-center text-sm text-base-content/70">¿Tienes correo de la empresa? <a href="{% url 'cuentas:registro' %}" class="link link-primary font-medium">Crea tu acceso</a></p>
+  {% endif %}
 </form>
 {% endblock %}

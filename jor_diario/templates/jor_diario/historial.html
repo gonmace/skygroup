@@ -1,10 +1,10 @@
 {% extends "shell.html" %}
 {% block page_title %}Mis reportes{% endblock %}
 {% block content_main %}
-<div class="mb-5 grid grid-cols-3 gap-3">
-  <div class="rounded-2xl border border-base-300 bg-base-100 p-4 text-center"><p class="text-[10px] font-semibold uppercase tracking-widest text-base-content/40">Jornadas</p><p class="mt-1 text-3xl font-black">{{ total_jornadas }}</p></div>
-  <div class="rounded-2xl border border-base-300 bg-base-100 p-4 text-center"><p class="text-[10px] font-semibold uppercase tracking-widest text-base-content/40">Horas acumuladas</p><p class="mt-1 text-3xl font-black text-info">{{ total_horas }}</p></div>
-  <div class="rounded-2xl border border-base-300 bg-base-100 p-4 text-center"><p class="text-[10px] font-semibold uppercase tracking-widest text-base-content/40">Promedio por jornada</p><p class="mt-1 text-3xl font-black text-success">{{ promedio }}</p></div>
+<div class="mb-5 grid grid-cols-3 gap-2 sm:gap-3">
+  <div class="rounded-2xl border border-base-300 bg-base-100 p-2 sm:p-4 text-center"><p class="text-[9px] sm:text-[10px] font-semibold uppercase leading-tight tracking-wide sm:tracking-widest text-base-content/40">Jornadas</p><p class="mt-1 text-lg sm:text-3xl font-black tabular-nums whitespace-nowrap">{{ total_jornadas }}</p></div>
+  <div class="rounded-2xl border border-base-300 bg-base-100 p-2 sm:p-4 text-center"><p class="text-[9px] sm:text-[10px] font-semibold uppercase leading-tight tracking-wide sm:tracking-widest text-base-content/40">Horas acumuladas</p><p class="mt-1 text-lg sm:text-3xl font-black tabular-nums whitespace-nowrap text-info">{{ total_horas }}</p></div>
+  <div class="rounded-2xl border border-base-300 bg-base-100 p-2 sm:p-4 text-center"><p class="text-[9px] sm:text-[10px] font-semibold uppercase leading-tight tracking-wide sm:tracking-widest text-base-content/40">Promedio por jornada</p><p class="mt-1 text-lg sm:text-3xl font-black tabular-nums whitespace-nowrap text-success">{{ promedio }}</p></div>
 </div>
 
 <div class="space-y-3">

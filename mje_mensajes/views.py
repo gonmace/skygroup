@@ -65,7 +65,7 @@ def conversacion(request, pk):
     hay_mas = len(mensajes) > servicios.POR_PAGINA
     mensajes = mensajes[:servicios.POR_PAGINA][::-1]
     return render(request, 'mje_mensajes/_conversacion.html', {
-        'conv': conv, 'titulo': conv.titulo(request.user), 'hay_mas': hay_mas,
+        'conv': conv, 'titulo': conv.titulo(request.user), 'hay_mas': hay_mas, 'otro': conv.otro(request.user),
         'mensajes': mensajes, 'maximo': servicios.MAX_TEXTO, 'max_adjuntos': servicios.MAX_ADJUNTOS,
         'ultimo_id': mensajes[-1].pk if mensajes else 0, 'primero_id': mensajes[0].pk if mensajes else 0,
         'es_directo': conv.tipo == Conversacion.Tipo.DIRECTO,

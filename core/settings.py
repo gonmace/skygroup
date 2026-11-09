@@ -16,6 +16,15 @@ if SECRET_KEY == _SECRET_KEY_DEFAULT and os.path.exists(os.path.join(BASE_DIR, '
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='', cast=Csv())
 
+# En producción (DEBUG apagado) no se arranca con la clave de ejemplo ni sin hosts: en el contenedor no hay .env
+# (las variables llegan por env_file), así que la comprobación de arriba no alcanza.
+if not DEBUG:
+    from django.core.exceptions import ImproperlyConfigured
+    if SECRET_KEY == _SECRET_KEY_DEFAULT:
+        raise ImproperlyConfigured('SECRET_KEY no está definida: con DEBUG apagado se usaría la clave de ejemplo.')
+    if not ALLOWED_HOSTS:
+        raise ImproperlyConfigured('ALLOWED_HOSTS está vacío: define los dominios del sitio en .env.')
+
 ADMIN_URL = config('ADMIN_URL', default='admin/')
 
 # Application definition
@@ -113,6 +122,7 @@ TEMPLATES = [
                 'notificaciones.context_processors.campana',
                 'mje_mensajes.context_processors.mensajeria',
                 'jor_diario.context_processors.jornada_hoy',
+                'cuentas.context_processors.nextcloud_cuenta',
             ],
         },
     },
@@ -222,8 +232,11 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_REDIRECT_EXEMPT = [r'^healthz$']  # healthcheck interno de Docker (HTTP plano)
+
+# Detrás de nginx (producción) o ngrok (pruebas en celular) la petición llega como HTTP; sin esto
+# `request.is_secure()` es falso y el origen esperado por WebAuthn (passkey) no coincide con el del navegador.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 X_FRAME_OPTIONS = 'DENY'
 

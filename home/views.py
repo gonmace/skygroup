@@ -11,7 +11,10 @@ def index(request):
     if empresa is None:
         from panel.menu import MODULOS
         return render(request, 'home/index.html', {  # portada pública (sin empresa): los 3 módulos
-            'lanzador_publico': [{'codigo': c, **m} for c, m in MODULOS.items()],
+            'lanzador_publico': [
+                {'codigo': c, **m, 'resalte': m.get('resalte', ''),
+                 'nombre_base': m['nombre'].removesuffix(m.get('resalte', '')).rstrip()}
+                for c, m in MODULOS.items()],
         })
     if not request.user.is_authenticated:
         return redirect_to_login(request.get_full_path())

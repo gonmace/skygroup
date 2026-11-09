@@ -8,6 +8,14 @@
              data-autoenviar="¿Emitir la visita? Quedará de solo lectura; para corregirla crearás una revisión.">
     </label>
   </form>
+  {% elif puede_reabrir %}
+  <form method="post" action="{% url 'reg_construccion_base:reabrir' r.pk %}" class="shrink-0">{% csrf_token %}
+    <label class="flex h-7 cursor-pointer items-center gap-1.5 rounded-full border border-base-content/10 bg-base-100 pl-2.5 pr-1.5 text-xs shadow-sm" title="Emitida{% if r.emitido_en %} el {{ r.emitido_en|date:'d/m/Y H:i' }}{% endif %}. Apágalo para reabrirla y seguir editando.">
+      <span class="font-medium">Emitida</span>
+      <input type="checkbox" checked class="toggle toggle-success toggle-xs shrink-0" aria-label="Reabrir la visita"
+             data-autoenviar="¿Reabrir la visita emitida? Volverá a ser editable.">
+    </label>
+  </form>
   {% elif r.concluido %}<span class="badge badge-success badge-sm">Emitida{% if r.emitido_en %} · {{ r.emitido_en|date:"d/m/Y H:i" }}{% endif %}</span>{% endif %}
   <div class="flex items-center gap-0.5">
     <a href="{% url 'reg_construccion_base:pdf' r.pk %}" target="_blank" rel="noopener" class="btn btn-ghost btn-square btn-sm text-red-600 hover:bg-red-600/10"

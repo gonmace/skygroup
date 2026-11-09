@@ -2,6 +2,7 @@
 
 El celular guarda la clave privada y la desbloquea con huella/PIN del propio teléfono; al servidor solo llega la
 clave pública y la firma de cada marcación. Cada «challenge» vive en la sesión, es de un solo uso y caduca."""
+import logging
 import time
 
 from django.utils import timezone
@@ -14,6 +15,8 @@ from webauthn.helpers.structs import (AuthenticatorAttachment, AuthenticatorSele
                                       UserVerificationRequirement)
 
 from .models import DispositivoMarcacion
+
+logger = logging.getLogger(__name__)
 
 CLAVE_SESION = 'jor_passkey_challenge'
 TTL_S = 90
@@ -72,7 +75,8 @@ def registrar(request, perfil, credencial, nombre=''):
     try:
         v = verify_registration_response(credential=credencial, expected_challenge=challenge, expected_rp_id=rp_id,
                                          expected_origin=origen, require_user_verification=True)
-    except (InvalidRegistrationResponse, ValueError, KeyError, TypeError):
+    except (InvalidRegistrationResponse, ValueError, KeyError, TypeError) as e:
+        logger.warning('Registro de passkey rechazado (rp_id=%s, origen=%s): %s', rp_id, origen, e)
         raise ErrorPasskey('No se pudo verificar el celular. Inténtalo de nuevo.')
     return DispositivoMarcacion.objects.create(
         perfil=perfil, credential_id=v.credential_id, public_key=v.credential_public_key, sign_count=v.sign_count,

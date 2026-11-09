@@ -41,8 +41,6 @@ class JorDiarioConfig(AppConfig):
         registrar_item('jor', 'Excepciones', 'jor_diario:excepciones', 'user-check', capacidad='jor.excepciones.gestionar', orden=50, seccion='Equipo')
         registrar_item('jor', 'Estadísticas', 'jor_reportes:estadisticas', 'chart', capacidad='jor.stats.view', orden=65, seccion='Equipo')
         registrar_item('jor', '{certificado}', 'jor_reportes:certificado', 'file-text', capacidad='jor.certificado.generar', orden=70, seccion='Reportes')
-        # «Reportes» es un grupo propio tras Equipo; lo mismo «{proyectos}»: se sustituye por el término de la empresa se sustituye por el término de la empresa (p. ej. «Sitios»).
-        registrar_item('jor', '{proyectos}', 'proyectos:lista', 'folder', capacidad='proyectos.view', orden=80, seccion='{proyectos}')
         # Categorías y Etiquetas son pestañas de Configuración (jor_empleados.views.pestanas_config).
         registrar_item('jor', 'Configuración', 'jor_empleados:config', 'settings',
                        capacidad=('jor.config.manage', 'jor.etiquetas.manage'), orden=90, seccion='Ajustes',

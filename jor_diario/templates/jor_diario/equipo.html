@@ -13,6 +13,11 @@
     <span class="hidden text-base-content/50 sm:inline">· {{ con_jornada }} con jornada el {{ dia|date:"d/m/Y" }}</span>
   </p>
   <div class="flex items-center gap-1">
+    {% if puede_mapa %}<a href="{% url 'jor_diario:mapa_equipo' %}?fecha={{ dia|date:'Y-m-d' }}" class="btn btn-md btn-square border-0 bg-info/15 hover:bg-info/25 sm:btn-sm" title="Ver en el mapa dónde marcó cada persona" aria-label="Ver mapa de ubicaciones">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-6" aria-hidden="true">
+        <path d="M3 6.5 9 4v14l-6 2.5z" fill="#34d399"/><path d="M9 4l6 2.5v14L9 18z" fill="#60a5fa"/><path d="m15 6.5 6-2.5v14l-6 2.5z" fill="#fbbf24"/>
+        <path d="M12 2.5a4.5 4.5 0 0 0-4.5 4.5c0 3.4 4.5 8 4.5 8s4.5-4.6 4.5-8A4.5 4.5 0 0 0 12 2.5z" fill="#ef4444" stroke="#fff" stroke-width="1.2"/><circle cx="12" cy="7" r="1.7" fill="#fff"/>
+      </svg></a>{% endif %}
     <a href="?fecha={{ anterior|date:'Y-m-d' }}{{ orden_qs }}" class="btn btn-ghost btn-md btn-square sm:btn-sm" aria-label="Día anterior">{% include "components/icon.html" with name="chevron-left" cls="size-5" %}</a>
     <form method="get">{% if orden_qs %}<input type="hidden" name="orden" value="{{ request.GET.orden }}"><input type="hidden" name="dir" value="{{ request.GET.dir }}">{% endif %}<input type="date" name="fecha" value="{{ dia|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" class="input input-bordered input-md w-44 sm:input-sm sm:w-40" data-autoenviar-select aria-label="Fecha"></form>
     {% if siguiente %}<a href="?fecha={{ siguiente|date:'Y-m-d' }}{{ orden_qs }}" class="btn btn-ghost btn-md btn-square sm:btn-sm" aria-label="Día siguiente"><span class="inline-block rotate-180">{% include "components/icon.html" with name="chevron-left" cls="size-5" %}</span></a>{% endif %}

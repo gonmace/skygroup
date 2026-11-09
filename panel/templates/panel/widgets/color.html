@@ -1,0 +1,5 @@
+{# Selector de color nativo + texto #RRGGBB (se sincronizan en static/js/campo-color.js). #}
+<div class="flex items-center gap-2" data-campo-color>
+  <input type="color" value="{% if widget.value and widget.value|length == 7 %}{{ widget.value }}{% else %}#cccccc{% endif %}" class="h-12 w-14 shrink-0 cursor-pointer rounded-xl border border-base-content/20 bg-base-100 p-1 {% if not widget.value %}opacity-50{% endif %}" aria-label="Elegir color" data-color-selector>
+  <input type="text" name="{{ widget.name }}"{% if widget.value != None %} value="{{ widget.value }}"{% endif %}{% include "django/forms/widgets/attrs.html" %} data-color-texto>
+</div>

@@ -2,29 +2,92 @@
 {% block page_title %}Supervisión Campo{% endblock %}
 {% block content_main %}
 <div class="mb-4 flex flex-wrap items-end gap-2">
-  <form method="get" class="flex flex-1 flex-wrap items-end gap-2">
-    <input type="search" name="q" value="{{ q }}" placeholder="Buscar {{ termino_proyecto|lower }} por nombre o código…" class="input input-bordered input-sm w-full max-w-xs">
-    <select name="estado" class="select select-bordered select-sm" aria-label="Estado">
-      <option value="">Todos los estados</option>
-      <option value="rojo" {% if estado == 'rojo' %}selected{% endif %}>Vacía</option>
-      <option value="amarillo" {% if estado == 'amarillo' %}selected{% endif %}>En proceso</option>
-      <option value="verde" {% if estado == 'verde' %}selected{% endif %}>Emitida</option>
-    </select>
-    <label class="text-xs text-base-content/60">Desde <input type="date" name="desde" value="{{ desde }}" class="input input-bordered input-sm"></label>
-    <label class="text-xs text-base-content/60">Hasta <input type="date" name="hasta" value="{{ hasta }}" class="input input-bordered input-sm"></label>
-    <button class="btn btn-sm">Filtrar</button>
+  <form method="get" class="flex min-w-0 flex-1 items-end gap-2">
+    <input type="search" name="q" value="{{ q }}" placeholder="Buscar {{ termino_proyecto|lower }}…" aria-label="Buscar {{ termino_proyecto|lower }} por nombre o código" class="input input-bordered input-sm min-w-0 flex-1 sm:max-w-xs">
+    <button class="btn btn-sm">Buscar</button>
   </form>
-  {% if puede_nueva %}<a href="{% url 'reg_construccion_base:nueva' %}" class="btn btn-primary btn-sm">{% include "components/icon.html" with name="plus" cls="size-4" %} Nueva visita</a>{% endif %}
+  {% if puede_activar %}<a href="{% url 'reg_construccion_base:nueva' %}" class="btn btn-primary btn-sm">{% include "components/icon.html" with name="plus" cls="size-4" %} Activar {{ termino_proyecto|lower }}</a>{% endif %}
 </div>
 
+<div class="table-card mb-6 hidden max-h-72 overflow-y-auto sm:block">
+  <table class="table table-pin-rows">
+    <thead><tr><th>{{ termino_proyecto }}</th><th class="text-right">Visitas</th><th>Última</th><th class="text-right">Hallazgos abiertos</th><th class="w-0"><span class="sr-only">Acciones</span></th></tr></thead>
+    <tbody>
+    {% for s in sitios %}
+      <tr data-href="?{% if q %}q={{ q|urlencode }}&{% endif %}proyecto={{ s.proyecto_id }}" class="hover cursor-pointer {% if s.proyecto_id == sel %}bg-primary/10 font-semibold{% endif %}">
+        <td><a class="link font-medium" href="?{% if q %}q={{ q|urlencode }}&{% endif %}proyecto={{ s.proyecto_id }}">{{ s.proyecto__codigo|default:"—" }}</a> <span class="text-sm text-base-content/60">{{ s.proyecto__nombre }}</span></td>
+        <td class="text-right tabular-nums">{{ s.visitas }}</td>
+        <td class="whitespace-nowrap text-sm">{{ s.ultima|date:"d/m/Y" }}</td>
+        <td class="text-right tabular-nums">{% if s.n_abiertos %}<span class="badge badge-warning badge-soft">{{ s.n_abiertos }}</span>{% else %}0{% endif %}</td>
+        <td class="whitespace-nowrap text-right">
+          <a href="{% url 'reg_construccion_base:detalle' s.ultimo_id %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Abrir la última visita" aria-label="Abrir la última visita">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+          {% if puede_nueva %}
+          <form method="post" action="{% url 'reg_construccion_base:nueva_visita' s.ultimo_id %}" data-confirmar="¿Crear una nueva visita con la fecha de hoy?" class="inline">{% csrf_token %}
+            <button class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Nueva visita (hoy)" aria-label="Nueva visita">{% include "components/icon.html" with name="calendar" cls="size-5" %}</button>
+          </form>
+          {% endif %}
+          {% if puede_editar_sitio %}
+          <a href="{% url 'proyectos:editar' s.proyecto_id %}" class="btn btn-ghost btn-square btn-sm text-warning hover:bg-warning/10" title="Editar {{ termino_proyecto|lower }}" aria-label="Editar {{ termino_proyecto|lower }}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}<tr><td colspan="5" class="py-8 text-center text-base-content/60">No hay proyectos activados{% if q %} con esa búsqueda{% endif %}.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<ul class="mb-5 space-y-2 sm:hidden">
+  {% for s in sitios %}
+  <li class="flex items-center gap-1 rounded-box bg-base-100 p-3 pr-2 shadow-sm {% if s.proyecto_id == sel %}ring-2 ring-primary{% endif %}">
+    <a class="min-w-0 flex-1" href="?{% if q %}q={{ q|urlencode }}&{% endif %}proyecto={{ s.proyecto_id }}" {% if s.proyecto_id == sel %}aria-current="true"{% endif %}>
+      <div class="truncate font-semibold">{{ s.proyecto__codigo|default:s.proyecto__nombre }}</div>
+      {% if s.proyecto__codigo %}<div class="truncate text-sm text-base-content/60">{{ s.proyecto__nombre }}</div>{% endif %}
+      <div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-content/70">
+        <span class="tabular-nums">{{ s.visitas }} visita{{ s.visitas|pluralize }}</span><span aria-hidden="true">·</span><span class="tabular-nums">{{ s.ultima|date:"d/m/Y" }}</span>
+        {% if s.n_abiertos %}<span class="badge badge-warning badge-sm tabular-nums">{{ s.n_abiertos }} hallazgo{{ s.n_abiertos|pluralize }}</span>{% endif %}
+      </div>
+    </a>
+    <div class="flex shrink-0 flex-col">
+      <a href="{% url 'reg_construccion_base:detalle' s.ultimo_id %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Abrir la última visita" aria-label="Abrir la última visita">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+      {% if puede_nueva %}
+      <form method="post" action="{% url 'reg_construccion_base:nueva_visita' s.ultimo_id %}" data-confirmar="¿Crear una nueva visita con la fecha de hoy?">{% csrf_token %}
+        <button class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Nueva visita (hoy)" aria-label="Nueva visita">{% include "components/icon.html" with name="calendar" cls="size-5" %}</button>
+      </form>
+      {% endif %}
+    </div>
+  </li>
+  {% empty %}<li class="rounded-box bg-base-100 py-8 text-center text-base-content/60">No hay proyectos activados.</li>{% endfor %}
+</ul>
+
+<h2 class="mb-2 text-sm font-semibold text-base-content/70">Visitas</h2>
+{% if pagina is None %}
+  <p class="rounded-box bg-base-100 py-8 text-center text-sm text-base-content/60">Selecciona {{ termino_proyecto|lower }} para ver sus visitas.</p>
+{% else %}
+<div class="segmentado mb-3 sm:hidden" role="group" aria-label="Estado de la visita">
+  <a href="?proyecto={{ sel }}{% if q %}&q={{ q|urlencode }}{% endif %}" {% if not estado %}aria-current="true"{% endif %}>Todas</a>
+  <a href="?proyecto={{ sel }}{% if q %}&q={{ q|urlencode }}{% endif %}&estado=amarillo" {% if estado == 'amarillo' %}aria-current="true"{% endif %}>En proceso</a>
+  <a href="?proyecto={{ sel }}{% if q %}&q={{ q|urlencode }}{% endif %}&estado=verde" {% if estado == 'verde' %}aria-current="true"{% endif %}>Emitidas</a>
+  <a href="?proyecto={{ sel }}{% if q %}&q={{ q|urlencode }}{% endif %}&estado=rojo" {% if estado == 'rojo' %}aria-current="true"{% endif %}>Vacías</a>
+</div>
+<form method="get" class="mb-3 hidden items-end gap-2 sm:flex sm:flex-wrap">
+  <input type="hidden" name="proyecto" value="{{ sel }}">{% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+  <select name="estado" class="select select-bordered select-sm" aria-label="Estado">
+    <option value="">Todos los estados</option>
+    <option value="rojo" {% if estado == 'rojo' %}selected{% endif %}>Vacía</option>
+    <option value="amarillo" {% if estado == 'amarillo' %}selected{% endif %}>En proceso</option>
+    <option value="verde" {% if estado == 'verde' %}selected{% endif %}>Emitida</option>
+  </select>
+  <label class="text-xs text-base-content/60">Desde <input type="date" name="desde" value="{{ desde }}" class="input input-bordered input-sm"></label>
+  <label class="text-xs text-base-content/60">Hasta <input type="date" name="hasta" value="{{ hasta }}" class="input input-bordered input-sm"></label>
+  <button class="btn btn-sm">Filtrar</button>
+</form>
 <div class="table-card hidden sm:block">
   <table class="table">
-    <thead><tr><th>{{ termino_proyecto }}</th><th>Visita</th><th>Fecha</th><th>Supervisor</th><th>Contratista</th><th class="text-right">Hallazgos abiertos</th><th>Revisión</th><th class="w-0"><span class="sr-only">Acciones</span></th></tr></thead>
+    <thead><tr><th>Visita</th><th>Fecha</th><th>Supervisor</th><th>Contratista</th><th class="text-right">Hallazgos abiertos</th><th>Revisión</th><th class="w-0"><span class="sr-only">Acciones</span></th></tr></thead>
     <tbody>
     {% for r in pagina %}
       <tr data-href="{% url 'reg_construccion_base:detalle' r.pk %}" class="hover cursor-pointer row-{% if r.color == 'verde' %}concluido{% elif r.color == 'amarillo' %}parcial{% else %}vacio{% endif %}">
-        <td><span class="sr-only">{% if r.color == 'verde' %}Emitida{% elif r.color == 'amarillo' %}En proceso{% else %}Vacía{% endif %}. </span><a class="link font-medium" href="{% url 'reg_construccion_base:detalle' r.pk %}">{{ r.proyecto.codigo|default:"—" }}</a> <span class="text-sm text-base-content/60">{{ r.proyecto.nombre }}</span></td>
-        <td class="tabular-nums">#{{ r.numero }}</td>
+        <td class="tabular-nums"><span class="sr-only">{% if r.color == 'verde' %}Emitida{% elif r.color == 'amarillo' %}En proceso{% else %}Vacía{% endif %}. </span><a class="link font-medium" href="{% url 'reg_construccion_base:detalle' r.pk %}">#{{ r.numero }}</a></td>
         <td class="whitespace-nowrap text-sm">{{ r.fecha|date:"d/m/Y" }}</td>
         <td class="text-sm">{{ r.responsable_nombre }}</td>
         <td class="text-sm">{{ r.contratista.nombre|default:"—" }}</td>
@@ -41,23 +104,26 @@
           {% endif %}
         </td>
       </tr>
-    {% empty %}<tr><td colspan="8" class="py-8 text-center text-base-content/60">No hay visitas{% if q or estado or desde or hasta %} con esos filtros{% endif %}.</td></tr>{% endfor %}
+    {% empty %}<tr><td colspan="7" class="py-8 text-center text-base-content/60">No hay visitas{% if q or estado or desde or hasta %} con esos filtros{% endif %}.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
 
 <ul class="space-y-2 sm:hidden">
   {% for r in pagina %}
-  <li class="rounded-box bg-base-100 p-3 shadow-sm row-{% if r.color == 'verde' %}concluido{% elif r.color == 'amarillo' %}parcial{% else %}vacio{% endif %}">
-    <a class="block" href="{% url 'reg_construccion_base:detalle' r.pk %}">
-      <div class="flex items-baseline justify-between gap-2"><span class="font-medium">{{ r.proyecto.codigo|default:"—" }} <span class="text-sm font-normal text-base-content/60">{{ r.proyecto.nombre }}</span></span><span class="text-sm tabular-nums">{{ r.fecha|date:"d/m/Y" }}</span></div>
-      <dl class="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-sm">
-        <dt class="text-base-content/60">Visita</dt><dd>#{{ r.numero }} · {{ r.rev_etiqueta }}</dd>
-        <dt class="text-base-content/60">Supervisor</dt><dd>{{ r.responsable_nombre }}</dd>
-        <dt class="text-base-content/60">Hallazgos abiertos</dt><dd class="tabular-nums">{{ r.n_abiertos }}</dd>
-      </dl>
+  <li class="flex items-center gap-1 rounded-box bg-base-100 py-3 pl-4 pr-2 shadow-sm row-{% if r.color == 'verde' %}concluido{% elif r.color == 'amarillo' %}parcial{% else %}vacio{% endif %}">
+    <a class="min-w-0 flex-1" href="{% url 'reg_construccion_base:detalle' r.pk %}">
+      <div class="flex items-baseline justify-between gap-2">
+        <span class="font-semibold tabular-nums"><span class="sr-only">{% if r.color == 'verde' %}Emitida{% elif r.color == 'amarillo' %}En proceso{% else %}Vacía{% endif %}. </span>Visita #{{ r.numero }}</span>
+        <span class="text-sm tabular-nums text-base-content/70">{{ r.fecha|date:"d/m/Y" }}</span>
+      </div>
+      <div class="mt-0.5 truncate text-sm text-base-content/70">{{ r.rev_etiqueta }} · {{ r.responsable_nombre }}</div>
+      <div class="mt-1.5 flex items-center gap-2 text-xs">
+        <span class="badge badge-sm {% if r.color == 'verde' %}badge-success{% elif r.color == 'amarillo' %}badge-warning{% else %}badge-error{% endif %}">{% if r.color == 'verde' %}Emitida{% elif r.color == 'amarillo' %}En proceso{% else %}Vacía{% endif %}</span>
+        {% if r.n_abiertos %}<span class="text-base-content/70 tabular-nums">{{ r.n_abiertos }} hallazgo{{ r.n_abiertos|pluralize }} abierto{{ r.n_abiertos|pluralize }}</span>{% endif %}
+      </div>
     </a>
-    <div class="mt-2 flex justify-end gap-1 border-t border-base-content/10 pt-2">
+    <div class="flex shrink-0 flex-col">
       <a href="{% url 'reg_construccion_base:detalle' r.pk %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Ver" aria-label="Ver">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
       <a href="{% url 'reg_construccion_base:pdf' r.pk %}" target="_blank" rel="noopener" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Generar PDF" aria-label="Generar PDF">{% include "components/icon.html" with name="file-text" cls="size-5" %}</a>
     </div>
@@ -65,4 +131,5 @@
   {% empty %}<li class="rounded-box bg-base-100 py-8 text-center text-base-content/60">No hay visitas.</li>{% endfor %}
 </ul>
 {% include "tar_tickets/parciales/_paginacion.html" %}
+{% endif %}
 {% endblock %}

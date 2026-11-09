@@ -145,6 +145,8 @@ def _items_config(request):
         candidatos.append(('Usuarios', 'panel:miembros', 'users', False, 'general', 'Usuarios y accesos'))
         candidatos.append(('Sedes', 'panel:sedes', 'map-pin', False, 'general', 'Usuarios y accesos'))
         candidatos.append(('Alta por dominio', 'panel:acceso', 'lock', False, 'general', 'Usuarios y accesos'))
+        if user.is_superuser:    # el servidor y el cliente OAuth deciden quién entra: solo el superusuario
+            candidatos.append(('Nextcloud', 'panel:nextcloud', 'cloud', False, 'general', 'Usuarios y accesos'))
     if tiene_capacidad(user, 'cuentas.roles.manage', empresa):
         candidatos.append(('Cargos y permisos', 'panel:roles', 'shield', False, 'general', 'Usuarios y accesos'))
     if tiene_capacidad(user, 'empresas.marca.manage', empresa):
@@ -169,12 +171,12 @@ def construir_menu(request):
     activa = app_activa_codigo(request)
     apps, items_por_app = [], {}
 
-    def agregar(codigo, meta, items, url, disponible=True, nivel='todos'):
+    def agregar(codigo, meta, items, url, disponible=True, nivel='todos', accion=''):
         # nivel: quién accede → 'todos' · 'coordinadores' · 'superusuario'; el selector separa los grupos con una línea
         items_por_app[codigo] = items
         apps.append({'nivel': nivel,
             'codigo': codigo, 'nombre': meta['nombre'], 'icono': meta['icono'], 'clases': meta['clases'],
-            'url': url, 'disponible': disponible, 'activa': codigo == activa,
+            'url': url, 'disponible': disponible, 'activa': codigo == activa, 'accion': accion,
         })
 
     if empresa is not None:
@@ -191,7 +193,12 @@ def construir_menu(request):
         items_inicio += _items_config(request)
         agregar('inicio', SISTEMA['inicio'], items_inicio, inicio['url'] if inicio else '#')
         for codigo, meta in MODULOS.items():
-            if not empresa.tiene_modulo(codigo) or meta.get('flotante'):
+            if meta.get('flotante'):
+                # Sin páginas ni barra lateral: en el selector de aplicaciones abre su ventana flotante en vez de navegar.
+                if empresa.tiene_modulo(codigo) and tiene_capacidad(user, meta['capacidad'], empresa):
+                    agregar(codigo, meta, [], '#', accion=meta.get('accion', ''))
+                continue
+            if not empresa.tiene_modulo(codigo):
                 continue
             items = _items_modulo(request, codigo)
             if not items and any(i['modulo'] == codigo for i in _ITEMS):

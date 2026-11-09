@@ -1,19 +1,22 @@
-<header class="flex items-center gap-2 border-b border-base-content/10 px-4 py-3">
-  <h2 class="flex-1 text-base font-semibold">Mensajería</h2>
-  <button type="button" class="btn btn-ghost btn-square btn-sm" data-msj="cerrar" aria-label="Cerrar mensajería">✕</button>
+<header class="flex items-center gap-2 px-4 pb-2 pt-4">
+  <div class="min-w-0 flex-1">
+    <h2 class="text-lg font-semibold leading-tight">Mensajería</h2>
+    <p class="text-xs text-base-content/55">Chat del equipo</p>
+  </div>
+  <button type="button" class="btn btn-ghost btn-circle btn-sm" data-msj="cerrar" aria-label="Cerrar mensajería">{% include "components/icon.html" with name="x" cls="size-5" %}</button>
 </header>
-<div class="border-b border-base-content/10 px-3 py-2">
+<div class="px-3 pb-2">
   <label class="sr-only" for="msj-buscar">Escribir a una persona</label>
-  <input id="msj-buscar" type="search" autocomplete="off" placeholder="Escribir a alguien…" class="input input-bordered input-sm w-full" data-msj-buscar>
-  <ul class="mt-1 hidden max-h-48 overflow-y-auto" data-msj-resultados role="listbox" aria-label="Personas"></ul>
+  <div class="relative">
+    <span class="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-base-content/50">{% include "components/icon.html" with name="search" cls="size-4" %}</span>
+    <input id="msj-buscar" type="search" autocomplete="off" placeholder="Buscar a alguien para escribirle…" class="input input-bordered w-full rounded-full pl-9" data-msj-buscar>
+  </div>
+  <ul class="mt-1 hidden max-h-48 overflow-y-auto rounded-xl bg-base-100 shadow-sm ring-1 ring-base-content/10" data-msj-resultados role="listbox" aria-label="Personas"></ul>
 </div>
-<nav class="min-h-0 flex-1 overflow-y-auto p-2" aria-label="Conversaciones">
-  <ul>{% with c=general %}{% include "mje_mensajes/_item_conv.html" %}{% endwith %}</ul>
-  {% if proyectos %}
-    <h3 class="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-base-content/50">Proyectos</h3>
-    <ul>{% for c in proyectos %}{% include "mje_mensajes/_item_conv.html" %}{% endfor %}</ul>
-  {% endif %}
+<nav class="min-h-0 flex-1 overflow-y-auto px-2 pb-3" aria-label="Conversaciones">
+  <h3 class="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-base-content/50">Canales</h3>
+  <ul>{% with c=general %}{% include "mje_mensajes/_item_conv.html" %}{% endwith %}{% for c in proyectos %}{% include "mje_mensajes/_item_conv.html" %}{% endfor %}</ul>
   <h3 class="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-base-content/50">Mensajes directos</h3>
   <ul>{% for c in directos %}{% include "mje_mensajes/_item_conv.html" %}{% empty %}
-    <li class="px-3 py-2 text-sm text-base-content/50">Busca a alguien arriba para escribirle.</li>{% endfor %}</ul>
+    <li class="mx-3 my-2 rounded-xl bg-base-200/60 px-3 py-4 text-center text-sm text-base-content/60">Aún no tienes mensajes directos.<br>Usa el buscador de arriba para escribirle a alguien.</li>{% endfor %}</ul>
 </nav>

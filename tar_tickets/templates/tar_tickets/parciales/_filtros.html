@@ -1,16 +1,18 @@
-<form method="get" data-board-filters class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-base-300 bg-base-100 p-3">
-  <input type="search" name="q" value="{{ filters.q }}" placeholder="Buscar (título, código, solicitante…)" autocomplete="off" class="input input-bordered input-sm w-full sm:w-72">
-  <select name="asignado" class="select select-bordered select-sm">
+<form method="get" data-board-filters class="mb-4 grid grid-cols-2 gap-2 rounded-2xl border border-base-300 bg-base-100 p-3 sm:flex sm:flex-wrap sm:items-center">
+  <div class="col-span-2 flex gap-2 sm:contents">
+    <input type="search" name="q" value="{{ filters.q }}" placeholder="Buscar ticket…" aria-label="Buscar (título, código, solicitante)" autocomplete="off" class="input input-bordered input-sm min-w-0 flex-1 sm:w-72 sm:flex-none">
+    <button type="submit" class="btn btn-sm sm:order-1">Filtrar</button>
+  </div>
+  <select name="asignado" class="select select-bordered select-sm w-full min-w-0 sm:w-auto {% if not filters.projects %}col-span-2 sm:col-auto{% endif %}" aria-label="Asignado">
     <option value="">Asignado: todos</option>
     {% for u in filters.users %}<option value="{{ u.pk }}" {% if filters.assignee == u.pk|stringformat:'s' %}selected{% endif %}>{{ u.get_full_name|default:u.email }}</option>{% endfor %}
   </select>
   {% if filters.projects %}
-    <select name="proyecto" class="select select-bordered select-sm">
+    <select name="proyecto" class="select select-bordered select-sm w-full min-w-0 sm:w-auto" aria-label="{{ termino_proyecto }}">
       <option value="">{{ termino_proyecto }}: todos</option>
       {% for p in filters.projects %}<option value="{{ p.pk }}" {% if filters.project == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.codigo }} · {{ p.nombre }}</option>{% endfor %}
     </select>
   {% endif %}
-  <button type="submit" class="btn btn-sm">Filtrar</button>
-  <a href="{{ request.path }}" class="btn btn-ghost btn-sm">Limpiar</a>
-  {% if show_status_legend %}<label for="status-legend-toggle" class="btn btn-info btn-outline btn-sm btn-circle ml-auto" title="¿Qué ve cada rol en el tablero?" aria-label="¿Qué ve cada rol en el tablero?">?</label>{% endif %}
+  <a href="{{ request.path }}" class="btn btn-ghost btn-sm col-span-2 sm:order-1 sm:col-auto {% if not filters.q and not filters.assignee and not filters.project %}max-sm:hidden{% endif %}">Limpiar filtros</a>
+  {% if show_status_legend %}<label for="status-legend-toggle" class="btn btn-info btn-outline btn-sm btn-circle ml-auto sm:order-2" title="¿Qué ve cada rol en el tablero?" aria-label="¿Qué ve cada rol en el tablero?">?</label>{% endif %}
 </form>

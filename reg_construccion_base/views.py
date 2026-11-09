@@ -3,7 +3,8 @@ from datetime import date
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Count, OuterRef, Q, Subquery
+from django.db.models import Count, Max, OuterRef, Q, Subquery
+from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -35,34 +36,53 @@ def _visibles(request):
 
 @_acceso()
 def lista(request):
+    """Arriba, los proyectos con visitas (activados); abajo, las visitas del proyecto elegido."""
     empresa, user = request.empresa, request.user
-    qs = _visibles(request).vigentes().select_related('proyecto', 'user', 'contratista')
+    base = _visibles(request).vigentes()
     q = request.GET.get('q', '').strip()
+    sitios_qs = base
     if q:
-        qs = qs.filter(Q(proyecto__nombre__icontains=q) | Q(proyecto__codigo__icontains=q))
+        sitios_qs = sitios_qs.filter(Q(proyecto__nombre__icontains=q) | Q(proyecto__codigo__icontains=q))
+    abiertos = (Hallazgo.objects.filter(proyecto_id=OuterRef('proyecto_id'), is_deleted=False, visita__in=base)
+                .exclude(estado='cerrado').order_by().values('proyecto_id').annotate(c=Count('pk')).values('c'))
+    ultima = base.filter(proyecto_id=OuterRef('proyecto_id')).order_by('-fecha', '-id')
+    sitios = list(sitios_qs.order_by().values('proyecto_id', 'proyecto__codigo', 'proyecto__nombre')
+                  .annotate(visitas=Count('id'), ultima=Max('fecha'), ultimo_id=Subquery(ultima.values('id')[:1]),
+                            n_abiertos=Coalesce(Subquery(abiertos), 0))
+                  .order_by('proyecto__codigo', 'proyecto__nombre'))
+    try:
+        sel = int(request.GET.get('proyecto', ''))
+    except ValueError:
+        sel = None
+    if sel is None and len(sitios) == 1:
+        sel = sitios[0]['proyecto_id']
     estado = request.GET.get('estado', '')
-    qs = qs.with_estado()
-    if estado in ESTADOS:
-        qs = qs.filter(orden_estado=ESTADOS[estado])
     desde, hasta = _fecha(request.GET.get('desde')), _fecha(request.GET.get('hasta'))
-    if desde:
-        qs = qs.filter(fecha__gte=desde)
-    if hasta:
-        qs = qs.filter(fecha__lte=hasta)
-    revs = (RegConstruccionBase.objects.filter(serie=OuterRef('serie'), is_deleted=False).order_by()
-            .values('serie').annotate(c=Count('pk')).values('c'))
-    qs = qs.annotate(
-        n_revisiones=Subquery(revs),
-        n_abiertos=Count('hallazgos', filter=Q(hallazgos__is_deleted=False) & ~Q(hallazgos__estado='cerrado'),
-                         distinct=True),
-    )
-    pagina = Paginator(qs.order_by('-fecha', '-id'), POR_PAGINA).get_page(request.GET.get('page'))
-    for r in pagina:
-        r.color = color_estado(r)
+    pagina = None
+    if sel is not None:
+        qs = base.with_estado().filter(proyecto_id=sel).select_related('proyecto', 'user', 'contratista')
+        if estado in ESTADOS:
+            qs = qs.filter(orden_estado=ESTADOS[estado])
+        if desde:
+            qs = qs.filter(fecha__gte=desde)
+        if hasta:
+            qs = qs.filter(fecha__lte=hasta)
+        revs = (RegConstruccionBase.objects.filter(serie=OuterRef('serie'), is_deleted=False).order_by()
+                .values('serie').annotate(c=Count('pk')).values('c'))
+        qs = qs.annotate(
+            n_revisiones=Subquery(revs),
+            n_abiertos=Count('hallazgos', filter=Q(hallazgos__is_deleted=False) & ~Q(hallazgos__estado='cerrado'),
+                             distinct=True),
+        )
+        pagina = Paginator(qs.order_by('-fecha', '-id'), POR_PAGINA).get_page(request.GET.get('page'))
+        for r in pagina:
+            r.color = color_estado(r)
     return render(request, 'reg_construccion_base/lista.html', {
         'pagina': pagina, 'q': q, 'estado': estado, 'desde': request.GET.get('desde', ''),
-        'hasta': request.GET.get('hasta', ''),
-        'puede_nueva': tiene_capacidad(user, 'reg.activar', empresa),
+        'hasta': request.GET.get('hasta', ''), 'sitios': sitios, 'sel': sel,
+        'puede_activar': tiene_capacidad(user, 'reg.activar', empresa),
+        'puede_nueva': tiene_capacidad(user, 'reg.cargar_datos', empresa),
+        'puede_editar_sitio': tiene_capacidad(user, 'proyectos.manage', empresa),
     })
 
 
@@ -111,6 +131,7 @@ def detalle(request, pk):
                                 puede_cambiar_responsable=tiene_capacidad(user, 'reg.cambiar_responsable', empresa))
         if escribe else None,
         'puede_emitir': tiene_capacidad(user, 'reg.concluir', empresa) and not r.concluido,
+        'puede_reabrir': r.concluido and (user.is_superuser or tiene_capacidad(user, 'reg.reabrir', empresa)),
         'hallazgos': r.hallazgos.filter(is_deleted=False).order_by('numero'),
         'pendientes': servicios.pendientes_de_seguimiento(r).count(),
         'fotos_total': fotos.count(), 'fotos_recientes': list(fotos.order_by('-id')[:8]),
@@ -159,6 +180,21 @@ def emitir(request, pk):
 
 @require_POST
 @_acceso()
+def reabrir(request, pk):
+    """Reabre una visita emitida para seguir editándola. Solo con `reg.reabrir` (Administrador/Coordinador) o superusuario."""
+    r = _obtener(request, pk)
+    if not r.concluido:
+        raise Http404
+    if not (request.user.is_superuser or tiene_capacidad(request.user, 'reg.reabrir', request.empresa)):
+        raise PermissionDenied
+    r.concluido, r.emitido_en, r.emitido_por = False, None, None
+    r.save(update_fields=['concluido', 'emitido_en', 'emitido_por', 'updated_at'])
+    messages.success(request, 'Visita reabierta: ya se puede editar.')
+    return redirect('reg_construccion_base:detalle', pk=pk)
+
+
+@require_POST
+@_acceso()
 def eliminar(request, pk):
     acciones.exigir_superusuario(request.user)
     r = _obtener(request, pk)
@@ -198,12 +234,13 @@ def nueva_visita(request, pk):
 
 @_acceso()
 def pdf(request, pk):
-    from reg_base.pdf import generar_pdf
+    """Reporte de visita en PDF. `?cols_actividades|hallazgos|seguimiento|libro=1|2` fija las fotos por fila."""
+    from .pdf import reporte
     r = _obtener(request, pk, 'proyecto__tipo')
-    nombre = f'visita-{r.proyecto.codigo if r.proyecto else "obra"}-{r.numero}-rev{r.rev_numero}.pdf'
-    resp = HttpResponse(generar_pdf(r, CLAVE, request.user, 'Reporte de visita de supervisión'),
-                        content_type='application/pdf')
-    resp['Content-Disposition'] = f'inline; filename="{nombre}"'
+    columnas = {k: int(request.GET[f'cols_{k}']) for k, _ in reporte.SECCIONES_FOTOS
+                if request.GET.get(f'cols_{k}') in ('1', '2')}
+    resp = HttpResponse(reporte.generar(r, columnas), content_type='application/pdf')
+    resp['Content-Disposition'] = f'inline; filename="{reporte.nombre_archivo(r)}"'
     return resp
 
 
@@ -240,6 +277,7 @@ def hallazgos(request):
     pagina = Paginator(qs.order_by('proyecto__codigo', 'numero'), POR_PAGINA).get_page(request.GET.get('page'))
     return render(request, 'reg_construccion_base/hallazgos.html', {
         'pagina': pagina, 'estado': estado, 'severidad': severidad, 'vencidos': vencidos, 'proyecto': proyecto,
+        'proyecto_txt': str(proyecto or ''),
         'estados': Hallazgo.Estado.choices, 'severidades': Hallazgo.Severidad.choices,
         'proyectos': Proyecto.objects.de_empresa(request.empresa).order_by('codigo', 'nombre'),
     })

@@ -46,7 +46,6 @@ class User(AbstractUser):
     # Borrado lógico: la cuenta no entra ni aparece en las listas, pero conserva todo su historial y el superusuario la restaura.
     is_deleted = models.BooleanField('Eliminado', default=False, db_index=True)
     eliminado_en = models.DateTimeField('Eliminado el', null=True, blank=True)
-    nextcloud_uid = models.CharField('Usuario Nextcloud', max_length=150, blank=True, db_index=True)
     # Trazabilidad para los futuros importadores (reg / skydesk / skylog).
     legacy_source = models.CharField(max_length=20, blank=True, editable=False)
     legacy_id = models.PositiveIntegerField(null=True, blank=True, editable=False, db_index=True)
@@ -273,3 +272,71 @@ class UsuarioPermiso(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['membresia', 'capacidad'], name='cuentas_usuariopermiso_unico'),
         ]
+
+
+class NextcloudConfig(models.Model):
+    """Inicio de sesión con Nextcloud (OAuth2) de UNA empresa: cada empresa usa su propio servidor y su propio
+    cliente OAuth. Se configura en Panel → Usuarios y accesos → Nextcloud."""
+
+    empresa = models.OneToOneField('empresas.Empresa', on_delete=models.CASCADE, related_name='nextcloud')
+    activo = models.BooleanField('Activo', default=False)
+    servidor_url = models.URLField('URL de Nextcloud', blank=True, help_text='Ej. https://sky.redlinegs.com')
+    client_id = models.CharField('Client ID', max_length=200, blank=True)
+    client_secret = models.CharField('Client secret', max_length=200, blank=True)
+    texto_boton = models.CharField('Texto del botón', max_length=60, default='Entrar con Nextcloud')
+    crear_cuentas = models.BooleanField(
+        'Crear cuentas al primer ingreso', default=False,
+        help_text='APAGADO por defecto: solo entran con Nextcloud las cuentas que un administrador ya dio de alta '
+                  '(se vinculan solas al primer ingreso). Si lo activas, quien tenga un correo de un dominio permitido '
+                  '(Alta por dominio) se crea sola.')
+    grupo_admin = models.CharField(
+        'Grupo de Nextcloud administrador', max_length=100, blank=True, default='',
+        help_text='Quien pertenezca a este grupo de Nextcloud entra como Coordinador (administrador) de la empresa. '
+                  'Vacío (por defecto) = todos reciben el cargo del dominio.')
+
+    class Meta:
+        verbose_name = 'configuración de Nextcloud'
+        verbose_name_plural = 'configuraciones de Nextcloud'
+
+    def __str__(self):
+        return f'Nextcloud · {self.empresa}'
+
+    def save(self, *args, **kwargs):
+        self.servidor_url = self.servidor_url.rstrip('/')
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def de(cls, empresa):
+        """Configuración guardada de la empresa o una vacía (sin guardar)."""
+        if empresa is None:
+            return None
+        return cls.objects.filter(empresa=empresa).first() or cls(empresa=empresa)
+
+    @property
+    def completo(self):
+        return bool(self.servidor_url and self.client_id and self.client_secret)
+
+    @property
+    def disponible(self):
+        return bool(self.activo and self.completo)
+
+
+class NextcloudVinculo(models.Model):
+    """Usuario de Nextcloud de una empresa enlazado a una cuenta de la plataforma. Es por empresa porque cada una
+    tiene su propio servidor: el mismo `uid` en dos servidores son personas distintas."""
+
+    empresa = models.ForeignKey('empresas.Empresa', on_delete=models.CASCADE, related_name='nextcloud_vinculos')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='nextcloud_vinculos')
+    uid = models.CharField('Usuario Nextcloud', max_length=150)
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'vínculo de Nextcloud'
+        verbose_name_plural = 'vínculos de Nextcloud'
+        constraints = [
+            models.UniqueConstraint(fields=['empresa', 'uid'], name='cuentas_ncvinculo_uid_unico'),
+            models.UniqueConstraint(fields=['empresa', 'user'], name='cuentas_ncvinculo_user_unico'),
+        ]
+
+    def __str__(self):
+        return f'{self.uid} → {self.user} ({self.empresa})'

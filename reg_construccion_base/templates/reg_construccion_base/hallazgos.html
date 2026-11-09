@@ -1,29 +1,38 @@
 {% extends "shell.html" %}
 {% block page_title %}Hallazgos{% endblock %}
 {% block content_main %}
-<form method="get" class="mb-4 flex flex-wrap items-end gap-2">
-  <select name="proyecto" class="select select-bordered select-sm" aria-label="{{ termino_proyecto }}">
+{% with q="proyecto="|add:proyecto_txt|add:"&severidad="|add:severidad %}
+<div class="segmentado mb-3 sm:hidden" role="group" aria-label="Estado del hallazgo">
+  <a href="?{{ q }}{% if vencidos %}&vencidos=1{% endif %}" {% if not estado %}aria-current="true"{% endif %}>Pendientes</a>
+  <a href="?{{ q }}{% if vencidos %}&vencidos=1{% endif %}&estado=abierto" {% if estado == 'abierto' %}aria-current="true"{% endif %}>Abiertos</a>
+  <a href="?{{ q }}{% if vencidos %}&vencidos=1{% endif %}&estado=en_proceso" {% if estado == 'en_proceso' %}aria-current="true"{% endif %}>En proceso</a>
+  <a href="?{{ q }}{% if vencidos %}&vencidos=1{% endif %}&estado=cerrado" {% if estado == 'cerrado' %}aria-current="true"{% endif %}>Cerrados</a>
+</div>
+{% endwith %}
+<form method="get" class="mb-4 grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:items-end">
+  <input type="hidden" name="estado" value="{{ estado }}" class="sm:hidden">
+  <select name="proyecto" class="select select-bordered select-sm col-span-2 w-full sm:w-auto" aria-label="{{ termino_proyecto }}">
     <option value="">Todos los {{ termino_proyectos|lower }}</option>
     {% for p in proyectos %}<option value="{{ p.pk }}" {% if proyecto == p.pk %}selected{% endif %}>{{ p.codigo|default:"" }} {{ p.nombre }}</option>{% endfor %}
   </select>
-  <select name="estado" class="select select-bordered select-sm" aria-label="Estado">
+  <select name="estado" class="select select-bordered select-sm hidden sm:block" aria-label="Estado">
     <option value="">Pendientes (abiertos y en proceso)</option>
     {% for v, l in estados %}<option value="{{ v }}" {% if estado == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
   </select>
-  <select name="severidad" class="select select-bordered select-sm" aria-label="Severidad">
+  <select name="severidad" class="select select-bordered select-sm w-full sm:w-auto" aria-label="Severidad">
     <option value="">Toda severidad</option>
     {% for v, l in severidades %}<option value="{{ v }}" {% if severidad == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
   </select>
-  <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="vencidos" value="1" class="checkbox checkbox-sm" {% if vencidos %}checked{% endif %}> Solo vencidos</label>
-  <button class="btn btn-sm">Filtrar</button>
+  <label class="flex min-h-9 items-center gap-2 text-sm"><input type="checkbox" name="vencidos" value="1" class="checkbox checkbox-sm" {% if vencidos %}checked{% endif %}> Solo vencidos</label>
+  <button class="btn btn-sm col-span-2 sm:col-auto">Filtrar</button>
 </form>
-<div class="table-card">
+<div class="table-card hidden sm:block">
   <table class="table">
     <thead><tr><th>Código</th><th>{{ termino_proyecto }}</th><th>Descripción</th><th>Tipo</th><th>Severidad</th><th>Estado</th><th>Plazo</th><th class="w-0"><span class="sr-only">Acciones</span></th></tr></thead>
     <tbody>
     {% for h in pagina %}
       <tr data-href="{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}" class="hover cursor-pointer">
-        <td class="font-semibold tabular-nums"><a class="link" href="{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}">{{ h.codigo }}</a></td>
+        <td class="whitespace-nowrap font-semibold tabular-nums"><a class="link" href="{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}">{{ h.codigo }}</a></td>
         <td class="text-sm">{{ h.proyecto.codigo|default:"—" }} <span class="text-base-content/60">{{ h.proyecto.nombre }}</span></td>
         <td class="max-w-xs truncate text-sm" title="{{ h.descripcion }}">{{ h.descripcion }}</td>
         <td class="text-sm">{{ h.get_tipo_display }}</td>
@@ -36,5 +45,23 @@
     </tbody>
   </table>
 </div>
+
+<ul class="space-y-2 sm:hidden">
+  {% for h in pagina %}
+  <li>
+    <a href="{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}" class="block rounded-box bg-base-100 p-3 shadow-sm {% if h.vencido %}ring-1 ring-error/50{% endif %}">
+      <div class="flex items-center justify-between gap-2">
+        <span class="font-semibold tabular-nums">{{ h.codigo }}</span>
+        <span class="flex flex-wrap justify-end gap-1">{% include "reg_construccion_base/_severidad.html" %}{% include "reg_construccion_base/_estado_hallazgo.html" %}</span>
+      </div>
+      <p class="mt-1 line-clamp-2 text-sm">{{ h.descripcion }}</p>
+      <div class="mt-2 flex items-center justify-between gap-2 text-xs text-base-content/60">
+        <span class="min-w-0 truncate">{{ h.proyecto.codigo|default:h.proyecto.nombre }}{% if h.proyecto.codigo %} · {{ h.proyecto.nombre }}{% endif %}</span>
+        <span class="shrink-0 tabular-nums">{% if h.plazo %}Plazo {{ h.plazo|date:"d/m/Y" }}{% endif %}</span>
+      </div>
+    </a>
+  </li>
+  {% empty %}<li class="rounded-box bg-base-100 py-8 text-center text-sm text-base-content/60">No hay hallazgos con esos filtros.</li>{% endfor %}
+</ul>
 {% include "tar_tickets/parciales/_paginacion.html" %}
 {% endblock %}

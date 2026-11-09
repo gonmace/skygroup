@@ -1,22 +1,31 @@
 {% extends "base.html" %}
+{% load static %}
+{% comment %}Marco común de las pantallas de acceso (login, registro, recuperar contraseña). Bloques: auth_titulo, auth_subtitulo, auth_cuerpo, auth_pie.{% endcomment %}
 {% block body %}
-<main class="min-h-screen grid place-items-center bg-base-200 p-6">
-  <div class="w-full max-w-sm">
-    <div class="mb-6 flex justify-center">
-      {% if logo_claro_url %}
-        <img src="{{ logo_claro_url }}" alt="{{ marca }}" class="max-h-16 w-auto dark:hidden">
-        <img src="{{ logo_oscuro_url }}" alt="{{ marca }}" class="max-h-16 w-auto hidden dark:block">
-      {% else %}
-        <span class="text-2xl font-semibold tracking-tight">{{ marca }}</span>
-      {% endif %}
-    </div>
-    <div class="card bg-base-100 shadow-sm">
-      <div class="card-body gap-4">
-        <h1 class="card-title text-xl">{% block auth_titulo %}{% endblock %}</h1>
+<main class="relative grid min-h-dvh place-items-center overflow-hidden bg-base-200 px-4 py-10">
+  {# Halo de la marca: usa el color primario de la empresa (o el del sistema). #}
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0 bg-[radial-gradient(60rem_34rem_at_50%_-8%,color-mix(in_oklab,var(--color-primary)_16%,transparent),transparent_70%)]"></div>
+  <div class="relative w-full max-w-md">
+    <div class="overflow-hidden rounded-3xl bg-base-100 shadow-xl ring-1 ring-base-content/5">
+      <div class="h-1.5 bg-primary"></div>
+      <div class="px-7 pb-8 pt-8 sm:px-9">
+        <div class="mb-7 flex min-h-16 items-center justify-center">
+          {% if logo_claro_url %}
+            <img src="{{ logo_claro_url }}" alt="{{ marca }}" class="max-h-20 w-auto max-w-[75%] dark:hidden">
+            <img src="{{ logo_oscuro_url }}" alt="{{ marca }}" class="hidden max-h-20 w-auto max-w-[75%] dark:block">
+          {% else %}
+            <span class="text-3xl font-semibold tracking-tight">{{ marca }}</span>
+          {% endif %}
+        </div>
+        <h1 class="text-center text-2xl font-semibold tracking-tight">{% block auth_titulo %}{% endblock %}</h1>
+        <p class="mb-6 mt-1 text-center text-sm text-base-content/60">{% block auth_subtitulo %}{% endblock %}</p>
         {% block auth_cuerpo %}{% endblock %}
       </div>
     </div>
-    {% if empresa %}<p class="mt-4 text-center text-xs text-base-content/50">{{ producto }}</p>{% endif %}
+    <p class="mt-6 text-center text-xs text-base-content/50">
+      {% if empresa %}{{ marca }} · {% endif %}Plataforma {{ producto }} · © {% now "Y" %}
+    </p>
   </div>
 </main>
 {% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/auth.js' %}" defer></script>{% endblock %}

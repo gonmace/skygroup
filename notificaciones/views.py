@@ -36,7 +36,9 @@ def leer(request, pk):
         notif.leida = True
         notif.save(update_fields=['leida'])
     if ruta_segura(notif.url):
-        destino = f'{get_script_prefix().rstrip("/")}{notif.url}'
+        prefijo = get_script_prefix().rstrip('/')
+        # Avisos antiguos guardaron la ruta ya con el slug de la empresa: no duplicarlo (/emb/emb/…).
+        destino = notif.url if prefijo and notif.url.startswith(prefijo + '/') else f'{prefijo}{notif.url}'
         if url_has_allowed_host_and_scheme(destino, allowed_hosts={request.get_host()}):
             return redirect(destino)
     return redirect('notificaciones:lista')

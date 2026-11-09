@@ -11,10 +11,16 @@ from django.urls import reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from . import correos, impersonacion, registro as reg
+import secrets
+
+from . import correos, impersonacion, nextcloud, registro as reg
 
 from .forms import LoginForm, RegistroConfirmarForm, RegistroForm
-from .models import Membresia
+from empresas.models import Empresa
+
+from .models import Membresia, NextcloudConfig, NextcloudVinculo
+
+User = get_user_model()
 
 
 class LoginView(auth_views.LoginView):
@@ -26,6 +32,8 @@ class LoginView(auth_views.LoginView):
         ctx = super().get_context_data(**kwargs)
         empresa = getattr(self.request, 'empresa', None)
         ctx['registro_abierto'] = empresa is not None and reg.hay_dominios(empresa)
+        config = NextcloudConfig.de(empresa)
+        ctx['nextcloud'] = config if config is not None and config.disponible else None
         return ctx
 
 
@@ -155,3 +163,100 @@ def registro_confirmar(request, token):
         login(request, user, backend='cuentas.backends.EmailBackend')
         return redirect('home')
     return render(request, 'cuentas/registro_confirmar.html', {'form': form, 'email': email})
+
+
+# ── Inicio de sesión con Nextcloud ────────────────────────────────────────────
+
+NC_SESION = 'nextcloud_oauth'
+
+
+def _destino_seguro(request, nxt):
+    ok = url_has_allowed_host_and_scheme(nxt or '', allowed_hosts={request.get_host()}, require_https=request.is_secure())
+    return nxt if ok and nxt else ''
+
+
+def nextcloud_iniciar(request):
+    """Genera el `state`, recuerda empresa y destino en la sesión y manda al usuario a autorizar en Nextcloud."""
+    empresa = getattr(request, 'empresa', None)
+    config = NextcloudConfig.de(empresa)
+    if config is None or not config.disponible:
+        raise Http404
+    state = secrets.token_urlsafe(32)
+    request.session[NC_SESION] = {
+        'state': state,
+        'next': _destino_seguro(request, request.GET.get('next')),
+        'slug': empresa.slug,
+    }
+    return redirect(nextcloud.url_autorizar(config, request, state))
+
+
+@require_POST
+@login_required
+def nextcloud_vincular(request):
+    """Vincula la cuenta de Nextcloud con la sesión iniciada: la única forma en que una persona enlaza su uid."""
+    empresa = getattr(request, 'empresa', None)
+    config = NextcloudConfig.de(empresa)
+    if (config is None or not config.disponible or getattr(request, 'impersonador', None)
+            or request.user.is_staff or request.user.is_superuser):
+        raise Http404
+    state = secrets.token_urlsafe(32)
+    request.session[NC_SESION] = {'state': state, 'next': '', 'slug': empresa.slug, 'vincular': request.user.pk}
+    return redirect(nextcloud.url_autorizar(config, request, state))
+
+
+@require_POST
+@login_required
+def nextcloud_desvincular(request):
+    if getattr(request, 'impersonador', None):
+        raise Http404
+    empresa = getattr(request, 'empresa', None)
+    NextcloudVinculo.objects.filter(user=request.user, empresa=empresa).delete()
+    messages.success(request, 'Se desvinculó tu cuenta de Nextcloud.')
+    return redirect(f'/{empresa.slug}/' if empresa else '/')
+
+
+def nextcloud_callback(request):
+    datos = request.session.pop(NC_SESION, None) or {}
+    slug = datos.get('slug', '')
+    inicio = f'/{slug}/' if slug else '/'
+    vincular_id = datos.get('vincular')
+    login_url = f'/{slug}/acceso/login/' if slug else reverse_lazy('cuentas:login')
+
+    def fallo(mensaje):
+        messages.error(request, mensaje)
+        return redirect(inicio if vincular_id else login_url)
+
+    empresa = Empresa.objects.filter(slug=slug).first() if slug else None
+    config = NextcloudConfig.de(empresa)
+    if config is None or not config.disponible:
+        raise Http404
+    if request.GET.get('error'):
+        return fallo('Nextcloud no autorizó el acceso. Vuelve a intentarlo.')
+    code, state = request.GET.get('code', ''), request.GET.get('state', '')
+    if not code or not datos.get('state') or not secrets.compare_digest(state, datos['state']):
+        return fallo('La solicitud de acceso no es válida o expiró. Vuelve a intentarlo.')
+    try:
+        token, uid = nextcloud.canjear_codigo(config, request, code)
+    except nextcloud.NextcloudError:
+        return fallo('No se pudo conectar con Nextcloud. Vuelve a intentarlo en unos minutos.')
+    if vincular_id:      # vincular desde una sesión ya iniciada
+        if (not request.user.is_authenticated or request.user.pk != vincular_id
+                or getattr(request, 'impersonador', None)):
+            return fallo('Tu sesión cambió mientras vinculabas Nextcloud. Vuelve a intentarlo.')
+        if NextcloudVinculo.objects.filter(empresa=empresa, uid=uid).exclude(user=request.user).exists():
+            return fallo('Esa cuenta de Nextcloud ya está vinculada a otro usuario de la plataforma.')
+        NextcloudVinculo.objects.update_or_create(empresa=empresa, user=request.user, defaults={'uid': uid})
+        messages.success(request, 'Tu cuenta de Nextcloud quedó vinculada. Ya puedes entrar con ella.')
+        return redirect(inicio)
+    user = nextcloud.buscar_usuario(empresa, uid) or nextcloud.enlazar_existente(empresa, uid)
+    if user is None and config.crear_cuentas:
+        user, motivo = nextcloud.alta_automatica(config, uid, nextcloud.perfil(config, uid, token))
+        if user is None:
+            return fallo(motivo)
+    if user is None:
+        return fallo('Tu cuenta de Nextcloud aún no está vinculada a un usuario de la plataforma. Entra con tu correo '
+                     'y contraseña y pulsa «Vincular Nextcloud» en el menú de tu usuario.')
+    if not Membresia.objects.filter(user=user, empresa=empresa, activa=True).exists():
+        return fallo('Tu cuenta no tiene acceso activo a esta empresa. Pide a un administrador que te lo dé.')
+    login(request, user, backend='cuentas.backends.EmailBackend')
+    return redirect(datos.get('next') or inicio)

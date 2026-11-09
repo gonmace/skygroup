@@ -1,0 +1,116 @@
+{% load l10n %}
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><title>Reporte de visita — {{ codigo }}</title></head>
+<body>
+{% if borrador %}<div class="marca-agua">BORRADOR</div>{% endif %}
+
+<div id="page-header">
+  <table class="header-table"><tr>
+    <td class="header-logo left">{% if logo_empresa %}<img src="{{ logo_empresa }}" alt="{{ empresa.nombre }}">{% endif %}</td>
+    <td class="header-title"><h1>Reporte de Visita de Supervisión<br>{{ codigo }} · Visita N° {{ registro.numero }}{% if registro.rev_numero %} · Rev. {{ registro.rev_numero }}{% endif %}</h1></td>
+    <td class="header-logo right"></td>
+  </tr></table>
+</div>
+
+<div class="seccion-2col">
+  <article class="seccion-2col-izq">
+    <table class="datos-2col">
+      <tr><th>Nombre:</th><td>{{ proyecto.nombre }}</td></tr>
+      <tr><th>Código:</th><td>{{ codigo }}</td></tr>
+      <tr><th>Código Operador:</th><td>{{ proyecto.codigo_operador|default:"—" }}</td></tr>
+      <tr><th>Tipo:</th><td>{{ proyecto.tipo.nombre|default:"—" }}</td></tr>
+      <tr><th>Primera visita:</th><td>{{ fecha_inicio|date:"d/m/Y"|default:"—" }}</td></tr>
+      <tr><th>Contratista:</th><td>{{ registro.contratista.nombre|default:"—" }}</td></tr>
+    </table>
+  </article>
+  <article class="seccion-2col-der">
+    <h2>Datos de la Visita</h2>
+    <table class="datos-2col">
+      <tr><th>Supervisor:</th><td>{{ supervisor }}</td></tr>
+      <tr><th>Fecha:</th><td>{{ registro.fecha|date:"d/m/Y" }}</td></tr>
+      <tr><th>Semana:</th><td>{{ registro.fecha|date:"W" }}</td></tr>
+      <tr><th>Días transcurridos:</th><td>{{ dias_transcurridos|default_if_none:"—" }}</td></tr>
+      <tr><th>Motivo:</th><td>{{ motivo|default:"—" }}</td></tr>
+      {% if registro.concluido and registro.emitido_en %}<tr><th>Emitida:</th><td>{{ registro.emitido_en|date:"d/m/Y H:i" }}</td></tr>{% endif %}
+    </table>
+    <h2>Coordenadas</h2>
+    <table class="coords">
+      <tr><th>Lat.</th><td>{{ coord_lat }}</td><td class="coords-dec">{{ coord_lat_deg }}</td></tr>
+      <tr><th>Lon.</th><td>{{ coord_lon }}</td><td class="coords-dec">{{ coord_lon_deg }}</td></tr>
+    </table>
+  </article>
+</div>
+
+{% if comentario %}<article><h2>Comentario</h2><div class="parrafos">{{ comentario|linebreaks }}</div></article>{% endif %}
+
+<article id="actividades">
+  <h2>Actividades en Ejecución</h2>
+  {% if actividades %}<ol class="lista-numerada">{% for a in actividades %}<li>{{ a }}</li>{% endfor %}</ol>
+  {% else %}<p class="sin-datos">Sin actividades registradas.</p>{% endif %}
+</article>
+
+{% if trabajadores or equipo_pesado %}
+<article id="recursos">
+  <h2>Recursos Presentes</h2>
+  <table class="datos-2col">
+    {% if trabajadores %}<tr><th>Trabajadores (aprox.):</th><td>{{ trabajadores|floatformat:"0" }}</td></tr>{% endif %}
+    {% if equipo_pesado %}<tr><th>Equipo pesado:</th><td>{{ equipo_pesado }}</td></tr>{% endif %}
+  </table>
+</article>
+{% endif %}
+
+<article id="hallazgos">
+  <h2>Hallazgos y Observaciones</h2>
+  {% if hallazgos %}
+  <table class="tabla-hallazgos">
+    <thead><tr><th>Cód.</th><th>Tipo</th><th>Severidad</th><th>Descripción</th><th>Responsable</th><th>Plazo</th><th>Estado</th></tr></thead>
+    <tbody>
+    {% for h in hallazgos %}
+      <tr><td>{{ h.codigo }}</td><td>{{ h.get_tipo_display }}</td><td><span class="sev sev-{{ h.severidad }}">{{ h.get_severidad_display }}</span></td>
+          <td>{{ h.descripcion }}</td><td>{{ h.responsable|default:"—" }}</td>
+          <td class="{% if h.vencido %}vencido{% endif %}">{{ h.plazo|date:"d/m/Y"|default:"—" }}</td>
+          <td><span class="est est-{{ h.estado }}">{{ h.get_estado_display }}</span></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% elif sin_hallazgos %}<p class="sin-datos">Sin hallazgos en esta visita.</p>
+  {% else %}<p class="sin-datos">Sin hallazgos registrados.</p>{% endif %}
+  <div class="resumen-obs"><strong>Observaciones abiertas del proyecto:</strong> {{ resumen.total }}
+    {% for nombre, n in resumen.por_severidad %}<span>· {{ nombre }}: {{ n }}</span>{% endfor %}
+    {% if resumen.vencidos %}<span class="vencido">· Vencidas: {{ resumen.vencidos }}</span>{% endif %}</div>
+</article>
+
+{% if seguimientos %}
+<article id="seguimiento">
+  <h2>Verificación de Observaciones Previas</h2>
+  <table class="tabla-hallazgos">
+    <thead><tr><th>Cód.</th><th>Descripción</th><th>Visita de origen</th><th>Resultado</th><th>Comentario</th></tr></thead>
+    <tbody>
+    {% for s in seguimientos %}
+      <tr><td>{{ s.hallazgo.codigo }}</td><td>{{ s.hallazgo.descripcion }}</td><td>N° {{ s.hallazgo.visita.numero }}</td>
+          <td><span class="est est-{{ s.estado }}">{{ s.get_estado_display }}</span></td><td>{{ s.comentario|default:"—" }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</article>
+{% endif %}
+
+{% if instrucciones %}
+<article id="instrucciones">
+  <h2>Instrucciones y Acuerdos en Sitio</h2>
+  <ol class="lista-numerada">{% for i in instrucciones %}<li>{{ i }}</li>{% endfor %}</ol>
+</article>
+{% endif %}
+
+{% if fotos_actividades %}<article id="fotos-actividades"><h2>Registro Fotográfico — Actividades</h2>{% include "reg_construccion/pdf/_fotos_tabla.html" with fotos=fotos_actividades cols=fotos_actividades_cols %}</article>{% endif %}
+{% if fotos_hallazgos %}<article id="fotos-hallazgos"><h2>Registro Fotográfico — Hallazgos</h2>{% include "reg_construccion/pdf/_fotos_tabla.html" with fotos=fotos_hallazgos cols=fotos_hallazgos_cols %}</article>{% endif %}
+{% if fotos_seguimiento %}<article id="fotos-seguimiento"><h2>Registro Fotográfico — Verificación</h2>{% include "reg_construccion/pdf/_fotos_tabla.html" with fotos=fotos_seguimiento cols=fotos_seguimiento_cols %}</article>{% endif %}
+{% if fotos_libro %}<article id="libro-obras"><h2>Libro de Obras</h2>{% include "reg_construccion/pdf/_fotos_tabla.html" with fotos=fotos_libro cols=fotos_libro_cols %}</article>{% endif %}
+
+<table class="firmas"><tr>
+  <td><div class="linea">Supervisor<br><strong>{{ supervisor }}</strong></div></td>
+  <td><div class="linea">Contratista (representante)<br><strong>{{ registro.contratista.nombre|default:" " }}</strong></div></td>
+</tr></table>
+</body>
+</html>

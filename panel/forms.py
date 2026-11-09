@@ -3,9 +3,11 @@ import re
 from django import forms
 from django.db import models
 
-from cuentas.models import CorreoBloqueado, DominioPermitido, RolEmpresa
+from cuentas.models import CorreoBloqueado, DominioPermitido, NextcloudConfig, RolEmpresa
 from cuentas.roles import RolBase
 from empresas.models import Contratista, Empresa, Modulo, Sede
+
+from .widgets import ColorWidget, ImagenWidget
 
 INPUT = 'input input-bordered w-full'
 SELECT = 'select select-bordered w-full'
@@ -36,6 +38,10 @@ class EstiloMixin:
 
 
 COLORES = ('color_primario', 'color_primario_oscuro', 'color_acento', 'color_acento_oscuro')
+WIDGETS_MARCA = {
+    'logo_claro': ImagenWidget(), 'logo_oscuro': ImagenWidget(oscuro=True), 'favicon': ImagenWidget(pequena=True),
+    **{c: ColorWidget() for c in COLORES},
+}
 CAMPOS_MARCA = (
     'nombre_marca', 'logo_claro', 'logo_oscuro', 'favicon', *COLORES,
     'termino_proyecto_singular', 'termino_proyecto_plural',
@@ -48,7 +54,7 @@ class MarcaForm(EstiloMixin, forms.ModelForm):
     class Meta:
         model = Empresa
         fields = CAMPOS_MARCA
-        widgets = {c: forms.TextInput(attrs={'placeholder': '#RRGGBB'}) for c in COLORES}
+        widgets = WIDGETS_MARCA
 
 
 class EmpresaForm(EstiloMixin, forms.ModelForm):
@@ -62,7 +68,7 @@ class EmpresaForm(EstiloMixin, forms.ModelForm):
         model = Empresa
         fields = ('nombre', 'slug', 'activa', 'razon_social', 'rut', 'contacto_email', 'contacto_telefono',
                   'modulos', *CAMPOS_MARCA)
-        widgets = {c: forms.TextInput(attrs={'placeholder': '#RRGGBB'}) for c in COLORES}
+        widgets = WIDGETS_MARCA
 
     tipos_proyecto = forms.CharField(
         label='Tipos de proyecto (opcional)', required=False,
@@ -306,3 +312,33 @@ class CorreoBloqueadoForm(EstiloMixin, forms.ModelForm):
         if CorreoBloqueado.objects.filter(empresa=self.empresa, email__iexact=email).exists():
             raise forms.ValidationError('Ese correo ya está bloqueado.')
         return email
+
+
+class NextcloudForm(EstiloMixin, forms.ModelForm):
+    """Inicio de sesión con Nextcloud. El secret no se muestra: vacío conserva el guardado."""
+
+    client_secret = forms.CharField(
+        label='Client secret', required=False, widget=forms.PasswordInput(render_value=False, attrs={'autocomplete': 'new-password'}),
+        help_text='Déjalo vacío para conservar el actual.')
+    class Meta:
+        model = NextcloudConfig
+        fields = ('activo', 'servidor_url', 'client_id', 'client_secret', 'texto_boton', 'crear_cuentas', 'grupo_admin')
+
+    def clean_client_secret(self):
+        return self.cleaned_data['client_secret'] or self.instance.client_secret
+
+    def clean_servidor_url(self):
+        from cuentas.nextcloud import NextcloudError, validar_servidor
+        url = self.cleaned_data['servidor_url'].rstrip('/')
+        if url:
+            try:
+                validar_servidor(url)
+            except NextcloudError as e:
+                raise forms.ValidationError(str(e))
+        return url
+
+    def clean(self):
+        d = super().clean()
+        if d.get('activo') and not (d.get('servidor_url') and d.get('client_id') and d.get('client_secret')):
+            raise forms.ValidationError('Para activarlo indica la URL, el Client ID y el Client secret.')
+        return d

@@ -11,10 +11,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from cuentas.capacidades import tiene_capacidad, usuarios_con_capacidad
+from cuentas.capacidades import administra, tiene_capacidad, usuarios_con_capacidad
 from cuentas.roles import RolBase
 from empresas.acceso import acceso_modulo
-from empresas.tenancy import empresa_path
 from jor_actividades.models import ItemActividad
 from jor_empleados import passkeys
 from jor_empleados.models import Perfil
@@ -22,7 +21,6 @@ from notificaciones.services import notificar, notificar_a_varios
 from proyectos.models import Proyecto
 
 from . import servicios
-from .verificacion import es_movil
 from .estado import estado_del_dia
 from .forms import AusenciaForm, NotaForm, ReporteForm
 from .models import Ausencia, Jornada, NotaCalendario
@@ -92,9 +90,7 @@ def inicio(request):
         'hoy': jornadas_hoy,
         'exige_reporte': bool(perfil and perfil.exige_reporte),
         'dispositivo': passkeys.dispositivo_activo(perfil) if perfil else None,
-        'es_movil': es_movil(request.META.get('HTTP_USER_AGENT', '')),
         'sede': _membresia(request).sede if perfil else None,
-        'url_marcar': request.build_absolute_uri(reverse('jor_diario:inicio')),
     })
 
 
@@ -179,9 +175,8 @@ def iniciar(request):
         proyecto = Proyecto.objects.de_empresa(request.empresa).activos().filter(pk=request.POST['proyecto'] if request.POST['proyecto'].isdigit() else 0).first()
         if proyecto is None:
             return JsonResponse({'ok': False, 'error': 'Ese proyecto no existe.'}, status=400)
-    ua = request.META.get('HTTP_USER_AGENT', '')
     return _responder_marca(request, lambda perfil, disp, lecturas: servicios.iniciar(
-        perfil, disp, lecturas, proyecto, request.POST.get('motivo', ''), _ip(request), ua), 'Jornada iniciada.')
+        perfil, disp, lecturas, proyecto, request.POST.get('motivo', ''), _ip(request)), 'Jornada iniciada.')
 
 
 @acceso_modulo('jor', 'jor.fichar')
@@ -189,10 +184,43 @@ def iniciar(request):
 def finalizar(request):
     form = ReporteForm(request.POST)
     form.is_valid()
-    ua = request.META.get('HTTP_USER_AGENT', '')
     return _responder_marca(request, lambda perfil, disp, lecturas: servicios.finalizar(
         request.POST.get('jornada') or 0, perfil, disp, lecturas, form.cleaned_data.get('realizado'),
-        form.cleaned_data.get('planificado'), _ip(request), ua), 'Jornada finalizada. ¡Buen trabajo!')
+        form.cleaned_data.get('planificado'), _ip(request)),
+        'Jornada finalizada. ¡Buen trabajo!')
+
+
+def _puede_ver_mapa(user, empresa):
+    """Solo superusuario y administradores de sistema de la empresa."""
+    return user.is_superuser or administra(user, empresa.pk)
+
+
+@acceso_modulo('jor', 'jor.equipo.ver')
+def mapa_equipo(request):
+    """Mapa con dónde marcó inicio y fin cada persona en un día. Solo superusuario y administradores."""
+    from datetime import date, timedelta
+    if not _puede_ver_mapa(request.user, request.empresa):
+        raise PermissionDenied
+    hoy = timezone.localdate()
+    try:
+        dia = min(date.fromisoformat(request.GET.get('fecha', '')), hoy)
+    except ValueError:
+        dia = hoy
+    ini = timezone.make_aware(datetime.combine(dia, datetime.min.time()))
+    puntos = []
+    for j in (Jornada.objects.filter(empresa=request.empresa, inicio__gte=ini, inicio__lt=ini + timedelta(days=1))
+              .select_related('perfil__membresia__user').order_by('inicio')):
+        base = {'nombre': str(j.perfil.membresia.user), 'verificacion': j.get_estado_verificacion_display(),
+                'url': reverse('jor_diario:persona', args=[j.perfil.membresia_id])}
+        for tipo, lat, lon, hora, prec in (('inicio', j.lat_inicio, j.lon_inicio, j.inicio, j.precision_inicio),
+                                           ('fin', j.lat_fin, j.lon_fin, j.fin, j.precision_fin)):
+            if lat is not None and lon is not None:
+                puntos.append({**base, 'tipo': tipo, 'lat': float(lat), 'lon': float(lon),
+                               'hora': timezone.localtime(hora).strftime('%H:%M'),
+                               'precision': round(prec) if prec is not None else None})
+    return render(request, 'jor_diario/mapa.html', {
+        'puntos': puntos, 'dia': dia, 'es_hoy': dia == hoy, 'anterior': dia - timedelta(days=1),
+        'siguiente': dia + timedelta(days=1) if dia < hoy else None})
 
 
 # ── Excepciones: jornadas iniciadas fuera de la sede, pendientes de aprobación ──────────────────
@@ -295,7 +323,12 @@ def equipo(request):
         'completadas': sum(f['estado'] == 'termino' for f in filas), 'total_usuarios': len(filas),
         'actividades': ItemActividad.objects.filter(empresa=request.empresa, reporte__jornada__inicio__gte=ini,
                                                     reporte__jornada__inicio__lt=fin).count(),
-        'puede_perfiles': tiene_capacidad(request.user, 'jor.perfiles.manage', request.empresa)})
+        'puede_perfiles': tiene_capacidad(request.user, 'jor.perfiles.manage', request.empresa),
+        'puede_mapa': _puede_ver_mapa(request.user, request.empresa)})
+
+
+def _horas(minutos):
+    return f'{minutos // 60} h {minutos % 60:02d} min'
 
 
 @acceso_modulo('jor', 'jor.equipo.ver')
@@ -308,6 +341,9 @@ def persona(request, membresia_id):
     return render(request, 'jor_diario/persona.html', {
         'm': m, 'perfil': perfil, 'jornadas': jornadas, 'nav': _mes_nav(a, mes),
         'total_min': sum(j.duracion_min or 0 for j in jornadas),
+        'total_txt': _horas(sum(j.duracion_min or 0 for j in jornadas)),
+        'promedio_txt': _horas(sum(j.duracion_min or 0 for j in jornadas) // max(1, sum(1 for j in jornadas if j.duracion_min))),
+        'con_reporte': sum(1 for j in jornadas if getattr(j, 'reporte', None)),
         'ausencias': perfil.ausencias.filter(desde__lte=d_fin, hasta__gte=d_ini),
         'dispositivo': passkeys.dispositivo_activo(perfil),
         'puede_perfiles': tiene_capacidad(request.user, 'jor.perfiles.manage', request.empresa)})
@@ -344,13 +380,13 @@ def ausencias(request):
             a.save()
             if a.estado == Ausencia.Estado.PENDIENTE:
                 notificar_a_varios(usuarios_con_capacidad(empresa, 'jor.ausencias.gestionar'), empresa,
-                                   f'{a.perfil.nombre} solicitó {a.get_tipo_display().lower()} '
+                                   f'solicitó {a.get_tipo_display().lower()} '
                                    f'del {a.desde:%d/%m} al {a.hasta:%d/%m}.',
-                                   url=empresa_path(empresa, 'jor_diario:ausencias'), actor=user)
+                                   url='/jornadas/ausencias/', actor=user)
             elif a.perfil.user.pk != user.pk:
-                notificar(a.perfil.user, empresa, f'Se registró una ausencia ({a.get_tipo_display().lower()}) '
+                notificar(a.perfil.user, empresa, f'te registró una ausencia ({a.get_tipo_display().lower()}) '
                           f'del {a.desde:%d/%m} al {a.hasta:%d/%m}.',
-                          url=empresa_path(empresa, 'jor_diario:ausencias'), actor=user)
+                          url='/jornadas/ausencias/', actor=user)
             messages.success(request, 'Solicitud enviada.' if a.estado == Ausencia.Estado.PENDIENTE else 'Ausencia registrada.')
             return redirect('jor_diario:ausencias')
     qs = Ausencia.objects.filter(empresa=empresa).select_related('perfil__membresia__user')
@@ -370,8 +406,8 @@ def ausencia_decidir(request, pk):
     a.estado = Ausencia.Estado.APROBADA if aprobar else Ausencia.Estado.RECHAZADA
     a.decidida_por, a.decidida_en = request.user, timezone.now()
     a.save(update_fields=['estado', 'decidida_por', 'decidida_en'])
-    notificar(a.perfil.user, request.empresa, f'Tu solicitud de {a.get_tipo_display().lower()} del {a.desde:%d/%m} '
-              f'fue {"aprobada" if aprobar else "rechazada"}.', url=empresa_path(request.empresa, 'jor_diario:ausencias'),
+    notificar(a.perfil.user, request.empresa, f'{"aprobó" if aprobar else "rechazó"} tu solicitud de {a.get_tipo_display().lower()} '
+              f'del {a.desde:%d/%m}.', url='/jornadas/ausencias/',
               actor=request.user)
     messages.success(request, 'Solicitud aprobada.' if aprobar else 'Solicitud rechazada.')
     return redirect('jor_diario:ausencias')

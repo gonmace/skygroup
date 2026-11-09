@@ -1,5 +1,7 @@
 {% extends "shell.html" %}
+{% load static %}
 {% block page_title %}{% if obj %}Editar {{ obj.nombre }}{% else %}Nueva empresa{% endif %}{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/campo-color.js' %}" defer></script>{% endblock %}
 {% block content_main %}
 <form method="post" enctype="multipart/form-data" class="card bg-base-100">
   <div class="card-body gap-4">

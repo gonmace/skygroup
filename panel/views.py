@@ -25,12 +25,12 @@ from archivos.storage import s3_activo
 from cuentas import capacidades
 from cuentas.capacidades import requiere_capacidad
 from cuentas import correos
-from cuentas.models import CorreoBloqueado, DominioPermitido, Membresia, RolEmpresa, RolPermiso, User
+from cuentas.models import CorreoBloqueado, DominioPermitido, Membresia, NextcloudConfig, RolEmpresa, RolPermiso, User
 from cuentas.services import agregar_miembro, sembrar_roles
 from empresas.models import Contratista, Empresa, Sede
 
 from .forms import (AdministradorForm, CambiarMiembroForm, ContratistaForm, SedeForm, CorreoBloqueadoForm, DominioPermitidoForm, EmpresaForm,
-                    MarcaForm, MiembroForm, RolEmpresaForm)
+                    MarcaForm, MiembroForm, NextcloudForm, RolEmpresaForm)
 
 
 def superusuario_requerido(vista):
@@ -516,6 +516,20 @@ def acceso_correo_eliminar(request, pk):
     get_object_or_404(CorreoBloqueado, pk=pk, empresa=request.empresa).delete()
     messages.success(request, 'Correo desbloqueado.')
     return redirect('panel:acceso')
+
+
+@superusuario_requerido
+@empresa_requerida
+def nextcloud(request):
+    """Inicio de sesión con el Nextcloud PROPIO de la empresa. Solo el superusuario: el servidor y el cliente OAuth
+    deciden quién entra a la empresa, así que un administrador de la empresa no los puede cambiar."""
+    from cuentas.nextcloud import redirect_uri
+    form = NextcloudForm(request.POST or None, instance=NextcloudConfig.de(request.empresa))
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Configuración de Nextcloud guardada.')
+        return redirect('panel:nextcloud')
+    return render(request, 'panel/nextcloud.html', {'form': form, 'redirect_uri': redirect_uri(request)})
 
 
 @empresa_requerida

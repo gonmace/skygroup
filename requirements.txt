@@ -18,4 +18,5 @@ uvicorn-worker>=0.4
 pymupdf>=1.24  # miniaturas de PDF (tar_adjuntos)
 weasyprint>=68  # PDF «Reporte de avance» (reg_construccion); necesita pango en el sistema
 openpyxl>=3.1  # exportación a Excel (Jornadas)
+webauthn>=3.0  # passkeys de la jornada (jor_empleados/passkeys.py)
 requests>=2.32  # imagen estática de Google Maps (widgets de mapa de Registros)

@@ -18,6 +18,7 @@ urlpatterns = [
     path('jornadas/finalizar/', views.finalizar, name='finalizar'),
     path('jornadas/mis-reportes/', views.historial, name='historial'),
     path('jornadas/equipo/', views.equipo, name='equipo'),
+    path('jornadas/equipo/mapa/', views.mapa_equipo, name='mapa_equipo'),
     path('jornadas/equipo/<int:membresia_id>/', views.persona, name='persona'),
     path('jornadas/ausencias/', views.ausencias, name='ausencias'),
     path('jornadas/ausencias/<int:pk>/decidir/', views.ausencia_decidir, name='ausencia_decidir'),

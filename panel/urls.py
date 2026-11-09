@@ -26,6 +26,7 @@ urlpatterns = [
     path('config/miembros/<int:pk>/eliminar/', views.miembro_eliminar, name='miembro_eliminar'),
     path('config/miembros/<int:pk>/restaurar/', views.miembro_restaurar, name='miembro_restaurar'),
     path('config/acceso/', views.acceso, name='acceso'),
+    path('config/nextcloud/', views.nextcloud, name='nextcloud'),
     path('config/acceso/dominios/<int:pk>/alternar/', views.acceso_dominio_alternar, name='acceso_dominio_alternar'),
     path('config/acceso/dominios/<int:pk>/eliminar/', views.acceso_dominio_eliminar, name='acceso_dominio_eliminar'),
     path('config/acceso/correos/<int:pk>/eliminar/', views.acceso_correo_eliminar, name='acceso_correo_eliminar'),

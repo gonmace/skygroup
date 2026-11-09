@@ -1,0 +1,32 @@
+{% extends "shell.html" %}
+{% block page_title %}Nextcloud{% endblock %}
+{% block content_main %}
+<div class="grid gap-6 lg:grid-cols-3">
+  <form method="post" class="card bg-base-100 lg:col-span-2"><div class="card-body gap-4">
+    {% csrf_token %}
+    <h2 class="card-title text-base">Entrar con Nextcloud</h2>
+    <p class="text-sm text-base-content/70">Permite iniciar sesión con el Nextcloud de {{ marca }}. Las personas que das de alta en Usuarios se vinculan solas la primera vez que entran con Nextcloud (su usuario de Nextcloud debe ser su correo). Opcionalmente, con «Crear cuentas al primer ingreso» (apagado por defecto), quien tenga un correo de un dominio permitido (Alta por dominio) se crea sola, con el cargo del dominio o como Coordinador si está en el grupo administrador.</p>
+    {% if form.non_field_errors %}<div class="alert alert-error text-sm">{{ form.non_field_errors.0 }}</div>{% endif %}
+    <label class="flex items-center gap-2"><span class="label-text">{{ form.activo }} Activar inicio de sesión con Nextcloud</span></label>
+    <label class="flex items-center gap-2"><span class="label-text">{{ form.crear_cuentas }} {{ form.crear_cuentas.label }}</span></label>
+    <p class="-mt-2 text-xs text-base-content/60">{{ form.crear_cuentas.help_text }}</p>
+    {% for f in form.visible_fields %}{% if f.name != "activo" and f.name != "crear_cuentas" %}
+      <label class="form-control w-full">
+        <span class="label-text mb-1">{{ f.label }}</span>
+        {{ f }}
+        {% if f.help_text %}<span class="mt-1 text-xs text-base-content/60">{{ f.help_text }}</span>{% endif %}
+        {% for e in f.errors %}<span class="text-error text-sm">{{ e }}</span>{% endfor %}
+      </label>
+    {% endif %}{% endfor %}
+    <div class="card-actions justify-end"><button type="submit" class="btn btn-primary">Guardar</button></div>
+  </div></form>
+
+  <aside class="card bg-base-100 self-start"><div class="card-body gap-2 text-sm">
+    <h2 class="card-title text-base">Registrar en Nextcloud</h2>
+    <p>En Nextcloud: Ajustes → Seguridad → Cliente OAuth 2.0. Crea un cliente con esta URI de redirección:</p>
+    <code class="break-all rounded bg-base-200 p-2" id="nc-uri">{{ redirect_uri }}</code>
+    <button type="button" class="btn btn-sm btn-ghost self-start" onclick="navigator.clipboard.writeText(document.getElementById('nc-uri').textContent)">Copiar</button>
+    <p class="text-base-content/70">Copia aquí el Client ID y el Client secret que te muestre Nextcloud.</p>
+  </div></aside>
+</div>
+{% endblock %}

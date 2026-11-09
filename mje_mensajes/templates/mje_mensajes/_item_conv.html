@@ -1,18 +1,20 @@
 {# Una fila de la lista: `c` (Conversacion con .no_leidos, .titulo_para, .ultimo). #}
 <li>
-  <button type="button" data-msj-abrir="{{ c.pk }}" class="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-base-200 focus-visible:bg-base-200">
+  <button type="button" data-msj-abrir="{{ c.pk }}" class="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors hover:bg-base-200 active:bg-base-200 focus-visible:bg-base-200 {% if c.no_leidos %}bg-base-200/60{% endif %}">
     <span class="msj-avatar {% if c.tipo == 'general' %}msj-avatar-general{% elif c.tipo == 'proyecto' %}msj-avatar-proyecto{% endif %}" aria-hidden="true">
-      {% if c.tipo == 'directo' %}{{ c.otro_usuario.iniciales }}{% elif c.tipo == 'general' %}{% include "components/icon.html" with name="users" cls="size-4" %}{% else %}{% include "components/icon.html" with name="folder" cls="size-4" %}{% endif %}
+      {% if c.tipo == 'directo' %}{{ c.otro_usuario.iniciales }}{% elif c.tipo == 'general' %}{% include "components/icon.html" with name="users" cls="size-5" %}{% else %}{% include "components/icon.html" with name="folder" cls="size-5" %}{% endif %}
     </span>
     <span class="min-w-0 flex-1">
       <span class="flex items-baseline gap-2">
-        <span class="truncate text-sm font-medium {% if c.no_leidos %}text-base-content{% endif %}">{{ c.titulo_para }}</span>
-        {% if c.ultimo %}<time class="ml-auto shrink-0 text-xs text-base-content/50" datetime="{{ c.ultimo.creado|date:'c' }}">{{ c.ultimo.creado|date:"H:i" }}</time>{% endif %}
+        <span class="truncate text-[15px] {% if c.no_leidos %}font-semibold{% else %}font-medium{% endif %}">{{ c.titulo_para }}</span>
+        {% if c.ultimo %}<time class="ml-auto shrink-0 text-xs {% if c.no_leidos %}font-semibold text-base-content/80{% else %}text-base-content/50{% endif %}" datetime="{{ c.ultimo.creado|date:'c' }}">{{ c.ultimo.creado|date:"H:i" }}</time>{% endif %}
       </span>
-      <span class="block truncate text-xs {% if c.no_leidos %}font-medium text-base-content/80{% else %}text-base-content/55{% endif %}">
-        {% if c.ultimo %}{% if c.ultimo.autor_id == request.user.pk %}Tú: {% elif c.tipo != 'directo' %}{{ c.ultimo.nombre_autor }}: {% endif %}{{ c.ultimo.texto|default:"📎 Archivo"|truncatechars:60 }}{% else %}Sin mensajes todavía{% endif %}
+      <span class="mt-0.5 flex items-center gap-2">
+        <span class="min-w-0 flex-1 truncate text-sm {% if c.no_leidos %}font-medium text-base-content/85{% else %}text-base-content/55{% endif %}">
+          {% if c.ultimo %}{% if c.ultimo.autor_id == request.user.pk %}Tú: {% elif c.tipo != 'directo' %}{{ c.ultimo.nombre_autor }}: {% endif %}{{ c.ultimo.texto|default:"Archivo adjunto"|truncatechars:60 }}{% else %}Sin mensajes todavía{% endif %}
+        </span>
+        <span class="msj-contador shrink-0{% if not c.no_leidos %} hidden{% endif %}" data-msj-conv-badge="{{ c.pk }}">{{ c.no_leidos }}</span>
       </span>
     </span>
-    <span class="badge badge-primary badge-sm shrink-0{% if not c.no_leidos %} hidden{% endif %}" data-msj-conv-badge="{{ c.pk }}">{{ c.no_leidos }}</span>
   </button>
 </li>

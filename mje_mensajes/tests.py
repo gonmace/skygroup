@@ -291,8 +291,10 @@ class ChatTests(TestCase):
         tarjeta = next(t for t in r.context['lanzador_modulos'] if t['codigo'] == 'msj')
         self.assertEqual((tarjeta['estado'], tarjeta['accion']), ('disponible', 'mensajeria'))   # abre la ventana, no navega
         self.assertContains(r, 'data-accion="mensajeria" aria-haspopup="dialog" aria-controls="msj"')
-        # Sin páginas propias: no figura como aplicación en la barra lateral ni en el selector.
-        self.assertNotIn('msj', [a['codigo'] for a in r.context['apps_menu']])
+        # Sin páginas propias: figura en el selector de aplicaciones, pero como acción que abre la ventana (no navega).
+        app = next(a for a in r.context['apps_menu'] if a['codigo'] == 'msj')
+        self.assertEqual(app['accion'], 'mensajeria')
+        self.assertNotIn('Mensajería', [i['nombre'] for i in r.context['menu_lateral']])   # ni entrada de barra lateral
 
     def test_boton_de_chat_del_proyecto_solo_si_puede_verlo(self):
         self.client.force_login(self.ana)                      # del equipo

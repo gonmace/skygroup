@@ -64,16 +64,23 @@ y rellenan `page_title` y `content_main`. El menú viene de panel.menu (context 
           {% for a in apps_menu %}
             {% ifchanged a.nivel %}{% if not forloop.first %}<li role="separator" class="pointer-events-none my-1 h-px bg-base-content/10 p-0"></li>{% endif %}{% endifchanged %}
             <li {% if not a.disponible %}class="menu-disabled"{% endif %}>
+              {% if a.accion %}
+              <button type="button" data-accion="{{ a.accion }}" aria-haspopup="dialog">
+                <span class="grid size-6 place-items-center rounded {{ a.clases }}">{% include "components/icon.html" with name=a.icono cls="size-4" %}</span>
+                {{ a.nombre }}
+              </button>
+              {% else %}
               <a href="{{ a.url }}" {% if a.activa %}class="menu-active"{% endif %}>
                 <span class="grid size-6 place-items-center rounded {{ a.clases }}">{% include "components/icon.html" with name=a.icono cls="size-4" %}</span>
                 {{ a.nombre }}{% if not a.disponible %} <span class="badge badge-ghost badge-xs">Próximamente</span>{% endif %}
               </a>
+              {% endif %}
             </li>
           {% endfor %}
         </ul>
       </details>
       {% endif %}
-      <h1 class="ml-2 truncate text-base font-semibold">{% block page_title %}{% endblock %}</h1>
+      <h1 class="ml-2 hidden truncate text-base font-semibold sm:block">{% block page_title %}{% endblock %}</h1>
       <div class="ml-auto flex items-center gap-1">
         {% if nav_empresas %}
         <details class="dropdown dropdown-end">
@@ -89,12 +96,12 @@ y rellenan `page_title` y `content_main`. El menú viene de panel.menu (context 
         {% if msj_activo %}
         <button type="button" class="btn btn-ghost btn-square btn-sm indicator" data-accion="mensajeria" aria-label="Mensajería{% if mensajes_no_leidos %} ({{ mensajes_no_leidos }} sin leer){% endif %}" aria-haspopup="dialog" aria-controls="msj">
           {% include "components/icon.html" with name="chat" %}
-          <span class="indicator-item badge badge-warning badge-xs{% if not mensajes_no_leidos %} hidden{% endif %}" data-msj-contador>{{ mensajes_no_leidos|default:"" }}</span>
+          <span class="indicator-item badge badge-error badge-xs font-bold text-white{% if not mensajes_no_leidos %} hidden{% endif %}" data-msj-contador>{{ mensajes_no_leidos|default:"" }}</span>
         </button>
         {% endif %}
         <a href="{% url 'notificaciones:lista' %}" class="btn btn-ghost btn-square btn-sm indicator" aria-label="Notificaciones{% if notif_no_leidas %} ({{ notif_no_leidas }} sin leer){% endif %}" data-campana data-campana-ws="/ws/empresa/{{ empresa.slug }}/notificaciones/">
           {% include "components/icon.html" with name="bell" %}
-          <span class="indicator-item badge badge-primary badge-xs{% if not notif_no_leidas %} hidden{% endif %}" data-campana-contador>{{ notif_no_leidas|default:"" }}</span>
+          <span class="indicator-item badge badge-error badge-xs font-bold text-white{% if not notif_no_leidas %} hidden{% endif %}" data-campana-contador>{{ notif_no_leidas|default:"" }}</span>
         </a>
         {% endif %}
         <button type="button" class="btn btn-ghost btn-square btn-sm" data-accion="tema" aria-label="Modo oscuro" aria-pressed="false">
@@ -106,6 +113,10 @@ y rellenan `page_title` y `content_main`. El menú viene de panel.menu (context 
           <ul class="menu dropdown-content z-10 bg-base-100 shadow-xl border border-base-content/10 mt-2 w-56 rounded-2xl p-2 max-sm:fixed max-sm:inset-x-2 max-sm:top-14 max-sm:mt-1 max-sm:w-auto">
             <li class="menu-title">{{ request.user.email }}</li>
             {% if request.user.is_superuser %}<li><a href="{% url 'panel:empresas' %}">Plataforma</a></li>{% endif %}
+            {% if nc_disponible %}<li>
+              {% if nc_vinculado %}<form method="post" action="{% url 'cuentas:nextcloud_desvincular' %}" data-confirmar="¿Desvincular tu cuenta de Nextcloud?">{% csrf_token %}<button type="submit" class="w-full text-left">Desvincular Nextcloud</button></form>
+              {% else %}<form method="post" action="{% url 'cuentas:nextcloud_vincular' %}">{% csrf_token %}<button type="submit" class="w-full text-left">Vincular Nextcloud</button></form>{% endif %}
+            </li>{% endif %}
             <li>
               <form method="post" action="{% url 'cuentas:logout' %}">{% csrf_token %}
                 <button type="submit" class="w-full text-left">Cerrar sesión</button>

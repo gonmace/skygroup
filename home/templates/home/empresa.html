@@ -30,9 +30,12 @@
       </div>
       <div class="relative mt-1 flex items-center justify-between gap-2">
         {% if m.estado == "disponible" %}<span class="mod-card-cta">Abrir {% include "components/icon.html" with name="arrow-right" cls="size-4" %}</span>
-          {% if m.codigo == "jor" and jornada_estado %}<span class="badge gap-1.5 {% if jornada_estado == 'en_curso' %}badge-success badge-soft{% elif jornada_estado == 'cerrada' %}badge-ghost{% else %}badge-warning badge-soft{% endif %}" title="Mi jornada de hoy">
-            <span class="size-2 rounded-full {% if jornada_estado == 'en_curso' %}bg-success{% elif jornada_estado == 'cerrada' %}bg-base-content/40{% else %}bg-warning{% endif %}" aria-hidden="true"></span>
-            {% if jornada_estado == 'en_curso' %}Jornada en curso · {{ jornada_hoy.inicio|date:"H:i" }}{% elif jornada_estado == 'cerrada' %}Jornada cerrada{% else %}Sin inicio{% endif %}
+          {% if m.codigo == "jor" and jornada_estado %}<span class="badge shrink-0 gap-1.5 whitespace-nowrap {% if jornada_estado == 'en_curso' %}badge-success badge-soft{% elif jornada_estado == 'cerrada' %}badge-ghost{% else %}badge-warning badge-soft{% endif %}" title="Mi jornada de hoy{% if jornada_estado == 'en_curso' %} · iniciada a las {{ jornada_hoy.inicio|date:'H:i' }}{% endif %}">
+            <span class="relative flex size-2" aria-hidden="true">
+              {% if jornada_estado == 'en_curso' %}<span class="absolute inline-flex size-full rounded-full bg-success opacity-60 motion-safe:animate-ping"></span>{% endif %}
+              <span class="relative inline-flex size-2 rounded-full {% if jornada_estado == 'en_curso' %}bg-success{% elif jornada_estado == 'cerrada' %}bg-base-content/40{% else %}bg-warning{% endif %}"></span>
+            </span>
+            {% if jornada_estado == 'en_curso' %}Jornada activa{% elif jornada_estado == 'cerrada' %}Jornada cerrada{% else %}Sin inicio{% endif %}
           </span>{% endif %}
         {% elif m.estado == "proximamente" %}{# la cinta de la esquina ya lo dice #}
         {% elif m.estado == "sin_acceso" %}<span class="badge badge-ghost badge-sm">Sin acceso con tu rol</span>

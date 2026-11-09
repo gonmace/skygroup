@@ -1,0 +1,13 @@
+{# Miniatura del archivo actual + selector de archivo + «Quitar». Contexto: widget (ClearableFileInput + oscuro/pequena). #}
+<div class="flex items-center gap-3">
+  <span class="grid shrink-0 place-items-center overflow-hidden rounded-xl border border-base-content/15 {% if widget.pequena %}size-14{% else %}h-16 w-28{% endif %} {% if widget.oscuro %}bg-neutral{% else %}bg-base-100{% endif %} {% if not widget.is_initial %}border-dashed text-base-content/30{% endif %}">
+    {% if widget.is_initial %}<img src="{{ widget.value.url }}" alt="Imagen actual" class="object-contain {% if widget.pequena %}max-h-11 max-w-11{% else %}max-h-[3.25rem] max-w-24{% endif %}" loading="lazy">
+    {% else %}<span class="px-1 text-center text-[11px] leading-tight">Sin imagen</span>{% endif %}
+  </span>
+  <div class="min-w-0 flex-1 space-y-1.5">
+    <input type="{{ widget.type }}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>
+    {% if widget.is_initial and not widget.required %}
+      <label class="flex items-center gap-2 text-xs text-base-content/70"><input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}" class="checkbox checkbox-xs"> Quitar imagen actual</label>
+    {% endif %}
+  </div>
+</div>

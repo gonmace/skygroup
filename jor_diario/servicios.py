@@ -5,7 +5,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from .models import Jornada, ReporteDiario
-from .verificacion import MOTIVOS, es_movil, verificar_presencia
+from .verificacion import MOTIVOS, verificar_presencia
 
 HORA_CIERRE_AUTO = time(17, 0)
 
@@ -22,15 +22,12 @@ def jornada_en_curso(perfil):
     return perfil.jornadas.filter(estado=Jornada.Estado.EN_CURSO).order_by('-inicio').first()
 
 
-def _evaluar(perfil, dispositivo, lecturas, user_agent):
+def _evaluar(perfil, dispositivo, lecturas):
     """Identidad (passkey ya verificada por la vista) + presencia. → (resultado, motivos)."""
     if dispositivo is None or not dispositivo.activo or dispositivo.perfil_id != perfil.pk:
         raise ErrorJornada('Vincula tu celular para poder marcar tu jornada.', dispositivo_requerido=True)
     res = verificar_presencia(perfil.membresia.sede, lecturas)
-    motivos = list(res['motivos'])
-    if not es_movil(user_agent):
-        motivos.append('no_movil')
-    return res, motivos
+    return res, list(res['motivos'])
 
 
 def _texto_motivos(motivos):
@@ -43,12 +40,12 @@ def _coords(res):
     return round(res['lat'], 6), round(res['lon'], 6)
 
 
-def iniciar(perfil, dispositivo, lecturas, proyecto=None, motivo='', ip=None, user_agent=''):
+def iniciar(perfil, dispositivo, lecturas, proyecto=None, motivo='', ip=None):
     if not perfil.activo or not perfil.membresia.activa:
         raise ErrorJornada('Tu acceso a Asistencia está deshabilitado.')
     if proyecto is not None and proyecto.empresa_id != perfil.empresa_id:
         raise ErrorJornada('El proyecto no pertenece a esta empresa.')
-    res, motivos = _evaluar(perfil, dispositivo, lecturas, user_agent)
+    res, motivos = _evaluar(perfil, dispositivo, lecturas)
     motivo = (motivo or '').strip()[:300]
     estado_v = Jornada.Verificacion.VERIFICADA
     if motivos:
@@ -66,7 +63,7 @@ def iniciar(perfil, dispositivo, lecturas, proyecto=None, motivo='', ip=None, us
                 lat_inicio=lat, lon_inicio=lon, precision_inicio=res['precision_m'], ip_inicio=ip or None,
                 dispositivo=dispositivo, estado_verificacion=estado_v, motivo_excepcion=motivo if motivos else '',
                 verificacion={'inicio': {k: res[k] for k in ('motivos', 'avisos', 'distancia_m', 'precision_m')}
-                              | {'motivos': motivos, 'user_agent': user_agent[:200]}})
+                              | {'motivos': motivos}})
     except IntegrityError:
         raise ErrorJornada('Ya tienes una jornada activa.')
     if estado_v == Jornada.Verificacion.EXCEPCION_PENDIENTE:
@@ -76,21 +73,20 @@ def iniciar(perfil, dispositivo, lecturas, proyecto=None, motivo='', ip=None, us
 
 def _avisar_excepcion(jornada):
     from cuentas.capacidades import usuarios_con_capacidad
-    from empresas.tenancy import empresa_path
     from notificaciones.services import notificar_a_varios
     revisores = [u for u in usuarios_con_capacidad(jornada.empresa, 'jor.excepciones.gestionar')
                  if u.pk != jornada.perfil.user.pk]
     notificar_a_varios(
-        revisores, jornada.empresa, actor=jornada.perfil.user, url=empresa_path(jornada.empresa, 'jor_diario:excepciones'),
+        revisores, jornada.empresa, actor=jornada.perfil.user, url='/jornadas/excepciones/',
         mensaje=f'{jornada.perfil.nombre} inició su jornada fuera de la sede y pide aprobación: {jornada.motivo_excepcion}')
 
 
 @transaction.atomic
-def finalizar(jornada_id, perfil, dispositivo, lecturas, realizado='', planificado='', ip=None, user_agent=''):
+def finalizar(jornada_id, perfil, dispositivo, lecturas, realizado='', planificado='', ip=None):
     """Cierra la jornada. Exige identidad (passkey) y ubicación legible; el resultado de la presencia al
     terminar queda registrado para quien revisa, pero no cambia el estado de verificación del inicio."""
     realizado, planificado = (realizado or '').strip(), (planificado or '').strip()
-    res, motivos = _evaluar(perfil, dispositivo, lecturas, user_agent)
+    res, motivos = _evaluar(perfil, dispositivo, lecturas)
     if res['lat'] is None:
         raise ErrorJornada('No se pudo leer tu ubicación. Revisa el permiso del navegador e inténtalo de nuevo.',
                            ubicacion_requerida=True)

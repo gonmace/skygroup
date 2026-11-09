@@ -17,6 +17,7 @@
             {% for m in v.motivos %}<span class="badge badge-ghost badge-sm">{{ m }}</span> {% endfor %}
             {% if v.distancia_m != None %}<span class="block">a {{ v.distancia_m|floatformat:0 }} m de la sede{% if v.precision_m != None %}, precisión ±{{ v.precision_m|floatformat:0 }} m{% endif %}</span>{% endif %}
           {% endwith %}
+          {% if j.lat_inicio != None %}<a class="link block" target="_blank" rel="noopener" href="https://maps.google.com/?q={{ j.lat_inicio|stringformat:'s' }},{{ j.lon_inicio|stringformat:'s' }}">Ver dónde marcó</a>{% endif %}
         </td>
         <td class="whitespace-nowrap text-right">
           <form method="post" action="{% url 'jor_diario:excepcion_decidir' j.pk %}" class="inline">{% csrf_token %}

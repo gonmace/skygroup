@@ -27,6 +27,9 @@
 @source "../../../static/js";
 /* Variante para el tema que fija la app (data-theme), no la preferencia del sistema: `tema-oscuro:` */
 @custom-variant tema-oscuro (&:where([data-theme=dark], [data-theme=dark] *));
+/* `dark:` también sigue el tema de la app (data-theme, que cambia el botón de tema) y no la preferencia del sistema:
+   si no, con el SO en oscuro y la app en claro se mostraba el logo oscuro (texto blanco) sobre fondo claro. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 @plugin "@tailwindcss/forms";
 @plugin "@tailwindcss/typography";
 @plugin "daisyui" {
@@ -382,6 +385,8 @@ a.mod-card:active { transform: translateY(-1px) scale(.985); }
   .menu :where(li > a, li > button, li > summary) { min-height: 2.75rem; }
   /* Excepción deliberada para botones de herramientas de barras densas (Tipos, Nuevo): 36 px en vez de 44. */
   .btn-sm.btn-compacto { min-height: 2.25rem; }
+  /* El botón crece a 44 px pero el icono sigue siendo pequeño: acercar el contador al icono. */
+  .btn.indicator > .indicator-item { --indicator-e: 0.55rem; --indicator-t: 0.55rem; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition-duration: 0s !important; animation-duration: 0s !important; } }
 
@@ -443,3 +448,32 @@ a.mod-card:active { transform: translateY(-1px) scale(.985); }
 .msj-avatar-general { background: color-mix(in oklab, var(--color-primary) 18%, transparent); color: var(--color-primary); }
 .msj-avatar-proyecto { background: color-mix(in oklab, var(--color-secondary) 18%, transparent); color: var(--color-secondary); }
 .mencion { font-weight: 600; border-radius: .25rem; padding: 0 .25rem; background: color-mix(in oklab, currentColor 18%, transparent); }
+
+/* Sin @layer a propósito: las tarjetas llevan `bg-base-100 shadow-sm` (capa utilities) y deben ceder al color del estado. */
+/* Las tarjetas de la vista móvil (<li class="row-…">) llevan el mismo color de estado que las filas de tabla. */
+li.row-concluido { --estado: var(--color-success); }
+li.row-parcial   { --estado: var(--color-warning); }
+li.row-vacio     { --estado: var(--color-error); }
+li:is(.row-concluido, .row-parcial, .row-vacio) {
+  box-shadow: inset 6px 0 0 var(--estado), 0 0 0 1px color-mix(in oklab, var(--estado) 35%, transparent);
+  background-color: color-mix(in oklab, var(--estado) 13%, var(--color-base-100));
+}
+
+/* Contadores de la barra (mensajes, campana): rojo sólido con número blanco, como las burbujas de aviso del teléfono.
+   Sin esto los pinta la regla de «insignias tintadas» (rosa pálido, poco visible). */
+.badge.indicator-item:not(.badge-ghost):not(.badge-outline) {
+  background: #e5262b; color: #fff; font-weight: 700;   /* rojo fijo: el error del tema se desplaza a magenta si la marca es roja */
+  box-shadow: 0 0 0 2px var(--color-base-100);
+}
+
+/* ── Chat (mensajería) ─────────────────────────────────────────────────────────────────────────────────────────────── */
+#msj .msj-avatar-sm { width: 1.75rem; height: 1.75rem; font-size: .65rem; font-weight: 600; background: var(--color-base-300); }
+/* Burbujas: las ajenas blancas con sombra suave sobre el fondo gris del hilo; las propias en el color de marca. */
+#msj .msj-burbuja { border-radius: 1.15rem; box-shadow: 0 1px 2px rgb(0 0 0 / .08); line-height: 1.35; padding: .55rem .85rem; }
+#msj .chat-start .msj-burbuja { background: var(--color-base-100); color: var(--color-base-content); }
+#msj .chat-start .msj-burbuja::before, #msj .chat-end .msj-burbuja::before { display: none; }   /* sin «colita»: más limpio */
+#msj .chat-footer { margin-top: .125rem; }
+/* Contador de no leídos de cada conversación: rojo sólido con número blanco (como el de la barra). */
+.msj-contador { display: inline-grid; place-items: center; min-width: 1.35rem; height: 1.35rem; padding: 0 .4rem; border-radius: 9999px;
+  background: #e5262b; color: #fff; font-size: .72rem; font-weight: 700; line-height: 1; }
+.msj-contador.hidden { display: none; }

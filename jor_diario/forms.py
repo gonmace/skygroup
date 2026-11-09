@@ -23,7 +23,7 @@ class AusenciaForm(forms.ModelForm):
             'tipo': forms.Select(attrs={'class': 'select select-bordered w-full'}),
             'desde': forms.DateInput(attrs={'class': _INPUT, 'type': 'date'}, format='%Y-%m-%d'),
             'hasta': forms.DateInput(attrs={'class': _INPUT, 'type': 'date'}, format='%Y-%m-%d'),
-            'nota': forms.TextInput(attrs={'class': _INPUT}),
+            'nota': forms.Textarea(attrs={'class': 'textarea textarea-bordered w-full', 'rows': 3}),
         }
 
     def __init__(self, *args, perfiles=None, **kwargs):
@@ -37,6 +37,8 @@ class AusenciaForm(forms.ModelForm):
         datos = super().clean()
         if datos.get('desde') and datos.get('hasta') and datos['hasta'] < datos['desde']:
             self.add_error('hasta', 'La fecha final no puede ser anterior a la inicial.')
+        if datos.get('tipo') and datos['tipo'] != Ausencia.Tipo.VACACION and not (datos.get('nota') or '').strip():
+            self.add_error('nota', 'Indica el motivo: la nota es obligatoria salvo en vacaciones.')
         return datos
 
 

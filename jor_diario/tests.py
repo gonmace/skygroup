@@ -19,8 +19,6 @@ from proyectos.models import Proyecto
 from . import servicios
 from .models import Ausencia, Jornada, NotaCalendario, ReporteDiario
 
-UA_MOVIL = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36'
-UA_PC = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126.0 Safari/537.36'
 SEDE_LAT, SEDE_LON = -16.500000, -68.150000
 
 AJUSTES = dict(
@@ -83,25 +81,23 @@ class JornadasBase(TestCase):
                 for i in range(n)]
 
     def ini(self, p, proyecto=None, lecturas=None, **kw):
-        kw.setdefault('user_agent', UA_MOVIL)
         return servicios.iniciar(p, self.dispositivo(p), lecturas if lecturas is not None else self.lecturas(),
                                  proyecto, **kw)
 
     def fin(self, jornada_id, p, realizado='', planificado='', lecturas=None, **kw):
-        kw.setdefault('user_agent', UA_MOVIL)
         return servicios.finalizar(jornada_id, p, self.dispositivo(p),
                                    lecturas if lecturas is not None else self.lecturas(), realizado, planificado, **kw)
 
-    def ir(self, user, ruta, datos=None, slug='tekon', ua=UA_MOVIL, lecturas=None):
+    def ir(self, user, ruta, datos=None, slug='tekon', lecturas=None):
         self.client.force_login(user)
         url = f'/{slug}/jornadas/{ruta}'
         if datos is None:
-            return self.client.get(url, HTTP_USER_AGENT=ua)
+            return self.client.get(url)
         if ruta in ('iniciar/', 'finalizar/'):    # el passkey se prueba aparte (PasskeysTests): aquí se da por verificado
             datos = {**datos, 'credencial': '{}',
                      'lecturas': json.dumps(self.lecturas() if lecturas is None else lecturas)}
             with mock.patch('jor_diario.views.passkeys.verificar_aserto', return_value=self.dispositivo(self.perfil(user))):
-                return self.client.post(url, datos, HTTP_USER_AGENT=ua)
+                return self.client.post(url, datos)
         return self.client.post(url, datos)
 
 
@@ -204,7 +200,7 @@ class VistasTests(JornadasBase):
         self.ir(self.emp, 'iniciar/', {'proyecto': self.proy.pk})
         r = self.ir(self.emp, '')
         self.assertEqual(r.context['estado_hoy'], 'en_curso')
-        self.assertContains(self.inicio_empresa(self.emp), 'Jornada en curso')
+        self.assertContains(self.inicio_empresa(self.emp), 'Jornada activa')
         self.assertContains(r, 'data-jor-reloj')
         # Cerrada
         j = Jornada.objects.get()
@@ -311,6 +307,13 @@ class AusenciasTests(JornadasBase):
         r = self.ir(self.pmo, 'ausencias/', dict(self.datos, perfil=pb.pk))
         self.assertEqual(r.status_code, 200)
         self.assertFalse(Ausencia.objects.exists())
+
+    def test_nota_obligatoria_salvo_vacacion(self):
+        r = self.ir(self.emp, 'ausencias/', dict(self.datos, tipo='permiso', nota=''))
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(Ausencia.objects.exists())
+        self.ir(self.emp, 'ausencias/', dict(self.datos, nota=''))             # vacación: sin nota vale
+        self.assertEqual(Ausencia.objects.count(), 1)
 
     def test_fechas_invertidas(self):
         r = self.ir(self.emp, 'ausencias/', dict(self.datos, desde='2026-07-09'))
@@ -456,23 +459,19 @@ class VerificarPresenciaTests(JornadasBase):
         self.assertTrue(r['ok'])
         self.assertEqual(r['avisos'], ['lecturas_identicas'])
 
-    def test_sede_sin_ubicacion_no_valida(self):
+    def test_sede_sin_ubicacion_solo_captura(self):
         libre = Sede.objects.create(empresa=self.a, nombre='Sin coords')
-        r = self.v(self.lecturas(), sede=libre)
-        self.assertFalse(r['ok'])
-        self.assertIn('sin_geocerca', r['motivos'])
-        self.assertIn('sin_geocerca', self.v(self.lecturas(), sede=None) if False else self.v_sin_sede()['motivos'])
+        for r in (self.v(self.lecturas(), sede=libre), self.v_sin_sede()):
+            self.assertTrue(r['ok'])
+            self.assertEqual(r['motivos'], [])
+            self.assertIn('sin_geocerca', r['avisos'])
+            self.assertIsNotNone(r['lat'])
+            self.assertIsNone(r['distancia_m'])
 
     def v_sin_sede(self):
         from .verificacion import verificar_presencia
         return verificar_presencia(None, self.lecturas())
 
-    def test_es_movil(self):
-        from .verificacion import es_movil
-        self.assertTrue(es_movil(UA_MOVIL))
-        self.assertTrue(es_movil('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)'))
-        self.assertFalse(es_movil(UA_PC))
-        self.assertFalse(es_movil(None))
 
 
 # ── Inicio de jornada: identidad (passkey) + presencia → verificada o excepción ────────────────
@@ -521,17 +520,13 @@ class MarcacionTests(JornadasBase):
             self.ini(p, lecturas=self.lecturas(metros_norte=2000), motivo='da igual')
         self.assertFalse(Jornada.objects.exists())
 
-    def test_desde_un_computador_es_excepcion(self):
-        j = self.ini(self.perfil(self.emp), user_agent=UA_PC, motivo='Sin celular a mano')
-        self.assertEqual(j.estado_verificacion, 'excepcion_pendiente')
-        self.assertIn('no_movil', j.verificacion['inicio']['motivos'])
-
-    def test_sede_sin_ubicacion_va_a_revision(self):
+    def test_sin_sede_con_ubicacion_inicia_y_captura_la_posicion(self):
         m = self.emp.membresias.get(empresa=self.a)
         m.sede = None
         m.save()
-        j = self.ini(self.perfil(self.emp), motivo='Aún sin sede')
-        self.assertEqual(j.estado_verificacion, 'excepcion_pendiente')
+        j = self.ini(self.perfil(self.emp))
+        self.assertNotEqual(j.estado_verificacion, 'excepcion_pendiente')
+        self.assertIsNotNone(j.lat_inicio)
 
     def test_precision_mala_va_a_revision(self):
         with self.assertRaises(servicios.ErrorJornada):
@@ -626,30 +621,23 @@ class VistasMarcacionTests(JornadasBase):
         from jor_empleados.passkeys import ErrorPasskey
         self.client.force_login(self.emp)
         with mock.patch('jor_diario.views.passkeys.verificar_aserto', side_effect=ErrorPasskey('caducó')):
-            r = self.client.post('/tekon/jornadas/iniciar/', {'credencial': '{}', 'lecturas': '[]'}, HTTP_USER_AGENT=UA_MOVIL)
+            r = self.client.post('/tekon/jornadas/iniciar/', {'credencial': '{}', 'lecturas': '[]'})
         self.assertEqual((r.status_code, r.json()['error']), (400, 'caducó'))
         self.assertFalse(Jornada.objects.exists())
 
     def test_sin_credencial_ni_challenge_no_marca(self):
         self.client.force_login(self.emp)
-        r = self.client.post('/tekon/jornadas/iniciar/', {'lecturas': json.dumps(self.lecturas())}, HTTP_USER_AGENT=UA_MOVIL)
+        r = self.client.post('/tekon/jornadas/iniciar/', {'lecturas': json.dumps(self.lecturas())})
         self.assertEqual(r.status_code, 400)
         self.assertFalse(Jornada.objects.exists())
 
     def test_json_mal_formado(self):
         self.client.force_login(self.emp)
-        r = self.client.post('/tekon/jornadas/iniciar/', {'credencial': '{', 'lecturas': 'x'}, HTTP_USER_AGENT=UA_MOVIL)
+        r = self.client.post('/tekon/jornadas/iniciar/', {'credencial': '{', 'lecturas': 'x'})
         self.assertEqual(r.status_code, 400)
 
-    def test_desde_pc_la_pantalla_avisa_y_deshabilita(self):
-        self.dispositivo(self.perfil(self.emp))
-        r = self.ir(self.emp, '', ua=UA_PC)
-        self.assertContains(r, 'se marca desde tu celular')
-        self.assertContains(r, 'disabled')
-
-    def test_sin_dispositivo_ofrece_vincular_solo_en_el_celular(self):
+    def test_sin_dispositivo_ofrece_vincular(self):
         self.assertContains(self.ir(self.emp, ''), 'Vincular este celular')
-        self.assertNotContains(self.ir(self.emp, '', ua=UA_PC), 'Vincular este celular')
 
     def test_liberar_celular(self):
         d = self.dispositivo(self.perfil(self.emp))
@@ -743,7 +731,7 @@ class PasskeyFlujoCompletoTests(JornadasBase):
     def request(self, user):
         from django.contrib.sessions.backends.signed_cookies import SessionStore
         from django.test import RequestFactory
-        r = RequestFactory().get('/', HTTP_HOST='localhost', HTTP_USER_AGENT=UA_MOVIL)
+        r = RequestFactory().get('/', HTTP_HOST='localhost')
         r.session, r.user = SessionStore(), user
         return r
 
@@ -796,7 +784,7 @@ class PasskeyFlujoCompletoTests(JornadasBase):
         d2 = passkeys.verificar_aserto(r, p, self.aserto(opciones, 1))
         self.assertEqual((d2.pk, d2.sign_count), (d.pk, 1))
         self.assertIsNotNone(d2.ultimo_uso)
-        j = servicios.iniciar(p, d2, self.lecturas(), user_agent=UA_MOVIL)       # la jornada queda atada al celular
+        j = servicios.iniciar(p, d2, self.lecturas())       # la jornada queda atada al celular
         self.assertEqual((j.dispositivo, j.estado_verificacion), (d2, 'verificada'))
 
     def test_replay_de_la_misma_firma_falla(self):
@@ -855,3 +843,50 @@ class PasskeyFlujoCompletoTests(JornadasBase):
         self.assertFalse(d.activo)
         with self.assertRaises(passkeys.ErrorPasskey):                          # el celular viejo ya no puede marcar
             passkeys.opciones_autenticacion(self.request(self.emp), self.perfil(self.emp))
+
+
+class MapaEquipoTests(JornadasBase):
+    def test_solo_superusuario_y_administrador(self):
+        self.ini(self.perfil(self.emp))
+        self.assertEqual(self.ir(self.pmo, 'equipo/mapa/').status_code, 403)       # coordinador sin ser admin
+        self.assertEqual(self.ir(self.emp, 'equipo/mapa/').status_code, 403)
+        self.assertNotContains(self.ir(self.pmo, 'equipo/'), 'equipo/mapa/')
+
+    def test_superusuario_y_administrador_ven_los_puntos(self):
+        self.ini(self.perfil(self.emp))
+        su = User.objects.create_user('su@x.cl', 'x', is_superuser=True)
+        r = self.ir(su, 'equipo/mapa/')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual([(p['tipo'], p['nombre']) for p in r.context['puntos']], [('inicio', 'Emp')])
+        self.assertContains(self.ir(su, 'equipo/'), 'equipo/mapa/')
+        self.pmo.empresas_administradas.add(self.a)
+        self.assertEqual(self.ir(self.pmo, 'equipo/mapa/').status_code, 200)
+
+
+class CierreExigePasskeyTests(JornadasBase):
+    """El cierre siempre exige el passkey del celular vinculado: nada depende del User-Agent."""
+
+    def test_sin_passkey_no_cierra_aunque_el_navegador_diga_que_es_un_computador(self):
+        self.ini(self.perfil(self.emp))
+        self.client.force_login(self.emp)
+        datos = {'jornada': Jornada.objects.get().pk, 'realizado': 'Hice A', 'planificado': 'Haré B',
+                 'lecturas': json.dumps(self.lecturas())}
+        r = self.client.post('/tekon/jornadas/finalizar/', datos,
+                             HTTP_USER_AGENT='Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0 Safari/537.36')
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(Jornada.objects.get().estado, 'en_curso')
+
+    def test_con_passkey_verificado_cierra_y_captura_la_ubicacion(self):
+        self.ini(self.perfil(self.emp))
+        r = self.ir(self.emp, 'finalizar/', {'jornada': Jornada.objects.get().pk, 'realizado': 'Hice A', 'planificado': 'Haré B'})
+        self.assertEqual(r.status_code, 200)
+        j = Jornada.objects.get()
+        self.assertEqual(j.estado, 'completada')
+        self.assertIsNotNone(j.lat_fin)
+
+    def test_sin_ubicacion_no_cierra(self):
+        self.ini(self.perfil(self.emp))
+        r = self.ir(self.emp, 'finalizar/', {'jornada': Jornada.objects.get().pk, 'realizado': 'A', 'planificado': 'B'}, lecturas=[])
+        self.assertEqual(r.status_code, 400)
+        self.assertTrue(r.json()['ubicacion_requerida'])
+        self.assertEqual(Jornada.objects.get().estado, 'en_curso')

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>TX/TSS — {{ codigo }}</title>
+  {# Los estilos los carga la vista desde disco: un <link> a /static/ haría que WeasyPrint se pida el CSS por HTTP a este mismo servidor. #}
+</head>
+<body>
+
+{% if borrador %}<div class="marca-agua">BORRADOR</div>{% endif %}
+
+<div id="page-header">
+  <table class="header-table"><tr>
+    <td class="header-logo left">{% if logo_empresa %}<img src="{{ logo_empresa }}" alt="{{ empresa.nombre }}">{% endif %}</td>
+    <td class="header-title"><h1>{{ titulo }}<br>{{ codigo }}</h1></td>
+    <td class="header-logo right"></td>
+  </tr></table>
+</div>
+
+<div id="page-footer"><span class="page-number"></span></div>
+
+<div class="seccion-2col">
+  <article class="seccion-2col-izq">
+    <h2>Datos Generales del Sitio</h2>
+    <table class="datos-2col">{% for k, v in generales %}<tr><th>{{ k }}:</th><td>{{ v }}</td></tr>{% endfor %}</table>
+  </article>
+  <article class="seccion-2col-der">
+    <h2>Datos de Inspección</h2>
+    <table class="datos-2col">
+      <tr><th>Responsable Técnico:</th><td>{{ responsable|default:"N/A" }}</td></tr>
+      <tr><th>Fecha de Inspección:</th><td>{{ registro.fecha|date:"d/m/Y" }}</td></tr>
+    </table>
+  </article>
+</div>
+
+{% for s in antes %}{% include "reg_txtss/pdf/_seccion.html" %}{% endfor %}
+
+<article id="tabla-datos-geograficos">
+  <h2>Datos Geográficos</h2>
+  <table class="table table-centered">
+    <thead><tr>
+      <th style="text-align: left;">Ubicación</th><th style="text-align: center;">Latitud (°)</th><th style="text-align: center;">Latitud (DMS)</th>
+      <th style="text-align: center;">Longitud (°)</th><th style="text-align: center;">Longitud (DMS)</th>
+    </tr></thead>
+    <tbody>{% for fila in geo_filas %}<tr>{% for c in fila %}<td style="text-align: {% if forloop.first %}left{% else %}center{% endif %};">{{ c }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+  </table>
+  {% if desfase and not desfase_en_seccion %}
+  <div class="desfase-alerta">
+    <span class="desfase-dot" style="background-color: {{ desfase.color }};"></span>
+    <span><strong>Desfase Mandato — Inspección:</strong>&nbsp;{{ desfase.texto }} — <em>{{ desfase.estado }}</em></span>
+  </div>
+  {% endif %}
+</article>
+
+{% for s in despues %}{% include "reg_txtss/pdf/_seccion.html" %}{% endfor %}
+
+</body>
+</html>

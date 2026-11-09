@@ -1,0 +1,42 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block page_title %}Registros{% endblock %}
+{% block extra_head %}{% if hay_mapa %}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endif %}{% endblock %}
+{% block extra_scripts %}{% if hay_mapa %}<script src="{% static 'vendor/leaflet/leaflet.js' %}" defer></script>
+<script src="{% static 'js/proyectos-mapa.js' %}" defer></script>{% endif %}{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div class="flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h2 class="text-2xl font-semibold tracking-tight">Hola, {{ request.user.first_name|default:request.user.email }}</h2>
+    <p class="text-sm text-base-content/60">{{ hoy|date:"l j \d\e F \d\e Y" }} · Semana {{ hoy|date:"W" }}</p>
+  </div>
+  {% if acciones %}<div class="flex flex-wrap gap-2">
+    {% for a in acciones %}<a href="{{ a.url }}" class="btn btn-sm{% if a.primaria %} btn-primary{% endif %}">{% include "components/icon.html" with name=a.icono cls="size-4" %} {{ a.texto }}</a>{% endfor %}
+  </div>{% endif %}
+</div>
+
+<div class="grid gap-4 md:grid-cols-2">
+  {% for t in tarjetas %}
+    <a href="{% url t.url %}{{ t.url_query }}" class="card bg-base-100 transition hover:ring-2 hover:ring-primary-text">
+      <div class="card-body gap-3">
+        <div class="flex items-baseline justify-between"><h2 class="card-title">{{ t.nombre }}</h2><span class="text-right"><span class="text-3xl font-black tabular-nums">{{ t.sitios }}</span> <span class="text-sm text-base-content/60">{{ termino_proyectos|lower }}</span></span></div>
+        {% if t.por_obra %}<div class="flex flex-wrap gap-2">
+          {% for codigo, etiqueta in t.por_obra %}{% include "reg_construccion/_badge_obra.html" with estado=codigo nombre=etiqueta %}{% endfor %}
+        </div>{% endif %}
+        <p class="text-sm text-base-content/70"><span class="font-semibold tabular-nums">{{ t.reportes }}</span> reporte{{ t.reportes|pluralize }}</p>
+        {% if t.avance_medio is not None %}<p class="text-sm text-base-content/70">Avance medio de las obras en construcción: <span class="font-semibold tabular-nums">{{ t.avance_medio }}%</span></p>{% endif %}
+        {% if t.con_estados %}<div class="flex flex-wrap gap-3 text-sm">
+          <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-error"></span>Vacíos {{ t.vacios }}</span>
+          <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-warning"></span>En proceso {{ t.en_proceso }}</span>
+          <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-success"></span>Concluidos {{ t.concluidos }}</span>
+        </div>{% endif %}
+      </div>
+    </a>
+  {% empty %}
+    <p class="text-sm text-base-content/60">Tu rol no tiene acceso a ningún reporte de este módulo.</p>
+  {% endfor %}
+</div>
+
+{% for p in paneles %}{{ p.html }}{% endfor %}
+{% endblock %}

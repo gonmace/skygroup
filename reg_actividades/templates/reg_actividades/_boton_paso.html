@@ -1,0 +1,8 @@
+{# Botón redondo de un componente. Contexto: b (botón), tipo, r, p (paso). #}
+<a href="{% if b.galeria %}{% url 'reg_fotos:galeria' tipo.clave r.pk b.galeria %}{% else %}{% url 'reg_actividades:paso' tipo.clave r.pk p.paso.nombre %}?w={{ b.slug }}{% endif %}"
+   class="btn btn-circle btn-tactil relative size-14 shrink-0 {% if b.estado == 'verde' %}btn-success tema-oscuro:[--btn-bg:#16a34a] tema-oscuro:[--btn-fg:#fff]{% elif b.estado == 'amarillo' %}btn-warning tema-oscuro:[--btn-bg:#ca8a04] tema-oscuro:[--btn-fg:#fff]{% elif b.estado == 'rojo' %}btn-error tema-oscuro:[--btn-bg:#dc2626] tema-oscuro:[--btn-fg:#fff]{% else %}tactil-fijo [--btn-bg:#64748b] [--btn-fg:#fff] border-0 bg-[var(--btn-bg)] text-white{% endif %}"
+   title="{{ b.etiqueta }}" aria-label="{{ b.etiqueta }}{% if b.conteo %} ({{ b.conteo }}){% endif %}">
+  {% include "components/icon.html" with name=b.icono cls="size-6" %}
+  {% if b.insignia_texto %}<span class="absolute -top-2 left-[62%] whitespace-nowrap rounded-full border border-slate-300 bg-white px-2 text-[10px] font-bold leading-4 text-slate-900 shadow">{{ b.insignia }}</span>
+  {% elif b.insignia %}<span class="absolute -right-2 -top-2 rounded-full border border-slate-300 bg-white px-1.5 text-xs font-bold leading-5 text-slate-900 shadow">{{ b.insignia }}</span>{% endif %}
+</a>

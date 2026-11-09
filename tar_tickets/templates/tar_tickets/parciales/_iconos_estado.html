@@ -1,0 +1,27 @@
+{% load tareas_extras %}
+{% if t.num_children %}
+  {% with dividido=t.hijos.all|tiene_hijo_dividido %}
+  <a href="{% url 'tar_tickets:detalle' t.pk %}" class="shrink-0 text-base-content hover:opacity-70"
+     title="{% if dividido %}Dividido en {{ t.num_children }} parte{{ t.num_children|pluralize }}{% else %}Derivado en {{ t.num_children }} subticket{{ t.num_children|pluralize }}{% endif %}">
+    {% if dividido %}<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></svg>
+    {% else %}<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>{% endif %}
+  </a>
+  {% endwith %}
+{% endif %}
+{% if t.padre_id %}
+  {% if t.es_parte_dividida or t.padre.esta_dividido %}
+    <a href="{% url 'tar_tickets:detalle' t.padre_id %}" class="shrink-0 text-base-content hover:opacity-70" title="Parte de otro ticket">
+      <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></svg>
+    </a>
+  {% else %}
+    <a href="{% url 'tar_tickets:detalle' t.padre_id %}" class="shrink-0 text-base-content hover:opacity-70" title="Deriva de otro ticket">
+      <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    </a>
+  {% endif %}
+{% endif %}
+{% if t.tiene_subproductos %}
+  <span class="shrink-0 text-base-content" title="Con subproductos: cada ejecutor tiene su subticket independiente">
+    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="3"/><circle cx="19" cy="4" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="19" cy="20" r="2"/><path d="M7.6 10.5L17.3 5M8 12h9M7.6 13.5L17.3 19"/></svg>
+  </span>
+{% endif %}
+<span class="prio-bars shrink-0" data-priority="{{ t.prioridad }}" title="Prioridad: {{ t.get_prioridad_display }}" aria-label="Prioridad: {{ t.get_prioridad_display }}"><i></i><i></i><i></i><i></i></span>

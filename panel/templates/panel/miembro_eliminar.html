@@ -1,0 +1,15 @@
+{% extends "shell.html" %}
+{% block page_title %}Eliminar usuario{% endblock %}
+{% block content_main %}
+<form method="post" class="card bg-base-100 max-w-2xl">
+  <div class="card-body gap-4">
+    {% csrf_token %}
+    <p>Vas a eliminar la cuenta <strong>{{ obj.user.email }}</strong> de <strong>todas las empresas</strong> ({% for m in empresas %}{{ m.empresa.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}). No podrá entrar y desaparecerá de las listas.</p>
+    <p class="text-sm text-base-content/70">Su historial (tickets, jornadas, mensajes, archivos) se conserva. Solo el superusuario puede restaurarla desde «Eliminados», en la pantalla de Miembros.</p>
+    <div class="card-actions justify-end">
+      <a href="{% url 'panel:miembros' %}" class="btn btn-ghost">Cancelar</a>
+      <button type="submit" class="btn btn-error">Eliminar cuenta</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

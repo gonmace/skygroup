@@ -1,0 +1,46 @@
+{% load tareas_extras %}
+<div class="flex gap-2" data-comment-id="{{ c.pk }}">
+  {% if c.autor %}{% include "tar_tickets/parciales/_avatar.html" with u=c.autor size='w-9 h-9' %}{% else %}
+    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-base-300"><span class="text-[11px] font-bold">—</span></div>
+  {% endif %}
+  <div class="min-w-0 flex-1">
+    <div class="flex items-center gap-2">
+      <span class="text-sm font-semibold">{{ c.autor.get_full_name|default:c.autor.email|default:"—" }}</span>
+      <span class="text-xs text-base-content/40">{{ c.creado|date:"d/m/Y H:i" }}</span>
+      {% if c.heredado %}<span class="badge badge-ghost badge-xs font-mono" title="Mensaje heredado del ticket de origen">{{ c.ticket.clave }}</span>{% endif %}
+    </div>
+    {# Los heredados son de solo lectura aquí: se editan desde su propio ticket. #}
+    {% if not c.heredado and es_ultimo and c.autor_id == request.user.id or not c.heredado and es_ultimo and puede_moderar_chat %}
+      <div class="flex flex-col">
+        <details class="group peer order-2" data-chat-edit>
+          <summary class="mt-1 cursor-pointer list-none text-right text-xs text-base-content/40 hover:text-base-content group-open:hidden">editar</summary>
+          <div class="mt-1 flex items-center gap-3">
+            <form method="post" action="{% url 'tar_tickets:comentario_editar' c.pk %}" class="flex flex-1 gap-1">
+              {% csrf_token %}
+              <input type="text" name="texto" value="{{ c.texto }}" class="input input-bordered input-sm flex-1" data-chat-edit-input>
+              <button class="btn btn-success btn-sm">Guardar</button>
+            </form>
+            {% if puede_moderar_chat %}
+              <form method="post" action="{% url 'tar_tickets:comentario_borrar' c.pk %}" data-confirmar="¿Borrar este mensaje?">
+                {% csrf_token %}<button class="text-xs text-error hover:underline">borrar</button>
+              </form>
+            {% endif %}
+            <button type="button" class="text-xs text-base-content/40 hover:text-base-content" data-chat-edit-cancel>cancelar</button>
+          </div>
+        </details>
+        {% if c.texto %}
+          <div class="order-1 mt-1 whitespace-pre-wrap break-words rounded-2xl rounded-tl-sm bg-base-200 px-3 py-2 text-sm peer-open:hidden">{{ c.texto|urlizar_chat }}</div>
+        {% endif %}
+      </div>
+    {% elif c.texto %}
+      <div class="mt-1 whitespace-pre-wrap break-words rounded-2xl rounded-tl-sm bg-base-200 px-3 py-2 text-sm">{{ c.texto|urlizar_chat }}</div>
+    {% endif %}
+    {% with atts=c.adjuntos.all %}
+      {% if atts %}
+        <div class="mt-2 flex flex-wrap gap-2">
+          {% for a in atts %}{% include "tar_tickets/parciales/_adjunto.html" with en_chat=True es_ultimo_mensaje=es_ultimo puede_escribir_chat=puede_escribir_chat %}{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+  </div>
+</div>

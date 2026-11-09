@@ -1,0 +1,26 @@
+{% extends "shell.html" %}
+{% block page_title %}Permisos de «{{ rol.nombre }}»{% endblock %}
+{% block content_main %}
+<p class="mb-4 text-sm text-base-content/70">Nivel de acceso: <strong>{{ rol.get_rol_base_display }}</strong>. Las casillas marcadas son los permisos efectivos; las que difieren del nivel de acceso se resaltan.</p>
+<form method="post" class="space-y-4">
+  {% csrf_token %}
+  {% for g in grupos %}
+  <section class="card bg-base-100">
+    <div class="card-body gap-2">
+      <h2 class="card-title text-base uppercase tracking-wide">{{ g.modulo }}</h2>
+      {% for c in g.caps %}
+        <label class="flex items-center gap-3 rounded-lg px-2 py-1 {% if c.activa != c.por_defecto %}bg-warning/15{% endif %}">
+          <input type="checkbox" name="cap" value="{{ c.clave }}" class="checkbox checkbox-sm" {% if c.activa %}checked{% endif %}>
+          <span class="text-sm">{{ c.etiqueta }}</span>
+          <code class="ml-auto text-xs text-base-content/50">{{ c.clave }}</code>
+        </label>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+  <div class="flex justify-end gap-2">
+    <a href="{% url 'panel:roles' %}" class="btn btn-ghost">Volver</a>
+    <button type="submit" class="btn btn-primary">Guardar permisos</button>
+  </div>
+</form>
+{% endblock %}

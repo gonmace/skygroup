@@ -1,0 +1,36 @@
+{# Panel de revisiones de un registro. Contexto: r, revisiones, tipo_rev, puede_revisar, puede_elegir. #}
+{% if revisiones %}
+<section class="card bg-base-100"><div class="card-body gap-3">
+  <h2 class="card-title text-base">Revisiones</h2>
+  <p class="text-sm text-base-content/70">Cada revisión conserva sus propios datos y fotos. La <strong>vigente</strong> es la que cuenta para el {{ termino_proyecto|lower }}; puedes elegir otra cuando mejor se acomode.</p>
+  <ul class="divide-y divide-base-300">
+    {% for v in revisiones %}
+    <li class="flex flex-wrap items-start gap-3 py-2 {% if v.pk == r.pk %}bg-base-200/60 -mx-2 px-2 rounded-md{% endif %}">
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-medium">{{ v.rev_etiqueta }}
+          {% if v.rev_vigente %}<span class="badge badge-success badge-soft badge-xs">Vigente</span>{% endif %}
+          {% if v.concluido %}<span class="badge badge-ghost badge-xs">Emitida</span>{% else %}<span class="badge badge-ghost badge-xs">Borrador</span>{% endif %}
+          {% if v.pk == r.pk %}<span class="text-xs text-base-content/50">(la que estás viendo)</span>{% endif %}</p>
+        <p class="text-xs text-base-content/60">{{ v.created_at|date:"d/m/Y H:i" }} · {{ v.responsable_nombre }}{% if v.rev_origen %} · copiada de {{ v.rev_origen.rev_etiqueta }}{% endif %}</p>
+        {% if v.rev_comentario %}<p class="mt-1 text-sm">{{ v.rev_comentario }}</p>{% elif not v.rev_numero %}<p class="mt-1 text-sm text-base-content/50">Revisión inicial.</p>{% endif %}
+      </div>
+      <div class="flex shrink-0 items-center gap-0.5">
+        {% if v.pk != r.pk %}<a href="{% url tipo_rev.url_detalle v.pk %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Ver {{ v.rev_etiqueta }}" aria-label="Ver {{ v.rev_etiqueta }}">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>{% endif %}
+        {% if puede_elegir and not v.rev_vigente %}
+        <form method="post" action="{% url 'reg_base:revision_vigente' tipo_rev.clave v.pk %}" data-confirmar="¿Marcar {{ v.rev_etiqueta }} como la revisión vigente?">{% csrf_token %}
+          <button class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Marcar {{ v.rev_etiqueta }} como vigente" aria-label="Marcar {{ v.rev_etiqueta }} como vigente">{% include "components/icon.html" with name="check" cls="size-5" %}</button>
+        </form>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% if puede_revisar %}
+  <form method="post" action="{% url 'reg_base:revision_nueva' tipo_rev.clave r.pk %}" class="space-y-2 border-t border-base-300 pt-3">{% csrf_token %}
+    <label class="block text-sm font-medium" for="rev-comentario">Nueva revisión a partir de {{ r.rev_etiqueta }}</label>
+    <textarea id="rev-comentario" name="comentario" rows="2" maxlength="1000" required placeholder="¿Qué cambia en esta revisión? Se copian los datos y fotos de {{ r.rev_etiqueta }}." class="textarea textarea-bordered w-full"></textarea>
+    <div class="text-right"><button class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="copy" cls="size-4" %} Crear revisión</button></div>
+  </form>
+  {% endif %}
+</div></section>
+{% endif %}

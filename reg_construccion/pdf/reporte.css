@@ -1,0 +1,853 @@
+/* ========================================
+   FONTS & TYPOGRAPHY
+   ======================================== */
+
+/* ========================================
+   PAGE SETUP & PRINT STYLES
+   ======================================== */
+@page {
+  @top-center {
+    content: element(page-header);
+  }
+  @bottom-center {
+    background: #000;
+    content: '';
+    display: block;
+    height: .02cm;
+    opacity: .5;
+    width: 100%;
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-size: 10pt;
+    margin-bottom: 1cm;
+    text-align: center;
+    white-space: nowrap;
+  }
+}
+
+/* ========================================
+   BASE STYLES
+   ======================================== */
+html {
+    color: #000;
+    font-family: "Nunito", "DejaVu Sans", Arial, sans-serif;
+    font-size: 11pt;
+    font-weight: 400;
+    line-height: 1.2;
+}
+
+body {
+    margin: 0;
+}
+
+/* ========================================
+   TYPOGRAPHY
+   ======================================== */
+h1 {
+    font-size: 12pt;
+    text-transform: uppercase;
+    margin: 0cm 0cm;
+    page: no-chapter;
+    width: 100%;
+}
+
+h2, h3, h4 {
+    font-size: 11pt;
+    font-weight: 500;
+}
+
+h2 {
+    text-transform: uppercase;
+    color: #e60000;
+    padding-bottom: 0.2em;
+    string-set: heading content();
+}
+
+h3 {
+    text-transform: uppercase;
+    font-size: 11pt;
+    margin-top: 1.5em;
+}
+          
+p {
+    margin: 0.5em 0;
+}
+
+/* ========================================
+   HEADER & PAGE STRUCTURE
+   ======================================== */
+#page-header {
+  padding-bottom: 1rem;
+  border-bottom: 0.5px solid #000;
+}
+
+.header-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+  
+.header-logo.left {
+    width: 20%;
+    text-align: center;
+    vertical-align: middle;
+}
+  
+.header-logo.right {
+    width: 20%;
+    text-align: center;
+    vertical-align: middle;
+    border: none;
+}
+  
+/* Estilo general para SVGs (por si no se aplica otro más específico) */
+.header-logo svg {
+    max-width: 100%;
+    vertical-align: middle;
+}
+  
+/* Logo izquierdo: más grande */
+.header-logo.left svg {
+    height: 40px;
+}
+  
+/* Logo derecho: más pequeño */
+.header-logo.right svg {
+    height: 28px;
+}
+
+.header-logo.right img {
+    height: 42px;
+    max-width: 100%;
+    border: none;
+    display: block;
+    margin: 0 auto;
+}
+
+.header-title {
+    text-align: center;
+    vertical-align: middle;
+    padding: 0 0.5rem;
+}
+
+/* ========================================
+   DATA SECTIONS
+   ======================================== */
+.datos {
+    flex: 1 75%;
+    margin: 0;
+    padding-left: 1cm;
+}
+
+section.datos dl {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+section.datos dl dt {
+    font-weight: 300;
+    width: 30%;
+}
+
+section.datos dl dd {
+    flex: 1 70%;
+    font-weight: 500;
+    margin: 0;
+    padding: 0;
+}
+
+/* ========================================
+   FICHA DE DATOS 2 COLUMNAS
+   ======================================== */
+.datos-2col {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5em 0 1em 0;
+  font-size: 10pt;
+}
+
+.datos-2col tr {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.datos-2col tr:last-child {
+  border-bottom: none;
+}
+
+.datos-2col th {
+  width: 42%;
+  font-weight: 400;
+  color: #555;
+  text-align: left;
+  padding: 0.3em 0.8em 0.3em 0;
+  vertical-align: top;
+}
+
+.datos-2col td {
+  font-weight: 600;
+  text-align: left;
+  padding: 0.3em 0;
+  vertical-align: top;
+}
+
+/* ========================================
+   TABLES
+   ======================================== */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-size: 10pt;
+}
+
+.table th, .table td {
+  border: 1px solid #000;
+  padding: 0.4em;
+}
+
+.table th {
+  background-color: #f2f2f2;
+}
+
+/* ========================================
+   TABLA DE AVANCE POR COMPONENTE
+   ======================================== */
+.tabla-avance {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tabla-avance .table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+  margin-top: 0.5rem;
+}
+
+.tabla-avance .table th {
+  background-color: #e60000;
+  text-align: center !important;
+  color: white;
+  font-weight: bold;
+  text-transform: uppercase;
+  padding: 0.3em;
+  border: 1px solid #000;
+}
+
+.tabla-avance .table th:nth-child(1) {
+  text-align: left !important;
+}
+
+
+
+.tabla-avance .table td {
+  border: 1px solid #000;
+  padding: 0.3em;
+  text-align: left;
+}
+
+.tabla-avance .table th:nth-child(1),
+.tabla-avance .table td:nth-child(1) {
+  text-align: left;
+  width: 40%;
+}
+
+.tabla-avance .table th:nth-child(2),
+.tabla-avance .table td:nth-child(2),
+.tabla-avance .table th:nth-child(3),
+.tabla-avance .table td:nth-child(3),
+.tabla-avance .table th:nth-child(4),
+.tabla-avance .table td:nth-child(4),
+.tabla-avance .table th:nth-child(5),
+.tabla-avance .table td:nth-child(5),
+.tabla-avance .table th:nth-child(6),
+.tabla-avance .table td:nth-child(6) {
+  text-align: right;
+  width: 12%;
+}
+
+.tabla-avance .table tfoot tr {
+  background-color: #e60000;
+  color: white;
+  font-weight: bold;
+}
+
+.tabla-avance .table tfoot td {
+  border: 1px solid #000;
+  padding: 0.3em;
+}
+
+.tabla-avance .table tfoot td:first-child {
+  text-align: right;
+}
+
+.tabla-avance .table tfoot td:nth-child(2),
+.tabla-avance .table tfoot td:nth-child(3),
+.tabla-avance .table tfoot td:nth-child(4),
+.tabla-avance .table tfoot td:nth-child(5),
+.tabla-avance .table tfoot td:nth-child(6) {
+  text-align: right;
+}
+
+/* ========================================
+   GRÁFICO DE AVANCE POR COMPONENTE
+   ======================================== */
+
+.grafico-avance h2 {
+  font-size: 11pt;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: #e60000;
+  padding-bottom: 0.2em;
+  margin-bottom: 1.5rem;
+}
+
+
+
+.barra-componente {
+  margin-bottom: 0.8rem;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.barra-componente:last-child {
+  margin-bottom: 0;
+}
+
+.nombre-componente {
+  width: 30%;
+  font-size: 10pt;
+  font-weight: 400;
+  text-align: right;
+  padding-right: 1rem;
+  min-width: 100px;
+  color: #2c3e50;
+  text-transform: capitalize;
+}
+
+.barra-progreso {
+  flex: 1;
+  height: 24px;
+  background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 2px solid #dee2e6;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.barra-anterior {
+  height: 100%;
+  background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 10px 0 0 10px;
+}
+
+.barra-actual {
+  height: 100%;
+  background: linear-gradient(90deg, #0066cc 0%, #0056b3 100%);
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 0 10px 10px 0;
+}
+
+.porcentaje-texto {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9pt;
+  font-weight: 700;
+  color: #2c3e50;
+  background: rgba(255,255,255,0.9);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+.leyenda-grafico {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  font-size: 10pt;
+  flex-wrap: wrap;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+.leyenda-color {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #dee2e6;
+  border-radius: 4px;
+}
+
+.leyenda-anterior {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.leyenda-actual {
+  background: linear-gradient(135deg, #0066cc 0%, #0056b3 100%);
+}
+
+/* Centrado usando margin auto (funciona mejor en WeasyPrint) */
+.table-centered {
+  margin: 0 auto;
+  width: auto;
+  min-width: 80%;
+  max-width: 95%;
+}
+
+/* ========================================
+   CONTENT REGISTRY SECTIONS
+   ======================================== */
+section.content-registro {
+  margin: 1em;
+}
+
+section.content-registro p {
+  margin: 0.4em 0;
+  line-height: 1.4;
+  display: flex;
+  align-items: baseline;
+}
+
+section.content-registro p strong {
+  min-width: 150px;
+  flex-shrink: 0;
+  margin-right: 10px;
+}
+
+/* ========================================
+   COMENTARIOS GENERALES
+   ======================================== */
+#registro-comentarios .content-registro p {
+  text-align: justify;
+  display: block;
+  white-space: pre-line;
+}
+
+/* ========================================
+   IMAGES & PHOTO SECTIONS
+   ======================================== */
+section.imagenes {
+  page-break-inside: auto;
+  break-inside: auto;
+  margin-bottom: 1.5em;
+}
+
+section.imagenes .foto-titulo {
+  width: 100%;
+  margin-bottom: 0.8em;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+/* ========================================
+   TABLA DE FOTOS (2 columnas, WeasyPrint-safe)
+   ======================================== */
+.fotos-tabla {
+  width: 95%;
+  border-collapse: separate;
+  border-spacing: 10px 12px;
+  margin: 0 auto;
+}
+
+.foto-td {
+  width: 50%;
+  vertical-align: top;
+  padding: 0;
+}
+
+.foto-td-full {
+  width: 100%;
+  vertical-align: top;
+  padding: 0;
+}
+
+.foto-row {
+  break-inside: avoid;
+}
+
+img {
+  border: 1px solid #000;
+  border-radius: 5px;
+}
+
+.foto-img-wrap img {
+  border: none;
+  border-radius: 0;
+}
+
+/* ========================================
+   MAPS & LOCATION SECTIONS
+   ======================================== */
+.mapa-table {
+  width: 100%;
+  border-collapse: separate;
+  margin-bottom: 1em;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.mapa-img-cell {
+  width: 65%;
+  vertical-align: top;
+  padding-right: 10px;
+}
+
+.mapa-leyenda-cell {
+  width: 35%;
+  vertical-align: top;
+  padding-left: 10px;
+}
+
+.mapa-table img {
+  width: 100%;
+  height: auto;
+  border-radius: 5px;
+  border: 1px solid #000;
+}
+
+.mapa-leyenda-caption {
+  text-align: center;
+  font-size: 10pt;
+  color: #666;
+  margin-top: 0.5em;
+}
+
+.mapa-leyenda-nota {
+  font-size: 9pt;
+  color: #555;
+  line-height: 1.4;
+  margin-top: 0.8em;
+}
+
+/* ========================================
+   TARJETAS DE FOTOS
+   ======================================== */
+.foto-card {
+  width: 100%;
+  text-align: center;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.foto-card-landscape {
+  margin-bottom: 22px;
+}
+
+.foto-img-wrap {
+  width: 100%;
+  background: #f5f5f5;
+}
+
+.foto-img-wrap.foto-landscape img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: none;
+  border-radius: 0;
+}
+
+.foto-img-wrap.foto-portrait img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: none;
+  border-radius: 0;
+}
+
+.foto-exif {
+  margin: 0;
+  padding: 3px 8px;
+  font-size: 7.5pt;
+  color: #888;
+  background: #f4f4f4;
+  border-top: 1px solid #e8e8e8;
+  text-align: center;
+  font-family: monospace;
+}
+
+.foto-caption {
+  margin: 0;
+  padding: 5px 8px;
+  font-size: 9pt;
+  color: #444;
+  background: #f9f9f9;
+  border-top: 1px solid #e0e0e0;
+  text-align: center;
+  font-style: italic;
+}
+
+/* Mejorar el título de sección de fotos */
+section.imagenes .foto-titulo p {
+  font-size: 11pt;
+  font-weight: 600;
+  color: #e60000;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding-bottom: 0.4em;
+  border-bottom: 1px solid #e60000;
+  margin-bottom: 0.8em;
+}
+
+/* Dentro de un paso genérico (Sitio/Acceso/Eléctrico/...): el título del
+   paso usa el estilo con línea inferior que normalmente llevan los títulos
+   de fotos, y el título de fotos pasa a usar el estilo plano de h2 — así se
+   distinguen entre sí dentro de la misma sección. Solo dentro de
+   .paso-widget-section: no afecta el resto de los h2 ni las secciones de
+   fotos hardcodeadas de postes (Registro Fotográfico, Imágenes de Cobertura). */
+.paso-widget-section > h2 {
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding-bottom: 0.4em;
+  border-bottom: 1px solid #e60000;
+  margin-bottom: 0.8em;
+}
+
+/* Selector con más especificidad que "section.imagenes .foto-titulo p" de
+   arriba (3 clases vs 2) — si no, esas reglas (negrita + línea inferior)
+   ganan la cascada y el swap de estilos no se aplica. */
+.paso-widget-section section.imagenes .foto-titulo p {
+  font-weight: 400;
+  letter-spacing: normal;
+  padding-bottom: 0.2em;
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+/* El <strong> dentro del <p> tiene su propia negrita por default (UA
+   stylesheet) que no hereda el font-weight del párrafo — hay que apagarla acá. */
+.paso-widget-section section.imagenes .foto-titulo p strong {
+  font-weight: 400;
+}
+
+/* ========================================
+   LAYOUT 2 COLUMNAS PARA SECCIONES
+   ======================================== */
+.seccion-2col {
+  display: flex;
+  gap: 2em;
+  margin-bottom: 1em;
+}
+
+.seccion-2col-izq {
+  flex: 1.2;
+}
+
+.seccion-2col-der {
+  flex: 0.8;
+}
+
+/* ========================================
+   ALERTA DE DESFASE
+   ======================================== */
+.desfase-alerta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0.8em 0 1.2em 0;
+  padding: 0.6em 1em;
+  border-radius: 4px;
+  border-left: 4px solid #999;
+  font-size: 10pt;
+  background: #fafafa;
+}
+
+.desfase-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.15);
+}
+
+/* ========================================
+   MARCA DE AGUA «BORRADOR» (registro sin concluir)
+   position: fixed la repite en todas las páginas.
+   ======================================== */
+.marca-agua {
+  position: fixed;
+  top: 40%;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 78pt;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: rgba(90, 90, 90, 0.20);
+  transform: rotate(-35deg);
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* ========================================
+   REPORTE DE AVANCE DE OBRA (Construcción Torres)
+   ======================================== */
+.lista-numerada {
+  margin: 0.3em 0 1em 1.4em;
+  padding: 0;
+  font-size: 10.5pt;
+}
+
+.lista-numerada li {
+  margin-bottom: 0.3em;
+}
+
+.sin-datos {
+  color: #777;
+  font-style: italic;
+  font-size: 10pt;
+  margin: 0.3em 0 1em 0;
+}
+
+.resumen-avance {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0.8em 0 1.2em 0;
+  padding: 0.6em 1em;
+  border-left: 4px solid #e60000;
+  background: #fafafa;
+  font-size: 10pt;
+}
+
+.tabla-avance .table tr {
+  page-break-inside: avoid;
+}
+
+.barra-componente {
+  page-break-inside: avoid;
+}
+
+.nombre-componente {
+  text-transform: none;
+}
+
+/* ---- Gráfico de avance ejecutivo: barras finas y planas ---- */
+.grafico-avance h3 { font-size: 10pt; margin: 0.4em 0 0.6em 0; }
+
+.grafico-avance .barra-componente {
+  margin-bottom: 0.3rem;
+}
+
+.grafico-avance .nombre-componente {
+  width: 34%;
+  min-width: 0;
+  font-size: 8.5pt;
+  padding-right: 0.6rem;
+}
+
+.grafico-avance .barra-progreso {
+  height: 6px;
+  background: #e9ecef;
+  border: 0;
+  border-radius: 3px;
+}
+
+.grafico-avance .barra-anterior,
+.grafico-avance .barra-actual {
+  border-radius: 0;
+}
+
+.grafico-avance .barra-anterior { background: #7f8c8d; }
+.grafico-avance .barra-actual { background: #0066cc; }
+
+.grafico-avance .porcentaje-texto {
+  position: static;
+  transform: none;
+  width: 3.2em;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: right;
+  font-size: 8.5pt;
+  font-weight: 600;
+}
+
+.grafico-avance .barra-total {
+  margin-top: 0.7rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #ccc;
+}
+
+.grafico-avance .barra-total .nombre-componente { font-weight: 700; }
+.grafico-avance .barra-total .barra-progreso { height: 9px; border-radius: 4.5px; }
+.grafico-avance .barra-total-relleno { height: 100%; background: #16a34a; }
+.grafico-avance .barra-total .porcentaje-texto { font-size: 10pt; font-weight: 700; color: #15803d; }
+
+.grafico-avance .leyenda-grafico {
+  margin-top: 0.8rem;
+  padding: 0;
+  gap: 1.2rem;
+  font-size: 8.5pt;
+  background: none;
+  border: 0;
+}
+
+.grafico-avance .leyenda-item {
+  white-space: nowrap;
+  gap: 0.4rem;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+.grafico-avance .leyenda-color {
+  width: 10px;
+  height: 6px;
+  border: 0;
+  border-radius: 0;
+}
+
+.grafico-avance .leyenda-anterior { background: #7f8c8d; }
+.grafico-avance .leyenda-actual { background: #0066cc; }
+
+/* ---- Coordenadas y párrafos libres ---- */
+.coords {
+  border-collapse: collapse;
+  font-size: 9.5pt;
+  margin-bottom: 0.6em;
+}
+
+.coords th {
+  text-align: left;
+  padding: 0.15em 0.8em 0.15em 0;
+  color: #555;
+  font-weight: 600;
+}
+
+.coords td {
+  padding: 0.15em 0.8em 0.15em 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.coords .coords-dec { color: #777; font-size: 8.5pt; }
+
+.parrafos p {
+  margin: 0 0 0.6em 0;
+  font-size: 10.5pt;
+  text-align: justify;
+}

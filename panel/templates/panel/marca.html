@@ -1,0 +1,12 @@
+{% extends "shell.html" %}
+{% block page_title %}Marca de {{ empresa.nombre }}{% endblock %}
+{% block content_main %}
+<form method="post" enctype="multipart/form-data" class="card bg-base-100">
+  <div class="card-body gap-4">
+    {% csrf_token %}
+    <p class="text-sm text-base-content/70">Logo, colores y el nombre con que esta empresa llama a sus {{ termino_proyectos|lower }}.</p>
+    {% include "components/campos.html" %}
+    <div class="card-actions justify-end"><button type="submit" class="btn btn-primary">Guardar</button></div>
+  </div>
+</form>
+{% endblock %}

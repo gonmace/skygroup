@@ -1,0 +1,12 @@
+<div data-ubicacion class="space-y-3">
+  <div class="grid gap-3 sm:grid-cols-3">
+    <label class="text-sm"><span class="mb-1 block text-base-content/60">Latitud</span><input type="text" inputmode="decimal" name="{{ b.campo_lat }}" value="{{ b.lat }}" data-lat {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full"></label>
+    <label class="text-sm"><span class="mb-1 block text-base-content/60">Longitud</span><input type="text" inputmode="decimal" name="{{ b.campo_lon }}" value="{{ b.lon }}" data-lon {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full"></label>
+    <label class="text-sm"><span class="mb-1 block text-base-content/60">Precisión (m)</span><input type="text" inputmode="decimal" name="{{ b.campo_acc }}" value="{{ b.accuracy }}" data-acc {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full"></label>
+  </div>
+  <div class="flex flex-wrap items-center gap-3 text-sm">
+    {% if puede_escribir %}<button type="button" class="btn btn-primary btn-lg w-full sm:w-auto" data-usar-gps>Usar mi ubicación</button><span class="text-xs text-base-content/50" data-gps-estado></span>{% endif %}
+    {% if b.mapa_url %}<a class="link" href="{{ b.mapa_url }}" target="_blank" rel="noopener noreferrer">Ver en el mapa</a>{% endif %}
+    {% if b.distancia %}<span class="badge badge-ghost">A {{ b.distancia }} de {{ b.referencia }}</span>{% endif %}
+  </div>
+</div>

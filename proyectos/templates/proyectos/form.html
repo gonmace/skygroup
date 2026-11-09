@@ -1,0 +1,31 @@
+{% extends "shell.html" %}
+{% block page_title %}{% if obj %}Editar {{ obj.codigo|default:obj.nombre }}{% else %}Nuevo: {{ termino_proyecto }}{% endif %}{% endblock %}
+{% block content_main %}
+<form method="post" class="space-y-4">
+  {% csrf_token %}
+  <div class="card bg-base-100"><div class="card-body gap-4">
+    {% include "components/campos.html" %}
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-3">
+    <h2 class="card-title text-base">Ubicación</h2>
+    {{ formset.management_form }}
+    {% for f in formset %}
+      <div class="grid grid-cols-2 items-end gap-2 sm:grid-cols-5">
+        {{ f.id }}
+        {% for campo in f.visible_fields %}
+          <div class="{% if campo.name == 'DELETE' %}flex items-center gap-2{% endif %}{% if forloop.first or campo.name == 'DELETE' %} col-span-2 sm:col-span-1{% endif %}">
+            {% if campo.name != 'DELETE' %}<label class="mb-1 block text-xs text-base-content/60" for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}
+            {% else %}{{ campo }}<label for="{{ campo.id_for_label }}" class="text-sm">Quitar</label>{% endif %}
+            {% for e in campo.errors %}<p class="text-xs text-error">{{ e }}</p>{% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+    <p class="text-xs text-base-content/60">Puede haber más de una ubicación: se agrega una fila vacía cada vez que guardas.</p>
+  </div></div>
+  <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+    <a href="{% if obj %}{% url 'proyectos:detalle' obj.pk %}{% else %}{% url 'proyectos:lista' %}{% endif %}" class="btn btn-ghost">Cancelar</a>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+  </div>
+</form>
+{% endblock %}

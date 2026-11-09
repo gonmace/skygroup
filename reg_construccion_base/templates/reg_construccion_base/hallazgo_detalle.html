@@ -1,0 +1,47 @@
+{% extends "shell.html" %}
+{% block page_title %}{{ h.codigo }} · {{ h.proyecto.nombre }}{% endblock %}
+{% block content_main %}
+<div class="mb-4 flex flex-wrap items-center gap-2">
+  <span class="text-lg font-semibold tabular-nums">{{ h.codigo }}</span>
+  {% include "reg_construccion_base/_severidad.html" %}{% include "reg_construccion_base/_estado_hallazgo.html" %}
+  <a href="{% url 'reg_construccion_base:detalle' h.visita_id %}" class="btn btn-ghost btn-sm ml-auto">← Visita {{ h.visita.numero }}</a>
+</div>
+<div class="mx-auto grid max-w-2xl gap-4">
+  <section class="card bg-base-100"><div class="card-body gap-3">
+    <p class="whitespace-pre-line">{{ h.descripcion }}</p>
+    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+      <dt class="text-base-content/60">{{ termino_proyecto }}</dt><dd>{{ h.proyecto.codigo|default:"" }} {{ h.proyecto.nombre|default:"—" }}</dd>
+      <dt class="text-base-content/60">Tipo</dt><dd>{{ h.get_tipo_display }}</dd>
+      <dt class="text-base-content/60">Levantado en</dt><dd><a class="link" href="{% url 'reg_construccion_base:detalle' h.visita_id %}">Visita {{ h.visita.numero }} · {{ h.visita.fecha|date:"d/m/Y" }}</a></dd>
+      <dt class="text-base-content/60">Responsable</dt><dd>{{ h.responsable|default:"—" }}</dd>
+      <dt class="text-base-content/60">Plazo</dt><dd>{{ h.plazo|date:"d/m/Y"|default:"—" }}</dd>
+      {% if h.cerrado_fecha %}<dt class="text-base-content/60">Cerrado</dt><dd>{{ h.cerrado_fecha|date:"d/m/Y" }}{% if h.cerrado_en %} · visita {{ h.cerrado_en.numero }}{% endif %}</dd>{% endif %}
+    </dl>
+    {% if puede_editar %}
+    <div class="flex justify-end gap-1">
+      <a href="{% url 'reg_construccion_base:hallazgo_editar' h.pk %}" class="btn btn-ghost btn-square btn-sm text-warning hover:bg-warning/10" title="Editar" aria-label="Editar">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+      <form method="post" action="{% url 'reg_construccion_base:hallazgo_eliminar' h.pk %}" data-confirmar="¿Eliminar {{ h.codigo }}?">{% csrf_token %}
+        <button class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+      </form>
+    </div>
+    {% endif %}
+  </div></section>
+
+  <section class="card bg-base-100"><div class="card-body gap-2">
+    <div class="flex items-center justify-between gap-2"><h2 class="card-title text-base">Fotos</h2>
+      <a href="{% url 'reg_fotos:galeria' tipo.clave h.visita_id h.etapa_fotos %}" class="btn btn-sm btn-primary">{% if puede_editar %}Subir / ver{% else %}Ver{% endif %}</a></div>
+    {% if fotos %}<div class="grid grid-cols-3 gap-2 sm:grid-cols-4">{% for f in fotos %}<a href="{% url 'reg_fotos:imagen' f.pk %}" target="_blank" rel="noopener"><img src="{% url 'reg_fotos:miniatura' f.pk %}" alt="{{ f.descripcion|default:'Foto' }}" loading="lazy" class="aspect-square w-full rounded-lg object-cover"></a>{% endfor %}</div>
+    {% else %}<p class="text-sm text-base-content/60">Sin fotos.</p>{% endif %}
+  </div></section>
+
+  <section class="card bg-base-100"><div class="card-body gap-2">
+    <h2 class="card-title text-base">Seguimiento</h2>
+    {% for s in seguimientos %}
+      <div class="border-t border-base-300 pt-2 first:border-0 first:pt-0">
+        <p class="text-sm"><a class="link" href="{% url 'reg_construccion_base:detalle' s.visita_id %}">Visita {{ s.visita.numero }} · {{ s.visita.fecha|date:"d/m/Y" }}</a> — <span class="font-medium">{{ s.get_estado_display }}</span></p>
+        {% if s.comentario %}<p class="text-sm text-base-content/70">{{ s.comentario }}</p>{% endif %}
+      </div>
+    {% empty %}<p class="text-sm text-base-content/60">Todavía no se ha verificado en visitas posteriores.</p>{% endfor %}
+  </div></section>
+</div>
+{% endblock %}

@@ -1,0 +1,2 @@
+{# Tipo del proyecto: insignia solo con contorno, un tono por tipo. Pasar `tipo` (objeto o vacío) y `sin_tipo` (texto). #}
+{% if tipo %}<span class="badge badge-sm badge-outline badge-tipo-{{ tipo.color_idx }}">{{ tipo.nombre }}</span>{% else %}<span class="badge badge-sm badge-outline">{{ sin_tipo }}</span>{% endif %}

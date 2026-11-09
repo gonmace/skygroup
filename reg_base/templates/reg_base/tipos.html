@@ -1,0 +1,31 @@
+{% extends "shell.html" %}
+{% block page_title %}Tipos de registro{% endblock %}
+{% block content_main %}
+<div class="max-w-3xl space-y-4">
+  <section class="card bg-base-100"><div class="card-body gap-3">
+    <h2 class="card-title text-base">Tipos de registro</h2>
+    <p class="text-sm text-base-content/70">Activa los tipos de registro que usa esta empresa. Un tipo desactivado desaparece del menú y deja de abrirse, pero <strong>sus registros, fotos y plantillas se conservan</strong>: al volver a activarlo todo sigue ahí.</p>
+    <ul class="divide-y divide-base-300">
+      {% for f in filas %}
+      <li class="flex flex-wrap items-center gap-3 py-3">
+        <div class="min-w-0 flex-1">
+          <p class="font-medium">{{ f.tipo.nombre }}</p>
+          {% if f.tipo.descripcion %}<p class="text-sm text-base-content/60">{{ f.tipo.descripcion }}</p>{% endif %}
+          <p class="text-xs text-base-content/50"><span class="tabular-nums">{{ f.registros }}</span> registro{{ f.registros|pluralize }} en esta empresa</p>
+        </div>
+        {% if f.activo and f.tipo.restaurar %}
+        <form method="post" action="{% url 'reg_base:tipo_restaurar' f.tipo.clave %}" data-confirmar="¿Restaurar la plantilla estándar de «{{ f.tipo.nombre }}»? Se vuelven a escribir los componentes de sus pasos estándar.">{% csrf_token %}
+          <button type="submit" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Restaurar plantilla estándar" aria-label="Restaurar la plantilla estándar de {{ f.tipo.nombre }}">{% include "components/icon.html" with name="restore" cls="size-5" %}</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{% url 'reg_base:tipo_alternar' f.tipo.clave %}">{% csrf_token %}
+          <input type="checkbox" class="toggle toggle-success" {% if f.activo %}checked data-autoenviar="¿Desactivar «{{ f.tipo.nombre }}»? Se oculta, pero no se borra nada."{% else %}data-autoenviar=""{% endif %}
+                 aria-label="{% if f.activo %}Desactivar{% else %}Activar{% endif %} {{ f.tipo.nombre }}">
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+  </div></section>
+  <p class="text-sm"><a class="link" href="{% url 'reg_base:config' %}">← Configuración de Registros</a></p>
+</div>
+{% endblock %}

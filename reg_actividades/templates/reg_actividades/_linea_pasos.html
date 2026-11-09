@@ -1,0 +1,36 @@
+{# Línea de tiempo de pasos con un botón táctil por componente. Contexto: tipo, r, pasos, hay_plantilla, puede_configurar. #}
+  {% if not hay_plantilla %}
+    <div class="alert alert-info text-sm"><span>Este tipo de registro aún no tiene una plantilla de pasos.
+      {% if puede_configurar %}<a class="link" href="{% url 'reg_actividades:plantillas' %}">Configurarla</a>{% else %}Pídeselo al administrador de la plataforma.{% endif %}</span></div>
+  {% else %}
+  <ol class="paso-linea">
+    {% for p in pasos %}
+    {% if not forloop.first %}<li aria-hidden="true" class="grid grid-cols-[1fr_auto_1fr]"><span></span><span class="mx-auto h-6 w-1 rounded-full bg-base-content/45 tema-oscuro:bg-white/40"></span><span></span></li>{% endif %}
+    <li class="grid grid-cols-[1fr_auto_1fr] items-center gap-x-3">
+      <a href="{% url 'reg_actividades:paso' tipo.clave r.pk p.paso.nombre %}" class="justify-self-end rounded-md bg-base-100 px-2.5 py-1.5 text-right text-sm font-medium leading-tight shadow-sm">
+        <span class="sr-only">{% if p.color == 'verde' %}Completo{% elif p.color == 'amarillo' %}Parcial{% else %}Sin datos{% endif %}: </span>{{ p.paso.titulo }}
+      </a>
+      {% for b in p.botones %}
+        {% if forloop.first %}{% include "reg_actividades/_boton_paso.html" %}<div class="flex flex-wrap items-center gap-2">{% else %}{% include "reg_actividades/_boton_paso.html" %}{% endif %}
+        {% if forloop.last %}</div>{% endif %}
+      {% empty %}
+        <span class="btn btn-circle btn-disabled size-14 border-2 border-base-300 bg-base-100" aria-hidden="true"></span><span></span>
+      {% endfor %}
+    </li>
+    {% empty %}<li class="text-sm text-base-content/60">La plantilla no tiene pasos asignados.</li>{% endfor %}
+  </ol>
+
+  {% endif %}
+  {% if hay_plantilla or acciones_template %}
+  <div class="mt-5 overflow-hidden rounded-box border border-base-content/10 bg-base-100 shadow-sm">
+    {% if hay_plantilla %}
+    <div class="grid grid-cols-2 gap-1.5 px-3 py-2.5 text-xs sm:flex sm:flex-wrap sm:items-center text-base-content/75" aria-label="Leyenda de colores">
+      <span class="flex items-center gap-1.5 rounded-full bg-base-content/[0.05] px-2.5 py-1"><span class="inline-block size-2.5 rounded-full bg-error tema-oscuro:bg-red-600"></span>Sin datos</span>
+      <span class="flex items-center gap-1.5 rounded-full bg-base-content/[0.05] px-2.5 py-1"><span class="inline-block size-2.5 rounded-full bg-warning tema-oscuro:bg-yellow-600"></span>Parciales</span>
+      <span class="flex items-center gap-1.5 rounded-full bg-base-content/[0.05] px-2.5 py-1"><span class="inline-block size-2.5 rounded-full bg-success tema-oscuro:bg-green-600"></span>Completos</span>
+      <span class="flex items-center gap-1.5 rounded-full bg-base-content/[0.05] px-2.5 py-1" title="Opcional y sin datos: pasa a verde al llenarse"><span class="inline-block size-2.5 rounded-full bg-base-content/30"></span>Opcional</span>
+    </div>
+    {% endif %}
+    {% if acciones_template %}<div class="{% if hay_plantilla %}border-t border-base-content/10 {% endif %}bg-base-content/[0.03] px-3 py-2.5">{% include acciones_template %}</div>{% endif %}
+  </div>
+  {% endif %}

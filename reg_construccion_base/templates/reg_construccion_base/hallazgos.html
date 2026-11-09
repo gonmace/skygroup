@@ -1,0 +1,40 @@
+{% extends "shell.html" %}
+{% block page_title %}Hallazgos{% endblock %}
+{% block content_main %}
+<form method="get" class="mb-4 flex flex-wrap items-end gap-2">
+  <select name="proyecto" class="select select-bordered select-sm" aria-label="{{ termino_proyecto }}">
+    <option value="">Todos los {{ termino_proyectos|lower }}</option>
+    {% for p in proyectos %}<option value="{{ p.pk }}" {% if proyecto == p.pk %}selected{% endif %}>{{ p.codigo|default:"" }} {{ p.nombre }}</option>{% endfor %}
+  </select>
+  <select name="estado" class="select select-bordered select-sm" aria-label="Estado">
+    <option value="">Pendientes (abiertos y en proceso)</option>
+    {% for v, l in estados %}<option value="{{ v }}" {% if estado == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+  </select>
+  <select name="severidad" class="select select-bordered select-sm" aria-label="Severidad">
+    <option value="">Toda severidad</option>
+    {% for v, l in severidades %}<option value="{{ v }}" {% if severidad == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+  </select>
+  <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="vencidos" value="1" class="checkbox checkbox-sm" {% if vencidos %}checked{% endif %}> Solo vencidos</label>
+  <button class="btn btn-sm">Filtrar</button>
+</form>
+<div class="table-card">
+  <table class="table">
+    <thead><tr><th>Código</th><th>{{ termino_proyecto }}</th><th>Descripción</th><th>Tipo</th><th>Severidad</th><th>Estado</th><th>Plazo</th><th class="w-0"><span class="sr-only">Acciones</span></th></tr></thead>
+    <tbody>
+    {% for h in pagina %}
+      <tr data-href="{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}" class="hover cursor-pointer">
+        <td class="font-semibold tabular-nums"><a class="link" href="{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}">{{ h.codigo }}</a></td>
+        <td class="text-sm">{{ h.proyecto.codigo|default:"—" }} <span class="text-base-content/60">{{ h.proyecto.nombre }}</span></td>
+        <td class="max-w-xs truncate text-sm" title="{{ h.descripcion }}">{{ h.descripcion }}</td>
+        <td class="text-sm">{{ h.get_tipo_display }}</td>
+        <td>{% include "reg_construccion_base/_severidad.html" %}</td>
+        <td>{% include "reg_construccion_base/_estado_hallazgo.html" %}</td>
+        <td class="whitespace-nowrap text-sm">{{ h.plazo|date:"d/m/Y"|default:"—" }}</td>
+        <td class="whitespace-nowrap text-right"><a href="{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Ver" aria-label="Ver {{ h.codigo }}">{% include "components/icon.html" with name="eye" cls="size-5" %}</a></td>
+      </tr>
+    {% empty %}<tr><td colspan="8" class="py-8 text-center text-base-content/60">No hay hallazgos con esos filtros.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "tar_tickets/parciales/_paginacion.html" %}
+{% endblock %}

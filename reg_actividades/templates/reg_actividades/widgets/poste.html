@@ -1,0 +1,36 @@
+{% comment %}Datos del poste. `b.textos.<campo>` = {campo, valor}; `b.toggles` = lista de {campo, label, marcado}.{% endcomment %}
+<div class="grid gap-3 sm:grid-cols-2">
+  <div class="sm:col-span-2">
+    <label class="mb-1 block text-sm font-medium" for="id_{{ b.textos.tipo_estructura.campo }}">Tipo de estructura <span class="text-error" aria-hidden="true">*</span></label>
+    <input id="id_{{ b.textos.tipo_estructura.campo }}" type="text" name="{{ b.textos.tipo_estructura.campo }}" value="{{ b.textos.tipo_estructura.valor }}" required {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full">
+  </div>
+  <div>
+    <label class="mb-1 block text-sm font-medium" for="id_{{ b.textos.altura.campo }}">Altura <span class="text-error" aria-hidden="true">*</span></label>
+    <input id="id_{{ b.textos.altura.campo }}" type="text" name="{{ b.textos.altura.campo }}" value="{{ b.textos.altura.valor }}" required {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full">
+  </div>
+  <div>
+    <label class="mb-1 block text-sm font-medium" for="id_{{ b.textos.tension.campo }}">Tensión <span class="text-error" aria-hidden="true">*</span></label>
+    <input id="id_{{ b.textos.tension.campo }}" type="text" name="{{ b.textos.tension.campo }}" value="{{ b.textos.tension.valor }}" required {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full">
+  </div>
+  <div class="sm:col-span-2">
+    <label class="mb-1 block text-sm font-medium" for="id_{{ b.textos.empresa_energia.campo }}">Empresa de energía</label>
+    <input id="id_{{ b.textos.empresa_energia.campo }}" type="text" name="{{ b.textos.empresa_energia.campo }}" value="{{ b.textos.empresa_energia.valor }}" placeholder="Ej.: Enel, CGE, Frontel…" {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full">
+  </div>
+  <div>
+    <label class="mb-1 block text-sm font-medium" for="id_{{ b.textos.placa_poste.campo }}">Placa del poste</label>
+    <input id="id_{{ b.textos.placa_poste.campo }}" type="text" name="{{ b.textos.placa_poste.campo }}" value="{{ b.textos.placa_poste.valor }}" placeholder="N.º de placa" {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full">
+  </div>
+  <div>
+    <label class="mb-1 block text-sm font-medium" for="id_{{ b.textos.obstaculos.campo }}">Obstáculos</label>
+    <input id="id_{{ b.textos.obstaculos.campo }}" type="text" name="{{ b.textos.obstaculos.campo }}" value="{{ b.textos.obstaculos.valor }}" placeholder="Describir…" {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full">
+  </div>
+  <div class="grid gap-x-4 gap-y-2 sm:col-span-2 sm:grid-cols-2">
+    {% for t in b.toggles %}
+      <label class="flex items-center gap-2"><input type="checkbox" name="{{ t.campo }}" class="toggle toggle-primary toggle-sm" {% if t.marcado %}checked{% endif %} {% if not puede_escribir %}disabled{% endif %}><span class="text-sm">{{ t.label }}</span></label>
+    {% endfor %}
+  </div>
+  <div class="sm:col-span-2">
+    <label class="mb-1 block text-sm font-medium" for="id_{{ b.textos.comentario.campo }}">Comentarios</label>
+    <textarea id="id_{{ b.textos.comentario.campo }}" name="{{ b.textos.comentario.campo }}" rows="3" maxlength="2000" placeholder="Observaciones del poste…" {% if not puede_escribir %}disabled{% endif %} class="textarea textarea-bordered w-full">{{ b.textos.comentario.valor }}</textarea>
+  </div>
+</div>

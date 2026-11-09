@@ -1,0 +1,22 @@
+{# Widgets mapa_1p y mapa_2_puntos. El mapa lo dibuja static/js/reg-mapa.js (Leaflet) con los puntos de `data-puntos`. #}
+<div data-mapa data-puntos="{{ b.puntos_json }}"{% if b.save_url and b.hay_clave and b.puntos %} data-save-url="{{ b.save_url }}"{% endif %} class="space-y-3">
+  {% if b.puntos %}
+    <div data-mapa-lienzo role="img" aria-label="Mapa con {{ b.puntos|length }} punto{{ b.puntos|length|pluralize }} del registro" class="reg-mapa-lienzo aspect-square w-full max-w-xl overflow-hidden rounded-box bg-base-200"></div>
+  {% endif %}
+  {% if b.faltantes %}
+    <div class="flex min-h-20 max-w-xl items-center justify-center rounded-box border border-dashed border-base-content/25 p-4 text-center text-sm text-base-content/70">{{ b.faltantes }}</div>
+  {% endif %}
+  {% if b.puntos and not b.hay_clave %}
+    <p class="max-w-xl text-sm text-base-content/70">No hay una clave de Google Maps configurada: se muestran los puntos, pero no se puede generar la imagen del informe. Pídele al administrador que defina <code>GOOGLE_MAPS_API_KEY</code>.</p>
+  {% endif %}
+  {% if b.puntos %}
+    <div class="flex flex-wrap items-center gap-3">
+      {% if b.save_url and b.hay_clave %}
+        <button type="button" class="btn btn-primary" data-mapa-guardar>{% if b.imagen %}Actualizar imagen{% else %}Guardar imagen{% endif %}</button>
+      {% endif %}
+      {% if b.puntos|length > 1 %}<span class="badge badge-ghost{% if not b.distancia %} hidden{% endif %}" data-mapa-distancia>Distancia: <span data-mapa-distancia-valor>{{ b.distancia }}</span></span>{% endif %}
+      <span class="text-sm text-base-content/70" role="status" aria-live="polite" data-mapa-estado></span>
+    </div>
+    <img data-mapa-imagen src="{{ b.imagen_url }}" alt="Imagen del mapa guardada para el informe" loading="lazy" class="w-full max-w-xl rounded-box{% if not b.imagen %} hidden{% endif %}">
+  {% endif %}
+</div>

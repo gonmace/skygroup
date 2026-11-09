@@ -1,0 +1,32 @@
+{% extends "shell.html" %}
+{% block page_title %}{{ m.user }}{% endblock %}
+{% block content_main %}
+<div class="mb-4 flex flex-wrap items-center gap-3">
+  <a href="{% url 'jor_diario:equipo' %}" class="btn btn-ghost btn-sm">← Equipo</a>
+  <span class="text-sm text-base-content/60">{{ perfil.cargo_completo }}{% if not perfil.activo %} · <span class="text-error">no ficha jornadas</span>{% endif %}</span>
+  {% if puede_perfiles %}<a href="{% url 'jor_empleados:perfil_editar' m.pk %}" class="btn btn-sm btn-outline ml-auto gap-1">{% include "components/icon.html" with name="pencil" cls="size-4" %} Editar perfil</a>{% endif %}
+</div>
+<div class="mb-3 flex flex-wrap items-center gap-2 text-sm">
+  {% if dispositivo %}<span class="badge badge-outline gap-1">Celular vinculado: {{ dispositivo.nombre|default:"celular" }} · {{ dispositivo.creado|date:"d/m/Y" }}{% if dispositivo.ultimo_uso %} · último uso {{ dispositivo.ultimo_uso|date:"d/m H:i" }}{% endif %}</span>
+    {% if puede_perfiles %}<form method="post" action="{% url 'jor_empleados:dispositivo_liberar' m.pk %}" data-confirmar="¿Liberar el celular de {{ m.user }}? Tendrá que vincular uno nuevo."> {% csrf_token %}<button class="btn btn-outline btn-xs gap-1">{% include "components/icon.html" with name="unlock" cls="size-4" %} Liberar celular</button></form>{% endif %}
+  {% else %}<span class="text-base-content/60">Sin celular vinculado.</span>{% endif %}
+</div>
+{% if msj_activo and m.user_id != request.user.pk %}<div class="mb-2 text-right"><button type="button" class="btn btn-outline btn-xs gap-1" data-msj-directo="{{ m.user_id }}">{% include "components/icon.html" with name="chat" cls="size-4" %} Enviar mensaje</button></div>{% endif %}
+<div class="mb-3 flex items-center gap-2">
+  <a class="btn btn-sm btn-ghost" href="?mes={{ nav.anterior }}">‹</a><strong>{{ nav.actual }}</strong><a class="btn btn-sm btn-ghost" href="?mes={{ nav.siguiente }}">›</a>
+  <span class="ml-auto text-sm">Total: <strong>{% widthratio total_min 60 1 %} h {{ total_min }} min acumulados</strong></span>
+</div>
+<div class="space-y-3">
+  {% for j in jornadas %}
+    <div class="card bg-base-100"><div class="card-body gap-2 p-4">
+      <div class="flex flex-wrap items-center gap-2 text-sm"><strong>{{ j.inicio|date:"d/m/Y" }}</strong>
+        <span>{{ j.inicio|date:"H:i" }} → {% if j.fin %}{{ j.fin|date:"H:i" }}{% else %}…{% endif %}</span>
+        <span class="badge badge-outline badge-sm">{{ j.get_estado_display }}</span>{% if j.estado_verificacion != 'verificada' %}<span class="badge badge-sm {% if j.estado_verificacion == 'rechazada' %}badge-error{% elif j.estado_verificacion == 'excepcion_aprobada' %}badge-success{% else %}badge-warning{% endif %}">{{ j.get_estado_verificacion_display }}</span>{% endif %}{% if j.cierre_auto %}<span class="badge badge-warning badge-sm">cierre automático</span>{% endif %}</div>
+      {% if j.reporte %}<div class="grid gap-3 text-sm sm:grid-cols-2">
+        <p class="whitespace-pre-line">{{ j.reporte.realizado|default:"—" }}</p><p class="whitespace-pre-line text-base-content/70">{{ j.reporte.planificado|default:"—" }}</p></div>{% endif %}
+    </div></div>
+  {% empty %}<div class="p-10 text-center text-base-content/40">Sin jornadas este mes.</div>{% endfor %}
+</div>
+{% if ausencias %}<h2 class="mb-2 mt-6 font-semibold">Ausencias del mes</h2>
+<ul class="text-sm">{% for a in ausencias %}<li>{{ a.get_tipo_display }} · {{ a.desde|date:"d/m" }}–{{ a.hasta|date:"d/m" }} · {{ a.get_estado_display }}{% if a.nota %} · {{ a.nota }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+{% endblock %}

@@ -1,0 +1,9 @@
+{% comment %}
+  Lote de mensajes para insertar en el chat. `es_ultimo_lote`: el lote llega hasta el último mensaje
+  real del hilo (comentarios_desde), así que su último mensaje se puede editar/borrar; en el historial
+  («cargar anteriores») nunca.
+{% endcomment %}
+{% for c in comentarios %}
+  {% if es_ultimo_lote and forloop.last %}{% include "tar_tickets/parciales/_mensaje.html" with es_ultimo=True %}
+  {% else %}{% include "tar_tickets/parciales/_mensaje.html" with es_ultimo=False %}{% endif %}
+{% endfor %}

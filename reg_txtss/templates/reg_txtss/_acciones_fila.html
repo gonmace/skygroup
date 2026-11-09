@@ -1,0 +1,24 @@
+{# Acciones de una fila de la lista: solo icono, de color y sin texto. Cada acción POST vuelve a la lista (`next`). #}
+<div class="flex items-center justify-center gap-0.5">
+  <a href="{% url 'reg_txtss:pdf' r.pk %}" target="_blank" rel="noopener" class="btn btn-ghost btn-square btn-sm text-error"
+     title="{% if r.concluido %}Generar PDF{% else %}Generar PDF (borrador){% endif %}" aria-label="Generar PDF">{% include "components/icon.html" with name="pdf" cls="size-5" %}</a>
+  {% if puede_copiar and r.siguiente_alternativa %}
+  <form method="post" action="{% url 'reg_txtss:copiar' r.pk %}" data-confirmar="¿Copiar con la alternativa {{ r.siguiente_alternativa }}?">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+    <button class="btn btn-ghost btn-square btn-sm text-info" title="Copiar con la alternativa {{ r.siguiente_alternativa }}" aria-label="Copiar con la siguiente alternativa">{% include "components/icon.html" with name="copy" cls="size-5" %}</button>
+  </form>
+  {% endif %}
+  {% if puede_editar and not r.concluido %}
+  <button type="button" class="btn btn-ghost btn-square btn-sm text-warning" title="Editar responsable y alternativa" aria-label="Editar registro"
+          data-editar-registro data-action="{% url 'reg_txtss:responsable' r.pk %}" data-user="{{ r.user_id|default:'' }}" data-alternativa="{{ r.alternativa }}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</button>
+  {% endif %}
+  {% if es_super %}
+  <form method="post" action="{% url 'reg_txtss:eliminar' r.pk %}" data-confirmar="¿Eliminar este registro? Solo el superusuario podrá restaurarlo.">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+    <button class="btn btn-ghost btn-square btn-sm text-error" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+  </form>
+  {% if r.has_widgets and not r.concluido %}
+  <form method="post" action="{% url 'reg_txtss:formatear' r.pk %}" data-confirmar="¿Formatear? Se borrarán {{ r.n_fotos }} foto{{ r.n_fotos|pluralize }}, {{ r.n_mapas }} mapa{{ r.n_mapas|pluralize }} y {{ r.n_pasos }} paso{{ r.n_pasos|pluralize }} con datos. No se puede deshacer.">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+    <button class="btn btn-ghost btn-square btn-sm text-error" title="Formatear todos los datos" aria-label="Formatear todos los datos">{% include "components/icon.html" with name="eraser" cls="size-5" %}</button>
+  </form>
+  {% endif %}
+  {% endif %}
+</div>

@@ -1,0 +1,48 @@
+{% extends "shell.html" %}
+{% block page_title %}Ausencias{% endblock %}
+{% block content_main %}
+<div class="grid gap-4 lg:grid-cols-3">
+  <div class="space-y-4 lg:col-span-2">
+    {% if pendientes %}
+    <div class="card bg-base-100 ring-1 ring-warning"><div class="card-body gap-2 p-4">
+      <h2 class="font-semibold">Solicitudes pendientes</h2>
+      {% for a in pendientes %}
+        <div class="flex flex-wrap items-center gap-2 text-sm">
+          <span class="font-medium">{{ a.perfil.nombre }}</span><span>{{ a.get_tipo_display }} · {{ a.desde|date:"d/m/Y" }}–{{ a.hasta|date:"d/m/Y" }}</span>{% if a.nota %}<span class="text-base-content/60">{{ a.nota }}</span>{% endif %}
+          <form method="post" action="{% url 'jor_diario:ausencia_decidir' a.pk %}" class="ml-auto flex gap-1">{% csrf_token %}
+            <button name="decision" value="aprobar" class="btn btn-success btn-xs">Aprobar</button>
+            <button name="decision" value="rechazar" class="btn btn-error btn-outline btn-xs">Rechazar</button></form>
+        </div>
+      {% endfor %}
+    </div></div>
+    {% endif %}
+    <div class="card bg-base-100"><div class="card-body gap-2 p-4">
+      <h2 class="font-semibold">Mis ausencias</h2>
+      {% for a in mias %}
+        <div class="flex flex-wrap items-center gap-2 text-sm">
+          <span>{{ a.get_tipo_display }} · {{ a.desde|date:"d/m/Y" }}–{{ a.hasta|date:"d/m/Y" }}</span>
+          <span class="badge badge-sm {% if a.estado == 'aprobada' %}badge-success{% elif a.estado == 'rechazada' %}badge-error{% else %}badge-warning{% endif %}">{{ a.get_estado_display }}</span>
+          {% if a.nota %}<span class="text-base-content/60">{{ a.nota }}</span>{% endif %}
+          {% if a.estado == 'pendiente' or gestiona %}<form method="post" action="{% url 'jor_diario:ausencia_eliminar' a.pk %}" class="ml-auto" data-confirmar="¿Eliminar esta ausencia?">{% csrf_token %}<button class="btn btn-ghost btn-xs">{% if a.estado == 'pendiente' %}Cancelar{% else %}Eliminar{% endif %}</button></form>{% endif %}
+        </div>
+      {% empty %}<p class="text-sm text-base-content/50">No tienes ausencias.</p>{% endfor %}
+    </div></div>
+    {% if gestiona %}
+    <div class="card bg-base-100"><div class="card-body gap-2 p-4">
+      <h2 class="font-semibold">Próximas y vigentes (equipo)</h2>
+      {% for a in proximas %}
+        <div class="flex flex-wrap items-center gap-2 text-sm"><span class="font-medium">{{ a.perfil.nombre }}</span><span>{{ a.get_tipo_display }} · {{ a.desde|date:"d/m/Y" }}–{{ a.hasta|date:"d/m/Y" }}</span>
+          <form method="post" action="{% url 'jor_diario:ausencia_eliminar' a.pk %}" class="ml-auto" data-confirmar="¿Eliminar esta ausencia?">{% csrf_token %}<button class="btn btn-ghost btn-xs">Eliminar</button></form></div>
+      {% empty %}<p class="text-sm text-base-content/50">Sin ausencias próximas.</p>{% endfor %}
+    </div></div>
+    {% endif %}
+  </div>
+  {% if form %}
+  <form method="post" class="card h-fit bg-base-100"><div class="card-body gap-3">
+    {% csrf_token %}<h2 class="font-semibold">{% if gestiona %}Registrar ausencia{% else %}Solicitar ausencia{% endif %}</h2>
+    {% include "components/campos.html" %}
+    <button type="submit" class="btn btn-primary">{% if gestiona %}Registrar{% else %}Enviar solicitud{% endif %}</button>
+  </div></form>
+  {% endif %}
+</div>
+{% endblock %}

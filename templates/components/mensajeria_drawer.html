@@ -1,0 +1,6 @@
+{# Ventana flotante de la mensajería (se rellena con fetch desde static/js/mensajeria.js). No es modal: la página de fondo sigue usable. #}
+<aside id="msj" class="pointer-events-none fixed z-50 flex translate-y-4 flex-col overflow-hidden bg-base-100 opacity-0 shadow-2xl ring-1 ring-base-content/10 transition duration-200 motion-reduce:transition-none max-sm:inset-0 sm:bottom-4 sm:right-4 sm:h-[min(40rem,calc(100dvh-6rem))] sm:w-[24rem] sm:rounded-2xl"
+       role="dialog" aria-label="Mensajería" aria-modal="false" inert
+       data-base="{% url 'mje_mensajes:bandeja' %}" data-ws="/ws/empresa/{{ empresa.slug }}/mensajes/" data-yo="{{ request.user.pk }}">
+  <div id="msj-contenido" class="flex min-h-0 flex-1 flex-col"></div>
+</aside>

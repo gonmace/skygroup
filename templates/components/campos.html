@@ -1,0 +1,16 @@
+{# Renderiza todos los campos de `form` con estilo DaisyUI. Uso: {% include "components/campos.html" %} #}
+{% if form.non_field_errors %}<div class="alert alert-error text-sm">{{ form.non_field_errors.0 }}</div>{% endif %}
+<div class="grid gap-4 sm:grid-cols-2">
+{% for campo in form %}
+  <div class="{% if campo.field.widget.input_type == 'checkbox' and not campo.field.widget.allow_multiple_selected %}flex items-center gap-2 sm:col-span-2{% elif campo.field.widget.allow_multiple_selected or campo.field.widget.attrs.rows %}sm:col-span-2{% endif %}">
+    {% if campo.field.widget.input_type == 'checkbox' and not campo.field.widget.allow_multiple_selected %}
+      {{ campo }}<label for="{{ campo.id_for_label }}" class="text-sm">{{ campo.label }}</label>
+    {% else %}
+      <label for="{{ campo.id_for_label }}" class="mb-1 block text-sm font-medium">{{ campo.label }}{% if campo.field.required %}<span class="text-error" aria-hidden="true"> *</span>{% endif %}</label>
+      {{ campo }}
+    {% endif %}
+    {% if campo.help_text %}<p class="mt-1 text-xs text-base-content/70">{{ campo.help_text }}</p>{% endif %}
+    {% for e in campo.errors %}<p class="mt-1 text-sm text-error">{{ e }}</p>{% endfor %}
+  </div>
+{% endfor %}
+</div>

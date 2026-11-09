@@ -1,0 +1,23 @@
+{% extends "shell.html" %}
+{% block page_title %}Archivados{% endblock %}
+{% block content_main %}
+<p class="mb-4 text-sm text-base-content/50">Tickets Concluidos o Suspendidos/Cancelados que fueron archivados.</p>
+<div class="overflow-hidden rounded-2xl border border-base-300 bg-base-100">
+  <div class="divide-y divide-base-200">
+    {% for t in pagina %}
+      <div class="flex items-center gap-3 px-4 py-3">
+        <a href="{% url 'tar_tickets:detalle' t.pk %}" class="w-24 shrink-0 font-mono text-xs font-semibold text-accent-text hover:underline">{{ t.clave }}</a>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2"><span class="truncate text-sm font-semibold">{{ t.titulo }}</span>
+            <span class="badge badge-outline badge-xs font-medium badge-{{ t.color_estado }}">{{ t.get_estado_display }}</span></div>
+          <p class="text-xs text-base-content/40">Archivado {{ t.archivado_en|date:"d/m/Y H:i" }}</p>
+        </div>
+        {% if puede_desarchivar %}
+          <form method="post" action="{% url 'tar_tickets:desarchivar' t.pk %}" data-confirmar="¿Desarchivar {{ t.clave }}?">{% csrf_token %}<button class="btn btn-ghost btn-xs">Desarchivar</button></form>
+        {% endif %}
+      </div>
+    {% empty %}<div class="p-10 text-center text-base-content/40">No hay tickets archivados.</div>{% endfor %}
+  </div>
+</div>
+{% include "tar_tickets/parciales/_paginacion.html" %}
+{% endblock %}

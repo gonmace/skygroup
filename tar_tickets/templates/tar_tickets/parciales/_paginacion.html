@@ -1,0 +1,7 @@
+{% if pagina.paginator.num_pages > 1 %}
+<div class="mt-5 flex items-center justify-center gap-3">
+  {% if pagina.has_previous %}<a href="{% querystring page=pagina.previous_page_number %}" class="btn btn-ghost btn-sm">← Anterior</a>{% endif %}
+  <span class="text-sm text-base-content/60">Página {{ pagina.number }} / {{ pagina.paginator.num_pages }}</span>
+  {% if pagina.has_next %}<a href="{% querystring page=pagina.next_page_number %}" class="btn btn-ghost btn-sm">Siguiente →</a>{% endif %}
+</div>
+{% endif %}

@@ -1,0 +1,45 @@
+{% extends "shell.html" %}
+{% block page_title %}Mis reportes{% endblock %}
+{% block content_main %}
+<div class="mb-5 grid grid-cols-3 gap-3">
+  <div class="rounded-2xl border border-base-300 bg-base-100 p-4 text-center"><p class="text-[10px] font-semibold uppercase tracking-widest text-base-content/40">Jornadas</p><p class="mt-1 text-3xl font-black">{{ total_jornadas }}</p></div>
+  <div class="rounded-2xl border border-base-300 bg-base-100 p-4 text-center"><p class="text-[10px] font-semibold uppercase tracking-widest text-base-content/40">Horas acumuladas</p><p class="mt-1 text-3xl font-black text-info">{{ total_horas }}</p></div>
+  <div class="rounded-2xl border border-base-300 bg-base-100 p-4 text-center"><p class="text-[10px] font-semibold uppercase tracking-widest text-base-content/40">Promedio por jornada</p><p class="mt-1 text-3xl font-black text-success">{{ promedio }}</p></div>
+</div>
+
+<div class="space-y-3">
+  {% for j in pagina %}
+    <article class="flex gap-4 rounded-2xl border border-base-300 border-l-4 bg-base-100 p-4 {% if j.estado == 'completada' %}border-l-success{% elif j.estado == 'en_curso' %}border-l-warning{% else %}border-l-error{% endif %}">
+      <div class="w-14 shrink-0 text-center">
+        <p class="text-2xl font-black leading-none tabular-nums">{{ j.inicio|date:"d" }}</p>
+        <p class="mt-1 text-[10px] font-semibold uppercase tracking-widest text-base-content/50">{{ j.inicio|date:"M" }} {{ j.inicio|date:"Y" }}</p>
+        <p class="text-[10px] uppercase text-base-content/40">{{ j.inicio|date:"D" }}</p>
+      </div>
+      <div class="min-w-0 flex-1">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span class="font-semibold tabular-nums">{{ j.inicio|date:"H:i" }} → {% if j.fin %}{{ j.fin|date:"H:i" }}{% else %}…{% endif %}</span>
+          {% if j.duracion_txt %}<span class="text-sm font-medium tabular-nums text-success">{{ j.duracion_txt }}</span>{% endif %}
+          {% if j.estado == 'completada' %}<span class="badge badge-success badge-sm">Completada</span>
+          {% elif j.estado == 'en_curso' %}<span class="badge badge-warning badge-sm">Activa</span>
+          {% else %}<span class="badge badge-error badge-outline badge-sm">{{ j.get_estado_display }}</span>{% endif %}
+          {% if j.cierre_auto %}<span class="badge badge-ghost badge-sm">Cierre automático</span>{% endif %}
+          {% if j.proyecto %}<span class="text-sm text-base-content/60">· {{ j.proyecto }}</span>{% endif %}
+        </div>
+        {% if j.reporte and j.reporte.realizado or j.reporte and j.reporte.planificado %}
+        <div class="mt-3 grid gap-4 text-sm md:grid-cols-2">
+          <div><p class="mb-1 text-[10px] font-semibold uppercase tracking-widest text-base-content/40">Realizado</p><p class="whitespace-pre-line">{{ j.reporte.realizado|default:"—" }}</p></div>
+          <div><p class="mb-1 text-[10px] font-semibold uppercase tracking-widest text-base-content/40">Planificado</p><p class="whitespace-pre-line text-base-content/70">{{ j.reporte.planificado|default:"—" }}</p></div>
+        </div>
+        {% else %}<p class="mt-2 text-sm text-base-content/40">Sin reporte de actividades.</p>{% endif %}
+      </div>
+    </article>
+  {% empty %}
+    <div class="rounded-2xl border border-dashed border-base-300 p-12 text-center text-base-content/40">Aún no tienes jornadas.</div>
+  {% endfor %}
+</div>
+{% if pagina.has_other_pages %}<div class="join mt-5">
+  {% if pagina.has_previous %}<a class="btn join-item btn-sm" href="?p={{ pagina.previous_page_number }}">«</a>{% endif %}
+  <span class="btn join-item btn-sm btn-disabled">{{ pagina.number }} / {{ pagina.paginator.num_pages }}</span>
+  {% if pagina.has_next %}<a class="btn join-item btn-sm" href="?p={{ pagina.next_page_number }}">»</a>{% endif %}
+</div>{% endif %}
+{% endblock %}

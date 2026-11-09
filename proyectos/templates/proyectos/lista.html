@@ -1,0 +1,139 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block extra_head %}{% if vista == 'mapa' and puntos %}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endif %}{% endblock %}
+{% block extra_scripts %}{% if vista == 'mapa' and puntos %}<script src="{% static 'vendor/leaflet/leaflet.js' %}" defer></script>
+<script src="{% static 'js/proyectos-mapa.js' %}" defer></script>{% endif %}{% endblock %}
+{% block page_title %}{{ termino_proyectos }}{% endblock %}
+{# Página de altura fija: barra de filtros y paginación quietas, solo la tabla (o el mapa) ocupa el resto y hace scroll. #}
+{% block main_class %}flex flex-col overflow-hidden{% endblock %}
+{% block wrap_class %}flex min-h-0 w-full flex-1 flex-col{% endblock %}
+{% block content_main %}
+{# Barra: en móvil solo vista + Tipos + Nuevo (sin buscar ni filtrar); desde `sm` una sola línea con buscador y filtro. Los grupos se aplanan con `contents`. #}
+<form method="get" class="mb-3 flex shrink-0 flex-wrap items-center gap-2">
+  <div class="contents">
+    <input type="search" name="q" value="{{ q }}" placeholder="Nombre, código o ciudad" aria-label="Buscar" enterkeyhint="search" data-autobuscar="3" autocomplete="off" class="input input-bordered input-sm order-1 w-56 max-sm:hidden">
+    {% if puede_gestionar %}
+    <a href="{% url 'proyectos:tipos' %}" class="btn btn-ghost btn-sm btn-compacto order-2 ml-auto px-2 sm:order-5" title="Tipos" aria-label="Tipos">{% include "components/icon.html" with name="tag" cls="size-4" %}<span class="hidden sm:inline">Tipos</span></a>
+    <a href="{% url 'proyectos:nuevo' %}" class="btn btn-primary btn-sm btn-compacto order-3 px-2 sm:order-6" title="Nuevo" aria-label="Nuevo">{% include "components/icon.html" with name="plus" cls="size-4" %}<span class="hidden sm:inline">Nuevo</span></a>
+    {% endif %}
+  </div>
+  <div class="contents">
+    <select name="estado" aria-label="Estado" data-autoenviar-select class="select select-bordered select-sm order-2 w-auto max-sm:hidden">
+      <option value="">Todos los estados</option>
+      {% for v, l in estados %}<option value="{{ v }}" {% if estado == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select>
+    {% if vista == 'mapa' %}<input type="hidden" name="vista" value="mapa">{% endif %}
+    {% if tipo_sel %}<input type="hidden" name="tipo" value="{{ tipo_sel }}">{% endif %}
+    {% if orden %}<input type="hidden" name="orden" value="{{ orden }}"><input type="hidden" name="dir" value="{{ dir }}">{% endif %}
+    <div class="segmentado order-1 sm:order-4" role="group" aria-label="Vista">
+      <a href="?{{ qs_filtros }}" {% if vista == 'lista' %}aria-current="page"{% endif %}>{% include "components/icon.html" with name="list" cls="size-4" %}<span class="max-sm:sr-only">Lista</span></a>
+      <a href="?{{ qs_filtros }}{% if qs_filtros %}&amp;{% endif %}vista=mapa" {% if vista == 'mapa' %}aria-current="page"{% endif %}>{% include "components/icon.html" with name="map" cls="size-4" %}<span class="max-sm:sr-only">Mapa</span></a>
+    </div>
+  </div>
+</form>
+{% if etiquetas_pendientes %}
+<details class="mb-3 shrink-0 rounded-box border border-base-content/10 bg-base-100 p-3">
+  <summary class="cursor-pointer text-sm font-medium">Mencionados en reportes de jornada <span class="badge badge-warning badge-sm align-middle">{{ etiquetas_pendientes|length }}</span>
+    <span class="font-normal text-base-content/60">· aún no están en {{ termino_proyectos|lower }}</span></summary>
+  <form method="post" action="{% url 'jor_actividades:etiquetas_a_proyectos' %}" class="mt-3 space-y-3">{% csrf_token %}
+    <ul class="grid max-h-[45vh] gap-x-4 gap-y-1 overflow-y-auto overscroll-contain rounded-box border border-base-content/10 p-2 sm:grid-cols-2 lg:grid-cols-3" tabindex="0" aria-label="Proyectos mencionados en reportes">
+      {% for e in etiquetas_pendientes %}
+        <li><label class="flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" name="etiqueta" value="{{ e.pk }}" class="checkbox checkbox-sm">
+          <span class="truncate">{{ e.nombre }}</span><span class="badge badge-ghost badge-sm" title="Veces mencionado en reportes">{{ e.usos }}</span></label></li>
+      {% endfor %}
+    </ul>
+    <button type="submit" class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar a {{ termino_proyectos|lower }}</button>
+  </form>
+</details>
+{% endif %}
+{% if vista == 'mapa' %}
+<section class="flex min-h-0 flex-1 flex-col" aria-label="Mapa de {{ termino_proyectos|lower }}">
+  {% if puntos %}
+  {{ puntos|json_script:"proyectos-puntos" }}
+  <div data-mapa-tipos class="segmentado mb-2" role="group" aria-label="Filtrar por tipo"></div>
+  <div data-proyectos-mapa{% if ubicar %} data-ubicar="{{ ubicar }}"{% endif %} class="reg-mapa-lienzo min-h-72 w-full flex-1 overflow-hidden rounded-box bg-base-200" role="region" aria-label="Mapa con {{ puntos|length }} ubicaciones"></div>
+  {% else %}
+  <div class="table-card py-12 text-center text-base-content/60">Ningún {{ termino_proyecto|lower }}{% if q or estado %} con esos filtros{% endif %} tiene ubicación para mostrar en el mapa.</div>
+  {% endif %}
+</section>
+{% else %}
+{% if botones_tipo %}
+<nav class="segmentado mb-2" aria-label="Filtrar por tipo">
+  {% for b in botones_tipo %}<a href="{{ b.url }}" {% if b.activo %}aria-current="true"{% endif %}>{{ b.nombre }} {{ b.n }}</a>{% endfor %}
+</nav>
+{% endif %}
+
+{# Móvil: tarjetas (la tabla de 6 columnas obliga a desplazarse de lado) #}
+<div class="flex min-h-0 flex-1 flex-col md:hidden">
+  <ul class="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
+    {% for p in pagina %}
+    <li class="rounded-box bg-base-100 p-3 shadow-sm">
+      <a class="block" href="{% url 'proyectos:detalle' p.pk %}">
+        <div class="flex items-baseline gap-2"><span class="shrink-0 font-mono text-xs text-base-content/60">{{ p.codigo|default:"—" }}</span><span class="min-w-0 truncate font-medium">{{ p.nombre }}</span></div>
+        <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+          {% include "proyectos/_badge_estado.html" with estado=p.estado nombre=p.get_estado_display %}
+          {% include "proyectos/_badge_tipo.html" with tipo=p.tipo sin_tipo=termino_proyecto %}
+          <span class="text-sm text-base-content/70">{{ p.comuna|default:p.ciudad|default:"" }}</span>
+        </div>
+      </a>
+      <div class="mt-2 flex justify-end gap-1 border-t border-base-content/10 pt-2">
+        {% if p.tiene_ubicacion %}<a href="?{{ qs_filtros }}{% if qs_filtros %}&amp;{% endif %}vista=mapa&amp;ubicar={{ p.pk }}" class="btn btn-ghost btn-square text-success hover:bg-success/10" title="Ubicar en el mapa" aria-label="Ubicar en el mapa">{% include "components/icon.html" with name="map-pin" cls="size-5" %}</a>{% endif %}
+        <a href="{% url 'proyectos:detalle' p.pk %}" class="btn btn-ghost btn-square text-info hover:bg-info/10" title="Ver" aria-label="Ver">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+        {% if puede_gestionar %}
+        <a href="{% url 'proyectos:editar' p.pk %}" class="btn btn-ghost btn-square text-warning hover:bg-warning/10" title="Editar" aria-label="Editar">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+        <form method="post" action="{% url 'proyectos:eliminar' p.pk %}" data-confirmar="¿Eliminar {{ p.nombre|escapejs }}?" class="inline">{% csrf_token %}
+          <button class="btn btn-ghost btn-square text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+        </form>
+        {% endif %}
+      </div>
+    </li>
+    {% empty %}
+    <li class="rounded-box bg-base-100 py-8 text-center text-base-content/60">No hay {{ termino_proyectos|lower }}{% if q or estado %} con esos filtros{% endif %}.</li>
+    {% endfor %}
+  </ul>
+</div>
+
+<div class="table-card hidden min-h-0 overflow-auto md:block">
+  <table class="table tabla-fija">
+    <thead><tr>
+      {% for c in columnas %}
+      <th {% if c.activa %}aria-sort="{% if c.desc %}descending{% else %}ascending{% endif %}"{% endif %}>
+        <a href="{{ c.url }}" class="inline-flex items-center gap-1 hover:text-base-content {% if c.activa %}text-base-content{% endif %}" title="Ordenar por {{ c.titulo|lower }}">{{ c.titulo }}<span aria-hidden="true" class="text-[0.7em] {% if not c.activa %}opacity-30{% endif %}">{% if c.desc %}▼{% elif c.activa %}▲{% else %}↕{% endif %}</span></a>
+      </th>
+      {% endfor %}
+      <th class="w-0"><span class="sr-only">Acciones</span></th>
+    </tr></thead>
+    <tbody>
+    {% for p in pagina %}
+      <tr data-href="{% url 'proyectos:detalle' p.pk %}" class="hover cursor-pointer{% if p.tipo %} fila-tipo badge-tipo-{{ p.tipo.color_idx }}{% endif %}">
+        <td class="whitespace-nowrap font-mono text-sm"><a class="link" href="{% url 'proyectos:detalle' p.pk %}">{{ p.codigo }}</a></td>
+        <td>{{ p.nombre }}</td>
+        <td>{% include "proyectos/_badge_tipo.html" with tipo=p.tipo sin_tipo=termino_proyecto %}</td>
+        <td class="text-sm text-base-content/70">{{ p.comuna|default:p.ciudad|default:"—" }}</td>
+        <td>{% include "proyectos/_badge_estado.html" with estado=p.estado nombre=p.get_estado_display %}</td>
+        <td class="whitespace-nowrap text-right">
+          {% if p.tiene_ubicacion %}<a href="?{{ qs_filtros }}{% if qs_filtros %}&amp;{% endif %}vista=mapa&amp;ubicar={{ p.pk }}" class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Ubicar en el mapa" aria-label="Ubicar en el mapa">{% include "components/icon.html" with name="map-pin" cls="size-5" %}</a>{% endif %}
+          <a href="{% url 'proyectos:detalle' p.pk %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Ver" aria-label="Ver">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+          {% if puede_gestionar %}
+          <a href="{% url 'proyectos:editar' p.pk %}" class="btn btn-ghost btn-square btn-sm text-warning hover:bg-warning/10" title="Editar" aria-label="Editar">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+          <form method="post" action="{% url 'proyectos:eliminar' p.pk %}" data-confirmar="¿Eliminar {{ p.nombre|escapejs }}?" class="inline">{% csrf_token %}
+            <button class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6" class="py-8 text-center text-base-content/60">No hay {{ termino_proyectos|lower }}{% if q or estado %} con esos filtros{% endif %}.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if pagina.has_other_pages %}
+<div class="mt-3 flex shrink-0 items-center justify-center gap-2">
+  {% if pagina.has_previous %}<a class="btn btn-md sm:btn-sm" href="?{{ qs_filtros }}&amp;page={{ pagina.previous_page_number }}" aria-label="Página anterior">‹</a>{% endif %}
+  <span class="btn btn-md btn-ghost no-animation sm:btn-sm">{{ pagina.number }} / {{ pagina.paginator.num_pages }}</span>
+  {% if pagina.has_next %}<a class="btn btn-md sm:btn-sm" href="?{{ qs_filtros }}&amp;page={{ pagina.next_page_number }}" aria-label="Página siguiente">›</a>{% endif %}
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,40 @@
+{# Una sección (paso) del PDF: datos de sus widgets y fotos. Contexto: s, desfase. #}
+<article class="paso-widget-section" id="seccion-{{ s.nombre }}">
+  <h2>{{ s.titulo }}</h2>
+  {% for b in s.bloques %}
+    {% if b.tipo == 'mapa' %}
+    <table class="mapa-table"><tr>
+      <td class="mapa-img-cell"><img src="{{ b.src }}" alt="Mapa"></td>
+      <td class="mapa-leyenda-cell">
+        {% for l in b.leyenda %}{% include "reg_txtss/pdf/_leyenda.html" with color=l.color nombre=l.nombre %}{% endfor %}
+        {% if b.distancia %}<p class="mapa-leyenda-nota">Distancia: {{ b.distancia }}</p>{% endif %}
+      </td>
+    </tr></table>
+    {% elif b.tipo == 'ubicacion' %}
+    <table class="datos-2col"><tr>
+      <th>{{ b.etiqueta }}:</th>
+      <td>{{ b.coords }}{% if b.precision %} (±{{ b.precision }} m){% endif %}<br><span style="color:#555; font-size:9.5pt;">{{ b.dms }}</span></td>
+    </tr></table>
+    {% elif b.tipo == 'tabla' %}
+    {% if b.etiqueta %}<h3>{{ b.etiqueta }}</h3>{% endif %}
+    <table class="datos-2col">{% for k, v in b.filas %}<tr><th>{{ k }}:</th><td>{{ v|linebreaksbr }}</td></tr>{% endfor %}</table>
+    {% elif b.tipo == 'texto' %}
+    <p><strong>{{ b.etiqueta }}:</strong> {{ b.texto|linebreaksbr }}</p>
+    {% elif b.tipo == 'lista' %}
+    {% if b.etiqueta %}<h3>{{ b.etiqueta }}</h3>{% endif %}
+    <ol class="lista-numerada">{% for i in b.items %}<li>{{ i }}</li>{% endfor %}</ol>
+    {% endif %}
+  {% endfor %}
+  {% if s.nombre == 'desfase' and desfase %}
+  <div class="desfase-alerta">
+    <span class="desfase-dot" style="background-color: {{ desfase.color }};"></span>
+    <span><strong>Desfase Mandato — Inspección:</strong>&nbsp;{{ desfase.texto }} — <em>{{ desfase.estado }}</em></span>
+  </div>
+  {% endif %}
+  {% for g in s.grupos %}
+  <section class="imagenes">
+    <div class="foto-titulo"><p><strong>{{ g.etiqueta }}</strong></p></div>
+    {% include "reg_txtss/pdf/_fotos_tabla.html" with fotos=g.fotos cols=g.cols %}
+  </section>
+  {% endfor %}
+</article>

@@ -1,0 +1,22 @@
+{# Barra de período (Asistencia y Estadísticas). `filtros_extra`: plantilla opcional con más selectores. modo (Mes | Rango), navegación y persona. Los selectores envían el formulario solos. #}
+<form method="get" class="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+  <div class="segmentado" role="group" aria-label="Período">
+    {% for m in modos_enlaces %}<a href="{{ m.url }}" {% if m.activo %}aria-current="page"{% endif %}>{{ m.nombre }}</a>{% endfor %}
+  </div>
+  <input type="hidden" name="mode" value="{{ periodo.modo }}">
+  {% if periodo.modo == 'range' %}
+    <input type="date" name="from" value="{{ periodo.desde|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" class="input input-bordered input-md sm:input-sm" data-autoenviar-select aria-label="Desde">
+    <span class="text-sm text-base-content/50">a</span>
+    <input type="date" name="to" value="{{ periodo.hasta|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" class="input input-bordered input-md sm:input-sm" data-autoenviar-select aria-label="Hasta">
+  {% elif periodo.modo == 'month' %}
+    <div class="flex items-center gap-1">
+      <a href="{{ url_mes_anterior }}" class="btn btn-ghost btn-md btn-square sm:btn-sm" aria-label="Mes anterior">{% include "components/icon.html" with name="chevron-left" cls="size-5" %}</a>
+      <select name="month" class="select select-bordered select-md sm:select-sm" data-autoenviar-select aria-label="Mes">{% for n, nombre in meses %}<option value="{{ n }}" {% if n == mes_sel %}selected{% endif %}>{{ nombre }}</option>{% endfor %}</select>
+      <select name="year" class="select select-bordered select-md sm:select-sm" data-autoenviar-select aria-label="Año">{% for a in anios %}<option value="{{ a }}" {% if a == anio_sel %}selected{% endif %}>{{ a }}</option>{% endfor %}</select>
+      {% if url_mes_siguiente %}<a href="{{ url_mes_siguiente }}" class="btn btn-ghost btn-md btn-square sm:btn-sm" aria-label="Mes siguiente"><span class="inline-block rotate-180">{% include "components/icon.html" with name="chevron-left" cls="size-5" %}</span></a>{% endif %}
+    </div>
+  {% endif %}
+  <select name="persona" class="select select-bordered select-md sm:select-sm" data-autoenviar-select aria-label="Persona"><option value="">Todas las personas</option>{% for m in miembros %}<option value="{{ m.pk }}" {% if persona == m.pk %}selected{% endif %}>{{ m.user }}</option>{% endfor %}</select>
+  {% if filtros_extra %}{% include filtros_extra %}{% endif %}
+  <a class="btn btn-md sm:btn-sm sm:ml-auto" href="{{ url_excel }}?{{ get.urlencode }}">{% include "components/icon.html" with name="file-text" cls="size-4" %} Descargar Excel</a>
+</form>

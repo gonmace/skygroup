@@ -1,0 +1,25 @@
+{% comment %}Una fila = una <tr> con un input por columna; todos los inputs de una columna comparten nombre (listas paralelas).{% endcomment %}
+<div data-reg-tabla data-max="{{ b.max_filas }}" class="space-y-2">
+  <div class="overflow-x-auto">
+    <table class="table table-sm">
+      <thead><tr>{% for c in b.columnas %}<th class="whitespace-nowrap">{{ c.label }}{% if c.obligatorio %} <span class="text-error">*</span>{% endif %}</th>{% endfor %}{% if puede_escribir %}<th class="w-10"><span class="sr-only">Quitar fila</span></th>{% endif %}</tr></thead>
+      <tbody data-reg-tabla-filas>
+      {% for fila in b.filas %}
+        <tr data-reg-tabla-fila>
+          {% for c in fila %}<td class="align-top">{% include "reg_actividades/widgets/_celda.html" %}</td>{% endfor %}
+          {% if puede_escribir %}<td class="align-top">{% include "reg_actividades/widgets/_quitar_fila.html" %}</td>{% endif %}
+        </tr>
+      {% empty %}
+        {% if not puede_escribir %}<tr><td colspan="{{ b.columnas|length }}" class="text-sm text-base-content/50">Sin filas.</td></tr>{% endif %}
+      {% endfor %}
+      {% for fila in b.filas_en_blanco %}
+        <tr data-reg-tabla-fila>
+          {% for c in fila %}<td class="align-top">{% include "reg_actividades/widgets/_celda.html" %}</td>{% endfor %}
+          <td class="align-top">{% include "reg_actividades/widgets/_quitar_fila.html" %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if puede_escribir %}<button type="button" class="btn btn-soft btn-sm gap-1" data-reg-tabla-agregar hidden>{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar fila</button>{% endif %}
+</div>

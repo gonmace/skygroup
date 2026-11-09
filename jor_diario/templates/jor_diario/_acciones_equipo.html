@@ -1,0 +1,7 @@
+{# Acciones de una fila del equipo: solo iconos de color. `btn` = "btn-sm" en la tabla, vacío en las tarjetas. #}
+<a href="{% url 'jor_diario:persona' f.m.pk %}" class="btn btn-ghost btn-square {{ btn }} text-info hover:bg-info/10" title="Ver jornadas" aria-label="Ver jornadas de {{ f.m.user }}">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+{% if request.user.is_superuser and not request.impersonador and f.m.user.is_active and not f.m.user.is_superuser %}
+<form method="post" action="{% url 'cuentas:impersonar' f.m.user.pk %}" class="inline">{% csrf_token %}
+  <button type="submit" class="btn btn-ghost btn-square {{ btn }} text-accent hover:bg-accent/10" title="Ver como {{ f.m.user.email }}" aria-label="Ver la aplicación como {{ f.m.user.email }}">{% include "components/icon.html" with name="user-switch" cls="size-5" %}</button>
+</form>
+{% endif %}

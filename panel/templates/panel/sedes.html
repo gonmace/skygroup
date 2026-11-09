@@ -1,0 +1,36 @@
+{% extends "shell.html" %}
+{% block page_title %}Sedes{% endblock %}
+{% block content_main %}
+<p class="mb-3 max-w-3xl text-sm text-base-content/70">Las sedes son las oficinas, bases o ciudades de <strong>{{ empresa.nombre }}</strong>. Asignar una sede a cada usuario es opcional.</p>
+<div class="mb-3 flex items-center justify-end gap-2">
+  <a href="{% url 'panel:sede_nueva' %}" class="btn btn-primary btn-sm btn-compacto px-2" title="Nueva sede" aria-label="Nueva sede">{% include "components/icon.html" with name="plus" cls="size-4" %}<span class="hidden sm:inline">Nueva sede</span></a>
+</div>
+<div class="table-card max-h-[70vh] overflow-auto">
+  <table class="table tabla-fija">
+    <thead><tr><th>Sede</th><th class="text-center">Miembros</th><th class="text-center">Estado</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+    <tbody>
+    {% for s in lista %}
+      <tr class="hover {% if not s.activo %}opacity-60{% endif %}">
+        <td class="font-medium">{{ s.nombre }}{% if not s.tiene_geocerca %} <span class="badge badge-warning badge-sm align-middle font-normal" title="Sin ubicación no se puede verificar la presencia al marcar jornada">sin ubicación</span>{% endif %}</td>
+        <td class="text-center">{{ s.num_miembros }}</td>
+        <td class="text-center">
+          <form method="post" action="{% url 'panel:sede_alternar' s.pk %}">{% csrf_token %}
+            <input type="checkbox" class="toggle toggle-success toggle-sm" {% if s.activo %}checked{% endif %}
+                   title="{% if s.activo %}Desactivar{% else %}Activar{% endif %}" aria-label="{% if s.activo %}Desactivar{% else %}Activar{% endif %} la sede {{ s.nombre }}"
+                   data-autoenviar="{% if s.activo %}¿Desactivar la sede «{{ s.nombre }}»?{% endif %}">
+          </form>
+        </td>
+        <td class="whitespace-nowrap text-right">
+          <a class="btn btn-ghost btn-square btn-sm text-primary-text hover:bg-primary/10" title="Editar" aria-label="Editar" href="{% url 'panel:sede_editar' s.pk %}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+          <form method="post" action="{% url 'panel:sede_eliminar' s.pk %}" class="inline" data-confirmar="¿Eliminar la sede «{{ s.nombre }}»?">{% csrf_token %}
+            <button type="submit" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+          </form>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="py-8 text-center text-base-content/60">Aún no hay sedes.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

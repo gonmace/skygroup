@@ -1,0 +1,18 @@
+{% extends "cuentas/_auth_base.html" %}
+{% block title %}Crear acceso{% endblock %}
+{% block auth_titulo %}Crear acceso{% endblock %}
+{% block auth_cuerpo %}
+<p class="text-sm text-base-content/70">Si tu correo pertenece a un dominio autorizado, te enviaremos un enlace para confirmarlo y elegir tu contraseña.</p>
+<form method="post" class="flex flex-col gap-4">
+  {% csrf_token %}
+  {% for campo in form %}
+  <label class="form-control w-full">
+    <span class="label-text mb-1">{{ campo.label }}</span>
+    {{ campo }}
+    {% for e in campo.errors %}<span class="text-error text-sm">{{ e }}</span>{% endfor %}
+  </label>
+  {% endfor %}
+  <button type="submit" class="btn btn-primary">Enviar enlace</button>
+  <a href="{% url 'cuentas:login' %}" class="link link-hover text-sm text-center">Volver a iniciar sesión</a>
+</form>
+{% endblock %}

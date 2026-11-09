@@ -1,0 +1,1 @@
+<span class="badge badge-soft badge-sm {% if h.estado == 'cerrado' %}badge-success{% elif h.estado == 'en_proceso' %}badge-info{% else %}badge-warning{% endif %}">{{ h.get_estado_display }}</span>{% if h.vencido %} <span class="badge badge-error badge-sm">Vencido</span>{% endif %}

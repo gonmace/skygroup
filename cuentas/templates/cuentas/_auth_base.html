@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block body %}
+<main class="min-h-screen grid place-items-center bg-base-200 p-6">
+  <div class="w-full max-w-sm">
+    <div class="mb-6 flex justify-center">
+      {% if logo_claro_url %}
+        <img src="{{ logo_claro_url }}" alt="{{ marca }}" class="max-h-16 w-auto dark:hidden">
+        <img src="{{ logo_oscuro_url }}" alt="{{ marca }}" class="max-h-16 w-auto hidden dark:block">
+      {% else %}
+        <span class="text-2xl font-semibold tracking-tight">{{ marca }}</span>
+      {% endif %}
+    </div>
+    <div class="card bg-base-100 shadow-sm">
+      <div class="card-body gap-4">
+        <h1 class="card-title text-xl">{% block auth_titulo %}{% endblock %}</h1>
+        {% block auth_cuerpo %}{% endblock %}
+      </div>
+    </div>
+    {% if empresa %}<p class="mt-4 text-center text-xs text-base-content/50">{{ producto }}</p>{% endif %}
+  </div>
+</main>
+{% endblock %}

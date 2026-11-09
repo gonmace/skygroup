@@ -1,0 +1,27 @@
+{% extends "shell.html" %}
+{% block page_title %}Eliminar cargo{% endblock %}
+{% block content_main %}
+<form method="post" class="card bg-base-100 max-w-2xl">
+  <div class="card-body gap-4">
+    {% csrf_token %}
+    <p>Vas a eliminar el cargo <strong>{{ obj.nombre }}</strong> ({{ obj.get_rol_base_display }}). No se puede deshacer.</p>
+    {% if en_uso %}
+    <div role="alert" class="alert alert-warning">
+      <span>Está en uso por <strong>{{ n_miembros }} miembro{{ n_miembros|pluralize }}</strong>{% if en_uso != n_miembros %} y otras asignaciones (dominios, excepciones por módulo){% endif %}. Elige el cargo al que pasarán; recibirán sus permisos.</span>
+    </div>
+    <label class="form-control">
+      <span class="label-text mb-1">Pasar a</span>
+      <select name="destino" class="select select-bordered" required>
+        <option value="">— Elige un cargo —</option>
+        {% for d in destinos %}<option value="{{ d.pk }}">{{ d.nombre }} ({{ d.get_rol_base_display }})</option>{% endfor %}
+      </select>
+    </label>
+    {% if not destinos %}<p class="text-sm text-error">No hay otro cargo activo al que pasarlos. Crea uno primero.</p>{% endif %}
+    {% endif %}
+    <div class="card-actions justify-end">
+      <a href="{% url 'panel:roles' %}" class="btn btn-ghost">Cancelar</a>
+      {% if not en_uso or destinos %}<button type="submit" class="btn btn-error">{% if en_uso %}Pasar y eliminar{% else %}Eliminar cargo{% endif %}</button>{% endif %}
+    </div>
+  </div>
+</form>
+{% endblock %}

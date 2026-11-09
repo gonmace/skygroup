@@ -1,0 +1,12 @@
+{# Filas de barras horizontales (SVG: el CSP no admite estilos inline). Espera `filas`: label, count, pct, texto?, color? #}
+<div class="space-y-2">
+  {% for f in filas %}<div class="flex items-center gap-2 text-sm">
+    <span class="w-28 shrink-0 truncate sm:w-40" title="{{ f.label }}">{{ f.label }}</span>
+    <svg class="h-2 flex-1 rounded-full" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="{{ f.label }}: {{ f.texto|default:f.count }}">
+      <rect width="100" height="8" rx="4" class="text-base-200" fill="currentColor"></rect>
+      {% if f.segmentos %}{% for s in f.segmentos %}<rect x="{{ s.x }}" width="{{ s.w }}" height="8" fill="{{ s.color }}"><title>{{ s.titulo }}</title></rect>{% endfor %}
+      {% else %}<rect width="{{ f.pct }}" height="8" rx="4" {% if f.color %}fill="{{ f.color }}"{% else %}fill="#3b82f6"{% endif %}></rect>{% endif %}
+    </svg>
+    <span class="w-24 shrink-0 whitespace-nowrap text-right text-xs font-semibold tabular-nums">{{ f.texto|default:f.count }}</span>
+  </div>{% empty %}<p class="text-sm text-base-content/50">Sin datos.</p>{% endfor %}
+</div>

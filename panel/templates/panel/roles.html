@@ -1,0 +1,29 @@
+{% extends "shell.html" %}
+{% block page_title %}Cargos y permisos{% endblock %}
+{% block content_main %}
+<p class="mb-4 max-w-3xl text-sm text-base-content/70">Cada cargo de la empresa (por ejemplo «ITO» o «Supervisor») tiene un <strong>nivel de acceso</strong> que fija sus permisos por defecto: Coordinador, Ejecutor, Especialista u Observador. Puedes crear cargos y ajustar sus permisos.</p>
+<div class="mb-4 flex items-center justify-end gap-2">
+  {% include "panel/_ayuda_raci.html" with id="raci-cargos" %}
+  <a href="{% url 'panel:rol_nuevo' %}" class="btn btn-primary btn-sm">{% include "components/icon.html" with name="plus" cls="size-4" %} Nuevo cargo</a>
+</div>
+<div class="table-card">
+  <table class="table">
+    <thead><tr><th>Cargo</th><th>Nivel de acceso</th><th>Miembros</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+    {% for r in lista %}
+      <tr class="fila-tipo badge-rol-{{ r.jerarquia }}{% if not r.activo %} opacity-60{% endif %}">
+        <td><div class="font-medium">{{ r.nombre }}</div>{% if r.descripcion %}<div class="text-xs text-base-content/60">{{ r.descripcion }}</div>{% endif %}</td>
+        <td>{% include "panel/_badge_rol_base.html" with rol=r %}</td>
+        <td>{{ r.membresias.all|length }}</td>
+        <td>{% if r.activo %}<span class="badge badge-success badge-sm">Activo</span>{% else %}<span class="badge badge-ghost badge-sm">Inactivo</span>{% endif %}</td>
+        <td class="text-right whitespace-nowrap">
+          <a class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Permisos" aria-label="Permisos" href="{% url 'panel:rol_matriz' r.pk %}">{% include "components/icon.html" with name="shield" cls="size-5" %}</a>
+          <a class="btn btn-ghost btn-square btn-sm text-primary-text hover:bg-primary/10" title="Editar" aria-label="Editar" href="{% url 'panel:rol_editar' r.pk %}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+          <a class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar" href="{% url 'panel:rol_eliminar' r.pk %}">{% include "components/icon.html" with name="trash" cls="size-5" %}</a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

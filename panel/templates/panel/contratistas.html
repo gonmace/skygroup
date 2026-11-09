@@ -1,0 +1,64 @@
+{% extends "shell.html" %}
+{% block page_title %}Contratistas{% endblock %}
+{% block content_main %}
+<p class="mb-3 shrink-0 max-w-3xl text-sm text-base-content/70">Los contratistas son las organizaciones externas que trabajan para <strong>{{ empresa.nombre }}</strong>. Cada persona puede pertenecer a uno, y quien administra un contratista ve solo lo de su contratista.</p>
+<div class="mb-3 flex shrink-0 items-center justify-end gap-2">
+  <a href="{% url 'panel:contratista_nuevo' %}" class="btn btn-primary btn-md px-3 sm:btn-sm" title="Nuevo contratista" aria-label="Nuevo contratista">{% include "components/icon.html" with name="plus" cls="size-5 sm:size-4" %}<span class="hidden sm:inline">Nuevo contratista</span></a>
+</div>
+<div class="table-card min-h-[22rem] max-h-[70vh] overflow-auto">
+  <table class="table tabla-fija">
+    <thead><tr><th>Contratista</th><th class="text-center">Código</th><th class="text-center">Miembros</th><th class="text-center">Estado</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+    <tbody>
+    {% for c in lista %}
+      <tr class="hover {% if not c.activo %}opacity-60{% endif %}">
+        <td class="font-medium">{{ c.nombre }}</td>
+        <td class="text-center font-mono text-sm">{{ c.codigo }}</td>
+        <td class="text-center">{{ c.num_miembros }}</td>
+        <td class="text-center">
+          <form method="post" action="{% url 'panel:contratista_alternar' c.pk %}">{% csrf_token %}
+            <input type="checkbox" class="toggle toggle-success toggle-sm" {% if c.activo %}checked{% endif %}
+                   title="{% if c.activo %}Desactivar{% else %}Activar{% endif %}" aria-label="{% if c.activo %}Desactivar{% else %}Activar{% endif %} a {{ c.nombre }}"
+                   data-autoenviar="{% if c.activo %}¿Desactivar el contratista «{{ c.nombre }}»?{% endif %}">
+          </form>
+        </td>
+        <td class="whitespace-nowrap text-right">
+          <a class="btn btn-ghost btn-square btn-sm text-primary-text hover:bg-primary/10" title="Editar" aria-label="Editar" href="{% url 'panel:contratista_editar' c.pk %}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+          <form method="post" action="{% url 'panel:contratista_eliminar' c.pk %}" class="inline" data-confirmar="¿Eliminar el contratista «{{ c.nombre }}»?">{% csrf_token %}
+            <button type="submit" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+          </form>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="py-8 text-center text-base-content/60">Aún no hay contratistas.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if eliminados is not None %}
+<section class="mt-6" aria-labelledby="papelera">
+  <h2 id="papelera" class="mb-2 text-sm font-semibold text-base-content/70">Eliminados <span class="font-normal">(solo visible para el superusuario)</span></h2>
+  <div class="table-card min-h-[14rem] max-h-[50vh] overflow-auto">
+    <table class="table tabla-fija">
+      <thead><tr><th>Contratista</th><th class="text-center">Código</th><th class="text-center">Eliminado</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+      <tbody>
+      {% for c in eliminados %}
+        <tr class="hover opacity-70">
+          <td class="font-medium">{{ c.nombre }}</td>
+          <td class="text-center font-mono text-sm">{{ c.codigo }}</td>
+          <td class="text-center text-sm">{{ c.actualizado|date:"d/m/Y H:i" }}</td>
+          <td class="whitespace-nowrap text-right">
+            <form method="post" action="{% url 'panel:contratista_restaurar' c.pk %}" class="inline" data-confirmar="¿Restaurar el contratista «{{ c.nombre }}»?">{% csrf_token %}
+              <button type="submit" class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Restaurar" aria-label="Restaurar">{% include "components/icon.html" with name="restore" cls="size-5" %}</button>
+            </form>
+            <a href="{% url 'panel:contratista_eliminar_definitivo' c.pk %}" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar definitivamente" aria-label="Eliminar definitivamente a {{ c.nombre }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</a>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4" class="py-6 text-center text-base-content/60">No hay contratistas eliminados.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

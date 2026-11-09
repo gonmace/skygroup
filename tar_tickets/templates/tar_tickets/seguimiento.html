@@ -1,0 +1,54 @@
+{% extends "shell.html" %}
+{% block page_title %}Seguimiento{% endblock %}
+{% block content_main %}
+<p class="mb-4 text-sm text-base-content/50">Monitoreo del último mensaje de cada tarea.</p>
+{% if pagina.object_list %}
+  <div class="mb-3 flex flex-wrap items-center gap-3 text-xs text-base-content/50">
+    <span class="font-semibold tabular-nums text-base-content/70">{{ pagina.paginator.count }} ticket{{ pagina.paginator.count|pluralize }}</span>
+    <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-info"></span>Por hacer</span>
+    <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-warning"></span>En progreso</span>
+    <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-success"></span>Concluido</span>
+    <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-error"></span>Suspendido/Cancelado</span>
+  </div>
+  <div class="overflow-hidden rounded-2xl border border-base-300 bg-base-100"><div class="divide-y divide-base-300">
+    {% for t in pagina %}
+      <a href="{% url 'tar_tickets:detalle' t.pk %}" title="Estado: {{ t.get_estado_display }}"
+         class="flex items-start gap-3 border-l-4 py-3 pl-3 pr-4 transition-colors hover:bg-base-200/50 {% if t.estado == 'TODO' %}border-l-info{% elif t.estado == 'IN_PROGRESS' %}border-l-warning{% elif t.estado == 'DONE' %}border-l-success{% else %}border-l-error{% endif %}">
+        <div class="flex w-24 shrink-0 flex-col items-start gap-1 pt-0.5">
+          <span class="font-mono text-xs font-semibold text-accent-text">{{ t.clave }}</span>
+          <span class="prio-bars" data-priority="{{ t.prioridad }}" title="Prioridad: {{ t.get_prioridad_display }}"><i></i><i></i><i></i><i></i></span>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="truncate text-sm font-semibold">{{ t.titulo }}</span>
+            {% if t.proyecto %}<span class="text-[10px] font-semibold text-base-content/50" title="{{ t.proyecto.nombre }}">{{ t.proyecto.codigo }}</span>{% endif %}
+          </div>
+          {% if t.ultimo_en %}
+            <div class="mt-1 space-y-1">
+              <div class="flex items-start gap-1.5 rounded-lg border border-warning/20 bg-warning/10 px-2 py-1">
+                <span class="shrink-0 text-xs font-semibold">{% if t.ultimo_autor or t.ultimo_autor_ap %}{{ t.ultimo_autor }} {{ t.ultimo_autor_ap }}{% else %}{{ t.ultimo_autor_mail|default:"—" }}{% endif %}:</span>
+                <span class="truncate text-xs text-base-content/90">{{ t.ultimo_texto|default:"(adjunto)"|truncatechars:90 }}</span>
+              </div>
+              {% if t.previo_autor_mail %}
+                <div class="flex items-start gap-1.5 px-2">
+                  <span class="shrink-0 text-xs text-base-content/50">{% if t.previo_autor or t.previo_autor_ap %}{{ t.previo_autor }} {{ t.previo_autor_ap }}{% else %}{{ t.previo_autor_mail }}{% endif %}:</span>
+                  <span class="truncate text-xs text-base-content/40">{{ t.previo_texto|default:"(adjunto)"|truncatechars:90 }}</span>
+                </div>
+              {% endif %}
+            </div>
+          {% else %}<p class="mt-0.5 text-xs text-base-content/40">Sin mensajes</p>{% endif %}
+          {% with etiquetas=t.etiquetas.all %}{% if etiquetas %}<div class="mt-1 flex flex-wrap gap-1">{% for l in etiquetas %}<span class="label-chip" data-color="{{ l.color }}">{{ l.nombre }}</span>{% endfor %}</div>{% endif %}{% endwith %}
+        </div>
+        <div class="flex shrink-0 flex-col items-end gap-1 text-xs text-base-content/50">
+          {% if t.vence %}<span class="font-semibold {% if t.esta_vencido %}text-error{% else %}text-base-content/80{% endif %}">{% if t.esta_vencido %}Venció{% else %}Vence{% endif %}: {{ t.vence|date:"d/m" }}</span>{% endif %}
+          {% if t.ultimo_en %}<span>{{ t.ultimo_en|date:"d/m H:i" }}</span>{% endif %}
+          <span class="text-[11px] italic text-base-content/40">Modificado {{ t.actualizado|date:"d/m H:i" }}</span>
+        </div>
+      </a>
+    {% endfor %}
+  </div></div>
+  {% include "tar_tickets/parciales/_paginacion.html" %}
+{% else %}
+  <div class="rounded-2xl border border-base-300 bg-base-100 p-10 text-center text-base-content/40">No hay tickets.</div>
+{% endif %}
+{% endblock %}

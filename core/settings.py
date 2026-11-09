@@ -22,7 +22,25 @@ ADMIN_URL = config('ADMIN_URL', default='admin/')
 
 INSTALLED_APPS = [
     'home',
-    'cdn',
+    'empresas',
+    'cuentas',
+    'proyectos',
+    'archivos',
+    'panel',
+    'notificaciones',
+    'mje_mensajes',
+    'tar_tickets',
+    'tar_adjuntos',
+    'reg_base',
+    'reg_txtss',
+    'reg_construccion',
+    'reg_construccion_base',
+    'reg_fotos',
+    'reg_actividades',
+    'jor_empleados',
+    'jor_diario',
+    'jor_actividades',
+    'jor_reportes',
     'axes',
 
     'django.contrib.admin',
@@ -38,7 +56,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'csp.middleware.CSPMiddleware',
-    'cdn.middleware.MediaCspMiddleware',  # añade la CDN configurada en el admin al CSP
+    'archivos.middleware.MediaCspMiddleware',  # añade la CDN configurada en el admin al CSP
     'django.contrib.sessions.middleware.SessionMiddleware',
     'axes.middleware.AxesMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -46,12 +64,19 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'cuentas.impersonacion.ImpersonacionMiddleware',  # superusuario → ver como otro usuario
+    # Debe ir al FINAL: necesita request.user y messages (ver empresas/tenancy.py).
+    'empresas.tenancy.EmpresaMiddleware',
 ]
 
 INSTALLED_APPS += ['tailwind', 'theme']
 TAILWIND_APP_NAME = 'theme'
 
+ASGI_APPLICATION = 'core.asgi.application'
+
 if DEBUG:
+    # daphne antes que staticfiles: su `runserver` es ASGI (HTTP + WebSocket) y sigue sirviendo estáticos.
+    INSTALLED_APPS.insert(0, 'daphne')
     INSTALLED_APPS += ['django_browser_reload']
     MIDDLEWARE += ['django_browser_reload.middleware.BrowserReloadMiddleware']
     INTERNAL_IPS = ['127.0.0.1', '::1']
@@ -59,9 +84,14 @@ if DEBUG:
     if sys.platform == 'win32':
         NPM_BIN_PATH = r'C:\Program Files\nodejs\npm.cmd'
 
+AUTH_USER_MODEL = 'cuentas.User'
+LOGIN_URL = 'cuentas:login'
+LOGIN_REDIRECT_URL = 'home'  # se resuelve con el prefijo de la empresa del request
+LOGOUT_REDIRECT_URL = 'cuentas:login'
+
 AUTHENTICATION_BACKENDS = [
     'axes.backends.AxesStandaloneBackend',
-    'django.contrib.auth.backends.ModelBackend',
+    'cuentas.backends.EmailBackend',
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -77,6 +107,12 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'empresas.context_processors.marca_empresa',
+                'empresas.context_processors.selector_empresas',
+                'panel.menu.menu_lateral',
+                'notificaciones.context_processors.campana',
+                'mje_mensajes.context_processors.mensajeria',
+                'jor_diario.context_processors.jornada_hoy',
             ],
         },
     },
@@ -102,7 +138,7 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+            'NAME': config('SQLITE_PATH', default=os.path.join(BASE_DIR, 'db.sqlite3')),
         }
     }
 
@@ -123,16 +159,40 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 WHITENOISE_MANIFEST_STRICT = not DEBUG  # True en prod: rechaza archivos sin entrada en manifest
 
+# ── Media ─────────────────────────────────────────────────────────────────────
+# Modo (local / S3), bucket, credenciales y URL de la CDN se configuran en el admin
+# (app `archivos`) y aplican sin reiniciar. HybridMediaStorage se comporta como
+# ConfigurableMediaStorage y, en modo S3, además sigue sirviendo lo que aún
+# está en disco hasta moverlo con `manage.py media_a_cdn` (ver archivos/storage.py).
+S3_URL_EXPIRE = config('S3_URL_EXPIRE', default=300, cast=int)  # segundos de las URLs firmadas (privados)
+# Token de los endpoints internos (n8n/cron, cabecera X-Internal-Token). Vacío = deshabilitados.
+INTERNAL_API_TOKEN = config('INTERNAL_API_TOKEN', default='')
+DISK_ALERT_PERCENT = config('DISK_ALERT_PERCENT', default=85, cast=int)
+
+FOTO_MAX_SIZE = config('FOTO_MAX_SIZE', default=25 * 1024 * 1024, cast=int)  # 25 MB por foto (Registros)
+
+# ── Adjuntos de Tareas ────────────────────────────────────────────────────────
+ATTACHMENT_MAX_SIZE = config('ATTACHMENT_MAX_SIZE', default=20 * 1024 * 1024, cast=int)  # 20 MB
+ATTACHMENT_ALLOWED_TYPES = (
+    'image/', 'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain', 'text/csv',
+)
+
 STORAGES = {
     'staticfiles': {
         # CompressedManifestStaticFilesStorage: hashes en filenames (cache-busting seguro)
         # + archivos .gz pre-generados que nginx sirve con gzip_static on
         'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
     },
-    # Media: disco local por defecto; S3/CDN configurable desde el admin (app 'cdn')
-    'default': {
-        'BACKEND': 'cdn.storage.ConfigurableMediaStorage',
-    },
+    # Media pública: config en el admin (app 'archivos'); híbrido para activar S3 sin migrar antes
+    'default': {'BACKEND': 'archivos.storage.HybridMediaStorage'},
+    'privado': {'BACKEND': 'archivos.storage.HybridPrivateStorage'},
 }
 
 MEDIA_URL = '/media/'
@@ -186,6 +246,20 @@ else:
         }
     }
 
+# ── Channels (WebSocket / tiempo real) ────────────────────────────────────────
+if DEBUG and not config('REDIS_URL', default=''):
+    # Dev sin Redis: capa en memoria (un solo proceso, suficiente para `runserver`).
+    CHANNEL_LAYERS = {'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'}}
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            # socket_timeout holgado: redis-py 8 usa 5 s por defecto, igual al BZPOPMIN bloqueante
+            # de channels_redis, y el WebSocket se caía en cada conexión inactiva.
+            'CONFIG': {'hosts': [{'address': REDIS_URL, 'socket_timeout': 30}]},
+        }
+    }
+
 # cached_db: lectura rápida desde Redis y respaldo en DB (un reinicio de Redis no desloguea a nadie).
 SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 SESSION_CACHE_ALIAS = 'default'
@@ -194,7 +268,12 @@ SESSION_CACHE_ALIAS = 'default'
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = 1  # hora
 AXES_LOCKOUT_PARAMETERS = ['ip_address', 'username']
+# El User se identifica por email, pero AuthenticationForm sigue enviando el campo como
+# 'username'; sin esto axes toma USERNAME_FIELD ('email') y registra el intento sin usuario.
+AXES_USERNAME_FORM_FIELD = 'username'
 AXES_RESET_ON_SUCCESS = True
+# Página amistosa (HTTP 429) con qué hacer cuando alguien queda bloqueado.
+AXES_LOCKOUT_TEMPLATE = 'cuentas/bloqueado.html'
 
 # Handler de base de datos en todos los entornos: los intentos fallidos quedan en el admin
 # (Axes → Access attempts) y un superusuario desbloquea borrando el registro del bloqueado.
@@ -204,26 +283,33 @@ AXES_HANDLER = 'axes.handlers.database.AxesDatabaseHandler'
 if not DEBUG:
     # Tras nginx, REMOTE_ADDR es la IP del gateway Docker (igual para todos): sin esto un
     # atacante bloquearía a todos los usuarios. nginx sobrescribe X-Real-IP con la IP real
-    # y gunicorn solo escucha en 127.0.0.1, así que el header es confiable.
+    # y la app solo es alcanzable a través de nginx (el puerto se publica en 127.0.0.1), así que el header es confiable.
     AXES_IPWARE_META_PRECEDENCE_ORDER = ['HTTP_X_REAL_IP', 'REMOTE_ADDR']
 
+# Registros: imagen estática del widget de mapa (Google Static Maps). Vacío = el widget muestra los puntos pero no
+# puede generar la imagen para el informe.
+GOOGLE_MAPS_API_KEY = config('GOOGLE_MAPS_API_KEY', default='')
+
+# Django usa 'same-origin' por defecto: sin Referer, OpenStreetMap bloquea las teselas (403 «Access blocked»).
+# Con este valor solo se envía el origen (sin ruta ni query) a otros dominios.
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
 # ── Content Security Policy ───────────────────────────────────────────────────
-# Formato django-csp >= 4.0
 CONTENT_SECURITY_POLICY = {
     'DIRECTIVES': {
         'default-src': ["'self'"],
         'script-src': ["'self'"],
         'style-src': ["'self'"],
-        'img-src': ["'self'", 'data:'],
+        # Teselas de los mapas Leaflet de Registros (satélite Esri y calles OSM).
+        'img-src': ["'self'", 'data:', 'https://server.arcgisonline.com', 'https://*.tile.openstreetmap.org'],
         'font-src': ["'self'"],
-        'connect-src': ["'self'"] if not DEBUG else ["'self'", 'ws://localhost:*', 'ws://127.0.0.1:*'],
+        'connect-src': ["'self'"]
+        + ([] if not DEBUG else ['ws://localhost:*', 'ws://127.0.0.1:*']),
     },
 }
 
-# ── Integración n8n (opcional) ───────────────────────────────────────────────
-N8N_URL = config('N8N_URL', default='')
-N8N_API_KEY = config('N8N_API_KEY', default='')
-N8N_WEBHOOK_URL = config('N8N_WEBHOOK_URL', default='')
+# URL pública del sitio (sin barra final): empresas.tenancy.empresa_url la usa para enlaces en correos.
+SITE_URL = config('SITE_URL', default='')
 
 # ── Admins y logging ──────────────────────────────────────────────────────────
 ADMIN_EMAIL = config('ADMIN_EMAIL', default='')
@@ -250,6 +336,7 @@ LOGGING = {
     # Errores visibles en 'docker logs'; email a admins solo si hay ADMIN_EMAIL.
     'loggers': {
         'django': {'handlers': ['console'], 'level': 'INFO'},
+        'cuentas.impersonacion': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
         'django.request': {
             'handlers': ['console'] + (['mail_admins'] if ADMINS else []),
             'level': 'ERROR',

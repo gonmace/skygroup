@@ -1,0 +1,67 @@
+{% extends "shell.html" %}
+{% block page_title %}Supervisión Campo · {{ r.proyecto.codigo|default:"—" }} · visita {{ r.numero }}{% endblock %}
+{% block content_main %}
+<div class="mb-4 flex items-center gap-2">
+  <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+    <span class="badge badge-primary badge-outline">Visita {{ r.numero }}</span>
+    <span class="badge badge-ghost" title="Revisión">{{ r.rev_etiqueta }}</span>
+    {% if r.rev_vigente %}<span class="badge badge-success badge-soft">Vigente</span>{% else %}<span class="badge badge-warning badge-soft" title="Hay otra revisión vigente">Revisión anterior</span>{% endif %}
+    {% if r.concluido %}<span class="badge badge-success">Emitida</span>{% else %}<span class="badge badge-ghost">Borrador</span>{% endif %}
+  </div>
+  <a href="{% url 'reg_construccion_base:lista' %}" class="btn btn-ghost btn-sm ml-auto shrink-0">← Visitas</a>
+</div>
+<div class="mx-auto grid max-w-2xl gap-4">
+  <section class="card bg-base-100"><div class="card-body gap-3">
+    <h2 class="card-title text-base">{{ r.proyecto.nombre|default:"Sin proyecto" }}</h2>
+    {% if r.rev_numero and r.rev_comentario %}<div class="rounded-box bg-base-200 p-3 text-sm"><p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Motivo de la {{ r.rev_etiqueta }}</p><p>{{ r.rev_comentario }}</p></div>{% endif %}
+    {% if puede_escribir %}
+      <form method="post" action="{% url 'reg_construccion_base:datos' r.pk %}" class="space-y-3">{% csrf_token %}
+        {% include "components/campos.html" %}
+        <div class="text-right"><button class="btn btn-primary btn-sm">Guardar datos</button></div>
+      </form>
+    {% else %}
+      <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+        <dt class="text-base-content/60">{{ termino_proyecto }}</dt><dd>{% if r.proyecto %}<a class="link" href="{% url 'proyectos:detalle' r.proyecto.pk %}">{{ r.proyecto }}</a>{% else %}—{% endif %}</dd>
+        <dt class="text-base-content/60">Fecha</dt><dd>{{ r.fecha|date:"d/m/Y" }}</dd>
+        <dt class="text-base-content/60">Contratista</dt><dd>{{ r.contratista.nombre|default:"—" }}</dd>
+        <dt class="text-base-content/60">Supervisor</dt><dd>{{ r.responsable_nombre }}</dd>
+        {% if r.emitido_en %}<dt class="text-base-content/60">Emitida</dt><dd>{{ r.emitido_en|date:"d/m/Y H:i" }}{% if r.emitido_por %} · {{ r.emitido_por.get_full_name|default:r.emitido_por.email }}{% endif %}</dd>{% endif %}
+      </dl>
+      {% if r.concluido %}<p class="text-sm text-base-content/60">La visita está emitida y es de solo lectura. Para corregirla, crea una revisión.</p>{% endif %}
+    {% endif %}
+  </div></section>
+
+  <section class="order-first"><div>
+    {% include "reg_actividades/_linea_pasos.html" with acciones_template="reg_construccion_base/_acciones.html" %}
+  </div></section>
+
+  <section class="card bg-base-100"><div class="card-body gap-2">
+    <div class="flex items-center justify-between gap-2"><h2 class="card-title text-base">Hallazgos de esta visita</h2>
+      <a href="{% url 'reg_construccion_base:hallazgos' %}?proyecto={{ r.proyecto_id }}" class="link text-sm">Ver todos del {{ termino_proyecto|lower }}</a></div>
+    {% for h in hallazgos %}
+      <a href="{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}" class="-mx-1 flex items-center gap-3 rounded-md border-t border-base-300 px-1 py-2 first:border-0 hover:bg-base-200/60">
+        <div class="min-w-0 flex-1"><p class="truncate text-sm"><span class="font-semibold tabular-nums">{{ h.codigo }}</span> · {{ h.get_tipo_display }}</p><p class="truncate text-xs text-base-content/60">{{ h.descripcion }}</p></div>
+        {% include "reg_construccion_base/_severidad.html" %}{% include "reg_construccion_base/_estado_hallazgo.html" %}
+      </a>
+    {% empty %}<p class="text-sm text-base-content/60">Sin hallazgos en esta visita.</p>{% endfor %}
+    {% if pendientes %}<p class="text-xs text-warning">Hay {{ pendientes }} observación{{ pendientes|pluralize:"es" }} de visitas anteriores por verificar.</p>{% endif %}
+  </div></section>
+
+  <section class="card bg-base-100"><div class="card-body gap-2">
+    <h2 class="card-title text-base"><a class="link link-hover" href="{% url 'reg_fotos:galeria' tipo.clave r.pk 'general' %}">Imágenes</a></h2>
+    {% if fotos_total %}
+      <p class="text-sm text-base-content/60">{{ fotos_total }} {% if fotos_total == 1 %}imagen{% else %}imágenes{% endif %}</p>
+      <div class="grid grid-cols-4 gap-2 sm:grid-cols-6">{% for f in fotos_recientes %}<a href="{% url 'reg_fotos:imagen' f.pk %}" target="_blank" rel="noopener"><img src="{% url 'reg_fotos:miniatura' f.pk %}" alt="{{ f.descripcion|default:'Imagen' }}" loading="lazy" class="aspect-square w-full rounded-lg object-cover"></a>{% endfor %}</div>
+    {% else %}<p class="text-sm text-base-content/60">Todavía no hay imágenes.</p>{% endif %}
+  </div></section>
+
+  {% include "reg_base/_revisiones.html" %}
+
+  <section class="card bg-base-100"><div class="card-body gap-2">
+    <h2 class="card-title text-base">Visitas del {{ termino_proyecto|lower }}</h2>
+    <ul class="space-y-1 text-sm">
+      {% for v in visitas %}<li><a class="link {% if v.serie == r.serie %}font-bold{% endif %}" href="{% url 'reg_construccion_base:detalle' v.pk %}">Visita {{ v.numero }} · {{ v.fecha|date:"d/m/Y" }}</a>{% if v.rev_numero %} <span class="text-xs text-base-content/50">{{ v.rev_etiqueta }}</span>{% endif %}{% if v.concluido %} <span class="badge badge-success badge-xs">emitida</span>{% endif %}</li>{% endfor %}
+    </ul>
+  </div></section>
+</div>
+{% endblock %}

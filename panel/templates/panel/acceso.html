@@ -1,0 +1,59 @@
+{% extends "shell.html" %}
+{% block page_title %}Alta por dominio{% endblock %}
+{% block content_main %}
+<p class="mb-4 max-w-3xl text-sm text-base-content/70">Quien tenga un correo de un <strong>dominio permitido</strong> puede crear su propio acceso desde la pantalla de inicio de sesión: confirma su correo, elige su contraseña y entra con el cargo indicado, sin aprobación. El alta automática nunca asigna Coordinador, y no se aceptan dominios públicos (gmail.com, hotmail.com…). Los correos bloqueados no pueden usarla aunque su dominio esté permitido.</p>
+
+<div class="grid gap-6 lg:grid-cols-2">
+  <section class="card bg-base-100">
+    <div class="card-body gap-3">
+      <h2 class="card-title text-base">Dominios permitidos</h2>
+      <form method="post" class="flex flex-wrap items-start gap-2">{% csrf_token %}
+        <div class="min-w-40 flex-1">{{ form_dominio.dominio }}<span class="text-xs text-base-content/60">Sin @: tekon.com</span>{% for e in form_dominio.dominio.errors %}<div class="text-sm text-error">{{ e }}</div>{% endfor %}</div>
+        <div class="min-w-40 flex-1">{{ form_dominio.rol }}{% for e in form_dominio.rol.errors %}<div class="text-sm text-error">{{ e }}</div>{% endfor %}</div>
+        <button class="btn btn-primary btn-md px-3" title="Agregar dominio" aria-label="Agregar dominio">{% include "components/icon.html" with name="plus" cls="size-5" %}</button>
+        {% for e in form_dominio.non_field_errors %}<div class="w-full text-sm text-error">{{ e }}</div>{% endfor %}
+      </form>
+      <table class="table">
+        <thead><tr><th>Dominio</th><th>Cargo</th><th class="text-center">Activo</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+        <tbody>
+        {% for d in dominios %}
+          <tr class="{% if not d.activo %}opacity-60{% endif %}">
+            <td class="font-medium">@{{ d.dominio }}</td>
+            <td>{{ d.rol.nombre }}</td>
+            <td class="text-center"><form method="post" action="{% url 'panel:acceso_dominio_alternar' d.pk %}">{% csrf_token %}<input type="checkbox" class="toggle toggle-success toggle-sm" {% if d.activo %}checked{% endif %} aria-label="Activar o desactivar @{{ d.dominio }}" data-autoenviar=""></form></td>
+            <td class="text-right"><form method="post" action="{% url 'panel:acceso_dominio_eliminar' d.pk %}" class="inline" onsubmit="return confirm('¿Quitar @{{ d.dominio|escapejs }}?')">{% csrf_token %}<button class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Quitar" aria-label="Quitar @{{ d.dominio }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</button></form></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="text-center text-sm text-base-content/60">Sin dominios: el alta automática está desactivada.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card bg-base-100">
+    <div class="card-body gap-3">
+      <h2 class="card-title text-base">Correos bloqueados</h2>
+      <form method="post" class="flex flex-wrap items-start gap-2">{% csrf_token %}
+        <div class="min-w-40 flex-1">{{ form_correo.email }}{% for e in form_correo.email.errors %}<div class="text-sm text-error">{{ e }}</div>{% endfor %}</div>
+        <div class="min-w-40 flex-1">{{ form_correo.motivo }}</div>
+        <button class="btn btn-primary btn-md px-3" title="Bloquear correo" aria-label="Bloquear correo">{% include "components/icon.html" with name="plus" cls="size-5" %}</button>
+      </form>
+      <table class="table">
+        <thead><tr><th>Correo</th><th>Motivo</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+        <tbody>
+        {% for b in bloqueados %}
+          <tr>
+            <td class="font-medium">{{ b.email }}</td>
+            <td class="text-sm text-base-content/70">{{ b.motivo|default:"—" }}</td>
+            <td class="text-right"><form method="post" action="{% url 'panel:acceso_correo_eliminar' b.pk %}" class="inline">{% csrf_token %}<button class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Desbloquear" aria-label="Desbloquear {{ b.email }}">{% include "components/icon.html" with name="restore" cls="size-5" %}</button></form></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="text-center text-sm text-base-content/60">Ningún correo bloqueado.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

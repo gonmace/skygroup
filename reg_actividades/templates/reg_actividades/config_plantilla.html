@@ -1,0 +1,28 @@
+{% extends "shell.html" %}
+{% block page_title %}Plantilla · {{ p.nombre }}{% endblock %}
+{% block content_main %}
+<div class="mb-4 flex items-center gap-2"><a href="{% url 'reg_actividades:plantillas' %}" class="btn btn-ghost btn-sm">← Plantillas</a>
+  <form method="post" action="{% url 'reg_actividades:plantilla_eliminar' p.pk %}" class="ml-auto" data-confirmar="¿Eliminar la plantilla «{{ p.nombre }}»?">{% csrf_token %}<button class="btn btn-ghost btn-sm text-error">Eliminar plantilla</button></form></div>
+<div class="grid gap-4 lg:grid-cols-3">
+  <form method="post" class="card bg-base-100"><div class="card-body gap-3">{% csrf_token %}
+    <h2 class="card-title text-base">Datos</h2>{% include "components/campos.html" %}
+    <div class="card-actions justify-end"><button class="btn btn-primary btn-sm">Guardar</button></div>
+  </div></form>
+  <div class="space-y-4 lg:col-span-2">
+    <div class="table-card">
+      <table class="table"><thead><tr><th>Orden</th><th>Paso</th><th></th></tr></thead><tbody>
+      {% for a in asignados %}<tr>
+        <td><form method="post" action="{% url 'reg_actividades:plantilla_paso_orden' p.pk a.pk %}" class="flex gap-1">{% csrf_token %}<input type="number" name="orden" value="{{ a.orden }}" min="0" class="input input-bordered input-xs w-16"><button class="btn btn-ghost btn-square btn-xs text-success hover:bg-success/10" title="Guardar orden" aria-label="Guardar orden">{% include "components/icon.html" with name="check" cls="size-4" %}</button></form></td>
+        <td><a class="link" href="{% url 'reg_actividades:paso_editar' a.paso.pk %}">{{ a.paso.titulo }}</a></td>
+        <td class="text-right"><form method="post" action="{% url 'reg_actividades:plantilla_paso_quitar' p.pk a.pk %}">{% csrf_token %}<button type="submit" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Quitar" aria-label="Quitar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button></form></td></tr>
+      {% empty %}<tr><td colspan="3" class="py-6 text-center text-base-content/60">Sin pasos asignados.</td></tr>{% endfor %}
+      </tbody></table>
+    </div>
+    <form method="post" action="{% url 'reg_actividades:plantilla_paso_agregar' p.pk %}" class="flex items-end gap-2">{% csrf_token %}
+      <label class="flex-1 text-sm"><span class="mb-1 block text-base-content/60">Agregar paso</span>
+        <select name="paso" class="select select-bordered select-sm w-full">{% for d in disponibles %}<option value="{{ d.pk }}">{{ d.titulo }}</option>{% empty %}<option value="">No hay más pasos</option>{% endfor %}</select></label>
+      <button class="btn btn-sm" {% if not disponibles %}disabled{% endif %}>Agregar</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

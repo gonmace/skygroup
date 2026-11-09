@@ -1,0 +1,17 @@
+<div data-reg-firma class="space-y-2">
+  {% if b.png %}<img src="{{ b.png }}" alt="Firma de {{ b.nombre|default:'la persona que recibe' }}" data-reg-firma-actual class="max-h-32 rounded-lg border border-base-300 bg-white p-1">{% endif %}
+  {% if puede_escribir %}
+    <label class="block text-sm"><span class="mb-1 block font-medium">Nombre de quien firma</span>
+      <input type="text" name="{{ b.campo_nombre }}" value="{{ b.nombre }}" maxlength="120" class="input input-bordered w-full"></label>
+    <div data-reg-firma-pizarra hidden class="space-y-2">
+      <canvas data-reg-firma-lienzo width="600" height="220" class="w-full touch-none rounded-lg border border-dashed border-base-content/30 bg-white" aria-label="Zona para firmar con el dedo o el mouse"></canvas>
+      <div class="flex gap-2">
+        <button type="button" class="btn btn-soft btn-sm" data-reg-firma-limpiar>Limpiar</button>
+        {% if b.png %}<label class="ml-auto flex items-center gap-2 text-sm"><input type="checkbox" name="{{ b.campo_borrar }}" class="checkbox checkbox-sm"> Quitar la firma guardada</label>{% endif %}
+      </div>
+      <input type="hidden" name="{{ b.campo_png }}" data-reg-firma-dato>
+    </div>
+    <p class="text-xs text-base-content/50" data-reg-firma-ayuda>{% if b.png %}Dibuja de nuevo para reemplazar la firma.{% else %}Dibuja la firma en el recuadro.{% endif %}</p>
+  {% elif b.nombre %}<p class="text-sm">{{ b.nombre }}</p>{% endif %}
+  {% if not b.png and not puede_escribir %}<p class="text-sm text-base-content/50">Sin firma.</p>{% endif %}
+</div>

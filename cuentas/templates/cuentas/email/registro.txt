@@ -1,0 +1,8 @@
+{% autoescape off %}Hola,
+
+Para crear tu acceso a {{ site_name }} confirma tu correo con este enlace (vale 24 horas):
+
+{{ enlace }}
+
+Si no lo solicitaste, ignora este mensaje.
+{% endautoescape %}

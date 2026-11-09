@@ -1,0 +1,34 @@
+{% extends "shell.html" %}
+{% block page_title %}{% if p.codigo %}{{ p.codigo }} · {% endif %}{{ p.nombre }}{% endblock %}
+{% block content_main %}
+<div class="mb-4 flex flex-wrap items-center gap-2">
+  {% include "proyectos/_badge_estado.html" with estado=p.estado nombre=p.get_estado_display %}
+  {% include "proyectos/_badge_tipo.html" with tipo=p.tipo sin_tipo=termino_proyecto %}
+  <div class="ml-auto flex gap-2">
+    {% if puede_chat %}<button type="button" class="btn btn-md btn-outline gap-1 sm:btn-sm" data-msj-proyecto="{{ p.pk }}">{% include "components/icon.html" with name="chat" cls="size-4" %} Chat</button>{% endif %}
+    <a href="{% url 'proyectos:editar' p.pk %}" class="btn btn-md gap-1 sm:btn-sm">{% include "components/icon.html" with name="pencil" cls="size-4" %} Editar</a>
+    <form method="post" action="{% url 'proyectos:eliminar' p.pk %}" data-confirmar="¿Eliminar «{{ p.nombre }}»?">{% csrf_token %}
+      <button type="submit" class="btn btn-md btn-ghost text-error sm:btn-sm">Eliminar</button>
+    </form>
+  </div>
+</div>
+<div class="grid gap-4 md:grid-cols-2">
+  <section class="card bg-base-100"><div class="card-body gap-2">
+    <h2 class="card-title text-base">Datos</h2>
+    <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 break-words text-sm">
+      {% if p.codigo_operador %}<dt class="text-base-content/60">Código del operador</dt><dd>{{ p.codigo_operador }}</dd>{% endif %}
+      {% if p.region %}<dt class="text-base-content/60">Región</dt><dd>{{ p.region }}</dd>{% endif %}
+      {% if p.comuna %}<dt class="text-base-content/60">Comuna</dt><dd>{{ p.comuna }}</dd>{% endif %}
+      {% if p.ciudad %}<dt class="text-base-content/60">Ciudad</dt><dd>{{ p.ciudad }}</dd>{% endif %}
+    </dl>
+    {% if p.descripcion %}<p class="mt-2 whitespace-pre-line text-sm">{{ p.descripcion }}</p>{% endif %}
+  </div></section>
+  <section class="card bg-base-100"><div class="card-body gap-2">
+    <h2 class="card-title text-base">Ubicación</h2>
+    {% for u in ubicaciones %}
+      <p class="text-sm"><strong>{{ u.etiqueta }}</strong> · {{ u.lat }}, {{ u.lon }}</p>
+    {% empty %}<p class="text-sm text-base-content/60">Sin ubicaciones.</p>{% endfor %}
+    {% if ubicaciones %}<a href="{% url 'proyectos:lista' %}?vista=mapa&amp;ubicar={{ p.pk }}" class="btn btn-md btn-ghost mt-1 w-fit gap-1 text-success sm:btn-sm">{% include "components/icon.html" with name="map-pin" cls="size-4" %} Ver en el mapa</a>{% endif %}
+  </div></section>
+</div>
+{% endblock %}

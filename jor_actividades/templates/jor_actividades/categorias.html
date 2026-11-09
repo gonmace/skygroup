@@ -1,0 +1,19 @@
+{% extends "shell.html" %}
+{% block page_title %}Categorías de actividad{% endblock %}
+{% block content_main %}
+{% include "jor_empleados/_pestanas_config.html" %}
+<p class="mb-4 text-sm text-base-content/60">Las actividades de los reportes se clasifican por palabras clave en las categorías base. Las que crees tú no tienen palabras clave: se asignan a mano o con el clasificador automático.</p>
+<div class="grid gap-4 lg:grid-cols-3">
+  <div class="card bg-base-100 lg:col-span-2"><div class="card-body gap-2 p-4">
+    {% for c, f, usos in filas %}
+      <form method="post" action="{% url 'jor_actividades:categoria_editar' c.pk %}" class="flex flex-wrap items-center gap-2 border-b border-base-200 pb-2 text-sm">{% csrf_token %}
+        {{ f.color }}<div class="min-w-48 flex-1">{{ f.etiqueta }}</div><span class="w-28 font-mono text-xs text-base-content/50">{{ c.codigo }}</span>
+        <div class="w-20">{{ f.orden }}</div><label class="flex items-center gap-1">{{ f.activa }}<span class="text-xs">Activa</span></label>
+        <span class="badge badge-ghost badge-sm">{{ usos }}</span><button class="btn btn-sm">Guardar</button>
+      </form>
+    {% endfor %}
+  </div></div>
+  <form method="post" class="card h-fit bg-base-100"><div class="card-body gap-3">{% csrf_token %}
+    <h2 class="font-semibold">Nueva categoría</h2>{% include "components/campos.html" %}<button class="btn btn-primary">Crear</button></div></form>
+</div>
+{% endblock %}

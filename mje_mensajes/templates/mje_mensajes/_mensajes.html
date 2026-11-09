@@ -1,0 +1,1 @@
+{% for m in mensajes %}{% ifchanged m.creado|date:"Y-m-d" %}<div class="my-3 text-center text-xs text-base-content/50" data-dia="{{ m.creado|date:'Y-m-d' }}">{{ m.creado|date:"l j \d\e F" }}</div>{% endifchanged %}{% include "mje_mensajes/_mensaje.html" %}{% endfor %}

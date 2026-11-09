@@ -1,0 +1,31 @@
+{% comment %}
+  Cuando 2+ subtickets del mismo ticket (con subproductos) coinciden en el mismo estado se
+  muestran fusionados en una sola tarjeta; se separan en cuanto alguno cambia de estado.
+{% endcomment %}
+<div data-ticket-id="{{ ticket.pk }}" data-status="{{ group.0.estado }}" data-priority="{{ ticket.prioridad }}" data-merged="1"{% if my_assignment %} data-assignment-id="{{ my_assignment.pk }}"{% elif others_view and not is_readonly %} data-assignment-ids="{% for x in group %}{{ x.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"{% endif %}{% if is_locked %} data-locked="1"{% endif %}{% if is_readonly %} data-readonly="1"{% endif %}{% if others_view and is_muted %} data-muted="1"{% endif %}{% if not others_view and not my_assignment %} data-ghost="1"{% endif %}{% if link_color != None %} data-link-color="{{ link_color }}" title="La marca derecha une las tarjetas de {{ ticket.clave }}"{% endif %}
+     class="ticket-card rounded-2xl bg-base-100 p-3 {% if is_locked %}is-locked{% endif %}{% if is_readonly %} is-readonly{% endif %}{% if others_view and is_muted %} opacity-50{% endif %}{% if not others_view and not my_assignment %} is-ghost opacity-50{% endif %}">
+  <div class="flex items-center justify-between gap-2">
+    <div class="flex min-w-0 items-baseline gap-1.5">
+      <a href="{% url 'tar_tickets:detalle' ticket.pk %}" class="shrink-0 font-mono text-xs font-semibold text-accent-text hover:underline">{{ ticket.clave }}</a>
+      {% if ticket.proyecto %}<span class="truncate text-[10px] font-semibold text-base-content/50" title="{{ ticket.proyecto.nombre }}">{{ ticket.proyecto.codigo }}</span>{% endif %}
+    </div>
+    <span class="flex items-center gap-1">
+      {% if is_locked %}<span class="badge badge-ghost badge-xs" title="Solo quien dirige puede reactivarlo">Suspendido</span>{% endif %}
+      {% include "tar_tickets/parciales/_iconos_estado.html" with t=ticket %}
+      {% if viewer_is_executor %}{% include "tar_tickets/parciales/_pulso.html" %}{% endif %}
+    </span>
+  </div>
+
+  <a href="{% url 'tar_tickets:detalle' ticket.pk %}" class="mt-1.5 line-clamp-3 block text-sm font-semibold leading-snug hover:text-primary">{{ ticket.titulo }}</a>
+  {% if others_view %}
+    <span class="badge badge-ghost badge-xs mt-1" title="Subtickets de los ejecutores">{{ group|length }} ejecutores</span>
+    {% if pending_approval %}<span class="badge badge-success badge-xs mt-1" title="Falta la aprobación">Pendiente de aprobación</span>{% endif %}
+  {% elif not my_assignment %}<span class="badge badge-ghost badge-xs mt-1" title="Subtickets de otros ejecutores">{{ group|length }} ejecutores</span>
+  {% elif my_assignment.estado == 'DONE' and not my_assignment.aprobado_en %}<span class="badge badge-success badge-xs mt-1" title="Falta la aprobación">Pendiente de aprobación</span>{% endif %}
+
+  {% with etiquetas=ticket.etiquetas.all %}
+    {% if etiquetas %}<div class="mt-2 flex flex-wrap gap-1">{% for l in etiquetas %}<span class="label-chip" data-color="{{ l.color }}">{{ l.nombre }}</span>{% endfor %}</div>{% endif %}
+  {% endwith %}
+
+  {% include "tar_tickets/parciales/_pie.html" with t=ticket asignaciones=group %}
+</div>

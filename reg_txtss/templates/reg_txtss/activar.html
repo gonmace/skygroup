@@ -1,0 +1,10 @@
+{% extends "shell.html" %}
+{% block page_title %}Activar registros TX/TSS{% endblock %}
+{% block content_main %}
+<form method="post" class="card max-w-3xl bg-base-100"><div class="card-body gap-4">
+  {% csrf_token %}
+  <p class="text-sm text-base-content/70">Se crea un registro por cada {{ termino_proyecto|lower }} elegido, para la fecha, alternativa y responsable indicados. Los que ya existían se omiten.</p>
+  {% include "components/campos.html" %}
+  <div class="card-actions justify-end"><a href="{% url 'reg_txtss:lista' %}" class="btn btn-ghost">Cancelar</a><button type="submit" class="btn btn-primary">Activar</button></div>
+</div></form>
+{% endblock %}

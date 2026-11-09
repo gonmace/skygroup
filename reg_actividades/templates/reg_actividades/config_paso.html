@@ -1,0 +1,42 @@
+{% extends "shell.html" %}
+{% block page_title %}Paso · {{ paso.titulo }}{% endblock %}
+{% block content_main %}
+<div class="mb-4 flex items-center gap-2"><a href="{% url 'reg_actividades:pasos_config' %}" class="btn btn-ghost btn-sm">← Pasos</a>
+  <form method="post" action="{% url 'reg_actividades:paso_eliminar' paso.pk %}" class="ml-auto" data-confirmar="¿Eliminar el paso «{{ paso.titulo }}»?">{% csrf_token %}<button class="btn btn-ghost btn-sm text-error">Eliminar paso</button></form></div>
+<div class="grid gap-4 lg:grid-cols-3">
+  <form method="post" class="card bg-base-100"><div class="card-body gap-3">{% csrf_token %}
+    <h2 class="card-title text-base">Datos del paso</h2>{% include "components/campos.html" %}
+    <div class="card-actions justify-end"><button class="btn btn-primary btn-sm">Guardar</button></div>
+  </div></form>
+
+  <div class="space-y-4 lg:col-span-2">
+    {% for pw in widgets %}
+      <form method="post" action="{% url 'reg_actividades:widget_editar' paso.pk pw.pk %}" class="card bg-base-100"><div class="card-body gap-2">{% csrf_token %}
+        <div class="flex items-center gap-2"><h3 class="font-semibold">{{ pw.widget_slug }}</h3>
+          <label class="ml-auto flex items-center gap-1 text-xs">Orden <input type="number" name="orden" value="{{ pw.orden }}" min="0" class="input input-bordered input-xs w-16"></label></div>
+        <textarea name="config" rows="5" class="textarea textarea-bordered w-full font-mono text-xs">{{ pw.config_json }}</textarea>
+        <div class="flex justify-end gap-2">
+          <button class="btn btn-sm">Guardar</button>
+          <button type="submit" formaction="{% url 'reg_actividades:widget_eliminar' paso.pk pw.pk %}" class="btn btn-ghost btn-sm text-error" formnovalidate>Quitar</button>
+        </div>
+      </div></form>
+    {% empty %}<p class="text-sm text-base-content/60">Este paso aún no tiene elementos.</p>{% endfor %}
+
+    <form method="post" action="{% url 'reg_actividades:widget_agregar' paso.pk %}" class="card bg-base-100"><div class="card-body gap-3">{% csrf_token %}
+      <h3 class="card-title text-base">Agregar elemento</h3>
+      {% include "components/campos.html" with form=form_widget %}
+      <details class="text-xs text-base-content/60"><summary class="cursor-pointer">Ayuda de configuración</summary>
+        <ul class="mt-2 list-disc space-y-1 pl-5">
+          <li><code>comentario_widget</code>: <code>{"label": "Comentarios", "max_length": 500}</code></li>
+          <li><code>lista_widget</code>: <code>{"label": "Pendientes", "max_items": 20, "numerada": true}</code></li>
+          <li><code>form_dinamico_widget</code>: <code>{"campos": "nombre | tipo | Etiqueta | opciones | * | ayuda"}</code> — tipos: text, textarea, toggle, number, date, select. Un campo por línea (o separados por <code>;</code>).</li>
+          <li><code>camera_widget</code> / <code>camera_libro_widget</code>: <code>{"foto_min": 4, "opcional": false}</code></li>
+          <li><code>imgs_desc_widget</code>: <code>{"descripciones": "Frente, Lateral, Acceso"}</code></li>
+          <li><code>ubicacion_widget</code> y <code>distancia_widget</code>: <code>{"label": "…"}</code></li>
+          <li><code>"opcional": true</code> excluye el elemento del color del paso.</li>
+        </ul></details>
+      <div class="card-actions justify-end"><button class="btn btn-primary btn-sm">Agregar</button></div>
+    </div></form>
+  </div>
+</div>
+{% endblock %}

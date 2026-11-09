@@ -7,10 +7,10 @@ Skeleton para desplegar Django en un VPS con nginx como reverse proxy. Incluye s
 | Componente | Tecnología |
 |---|---|
 | Framework | Django 6.1+ (Python 3.14) |
-| Servidor WSGI | Gunicorn (`GUNICORN_WORKERS`, default 3), contenedor no-root |
+| Servidor ASGI | Gunicorn + worker `uvicorn-worker` (HTTP y WebSocket; `GUNICORN_WORKERS`, default 3), contenedor no-root |
 | Base de datos | PostgreSQL 17 (contenedor o host) |
 | Cache / Sesiones | Redis 8 (sesiones `cached_db`) |
-| CSS | Tailwind CSS v4.2 + DaisyUI v5.5 |
+| CSS | Tailwind CSS v4.3 + DaisyUI v5.7 |
 | Archivos estáticos | Whitenoise (`CompressedManifestStaticFilesStorage`) + nginx (`gzip_static`) |
 | Seguridad | django-axes (handler de DB, gestionable desde el admin), django-csp, HSTS |
 | Hot reload (dev) | django-browser-reload |
@@ -46,14 +46,14 @@ Para deploys posteriores solo se necesita `make deploy` (ver sección *Deploy*).
 
 ## Desarrollo local
 
-### Opción A — Mínimo (solo SQLite, sin contenedores)
+### Opción A — Mínimo (Redis y PostgreSQL en Docker)
 
-Ideal para trabajar en templates, vistas y lógica de negocio sin necesitar base de datos completa.
+`make setup` en modo desarrollo siempre configura PostgreSQL (contenedor) y `make dev` levanta `dev-up`, así que **requiere Docker**. Sin `POSTGRES_DB` en `.env` Django cae a SQLite (`SQLITE_PATH`), útil solo para scripts puntuales.
 
 ```bash
 make install           # instala dependencias Python + Tailwind
-make setup             # genera .env (elige SQLite / sin n8n)
-make dev               # migrate + tailwind watcher + runserver
+make setup             # genera .env
+make dev               # dev-up + migrate + tailwind watcher + runserver
 ```
 
 ### Opción B — Completo (PostgreSQL + Redis en Docker)
@@ -91,7 +91,7 @@ python manage.py runserver
 |---|---|---|
 | `POSTGRES_DB` | SQLite | PostgreSQL |
 | `N8N_DOMAIN` | n8n deshabilitado | n8n en contenedor |
-| `REDIS_URL` | `localhost:6379` | valor configurado |
+| `REDIS_URL` | con `DEBUG=True`: caché y Channels en memoria (sin Redis); con `DEBUG=False`: `redis://localhost:6379/0` | valor configurado |
 
 ---
 
@@ -166,7 +166,7 @@ Los servicios usan puertos consecutivos desde `APP_PORT`. Para cambiarlos, ajust
 | Redis | interno | — |
 | PostgreSQL | 5432 | `POSTGRES_HOST_PORT` (solo dev) |
 
-En producción todos los puertos bindean a `127.0.0.1` — solo accesibles via nginx. Redis no expone puerto al exterior en ningún entorno.
+En producción todos los puertos bindean a `127.0.0.1` — solo accesibles via nginx. Redis no expone puerto al exterior en producción (en desarrollo se publica en `127.0.0.1:6379`).
 
 ---
 
@@ -186,8 +186,8 @@ Esto reconstruye la imagen con la última versión de n8n, reinicia el contenedo
 
 Las versiones se gestionan en `theme/static_src/package.json` (devDependencies):
 
-- **Tailwind CSS**: `^4.2.2`
-- **DaisyUI**: `^5.5.19`
+- **Tailwind CSS**: `^4.3.3`
+- **DaisyUI**: `^5.7.50`
 
 En **desarrollo**: `make install` → `npm install` instala los paquetes.
 
@@ -209,12 +209,13 @@ Whitenoise + nginx trabajando en conjunto:
 
 ## Redis
 
-Redis es siempre activo y optimiza tres aspectos clave:
+Redis es siempre activo en producción (con `DEBUG=True` y sin `REDIS_URL` se usan caché y Channels en memoria) y optimiza tres aspectos clave:
 
 | Aspecto | Sin Redis | Con Redis |
 |---|---|---|
 | Cache | `LocMemCache` por worker (no compartido) | Cache compartido entre los 3 workers Gunicorn |
 | Sesiones | Escrituras a PostgreSQL en cada request | Cache en memoria, sin tocar la DB |
+| Channels (WebSocket) | `InMemoryChannelLayer` (un solo proceso) | `channels_redis`: mensajes entre workers y notificaciones en vivo |
 
 ---
 
@@ -236,16 +237,29 @@ Redis es siempre activo y optimiza tres aspectos clave:
 | `POSTGRES_PASSWORD` | Sí | Contraseña PostgreSQL |
 | `POSTGRES_HOST` | No | Host PostgreSQL (default: `postgres`) |
 | `POSTGRES_PORT` | No | Puerto PostgreSQL (default: `5432`) |
-| `REDIS_URL` | No | URL de Redis (default: `redis://redis:6379/0`) |
+| `REDIS_URL` | No | URL de Redis (default: `redis://localhost:6379/0`; en Docker lo fija `entrypoint.sh` a `redis://redis:6379/0`) |
 | `N8N_DOMAIN` | No | Subdominio de n8n (activa el servicio) |
 | `N8N_PORT` | No | Puerto externo n8n (default: `8001`) |
 | `N8N_ENCRYPTION_KEY` | Si n8n | Clave de cifrado de n8n (**no cambiar**) |
+| `INTERNAL_API_TOKEN` | No | Token de los endpoints internos para n8n/cron (cabecera `X-Internal-Token`); vacío = deshabilitados |
 | `N8N_MCP_ENABLED` | No | `true` para habilitar n8n-MCP |
 | `N8N_MCP_PORT` | No | Puerto externo MCP (default: `8002`) |
 | `N8N_API_KEY` | Si MCP | API key de n8n para el servidor MCP |
 | `N8N_MCP_AUTH_TOKEN` | Si MCP | Token de autenticación del MCP |
-| `N8N_URL` | No | URL de n8n para llamadas desde Django |
-| `EMAIL_HOST` | No | SMTP host (activa email backend) |
+| `EMAIL_HOST` | No | SMTP host (activa email backend; vacío = backend de consola) |
+| `EMAIL_PORT` · `EMAIL_USE_TLS` · `EMAIL_HOST_USER` · `EMAIL_HOST_PASSWORD` | No | Credenciales SMTP |
+| `DEFAULT_FROM_EMAIL` · `ADMIN_EMAIL` | No | Remitente por defecto y correo del administrador |
+| `SITE_URL` | No | URL pública sin barra final (enlaces absolutos en correos) |
+| `GUNICORN_WORKERS` | No | Workers de Gunicorn (default: `3`) |
+| `REDIS_MAXMEMORY` | No | Límite de memoria de Redis (default: `256mb`) |
+| `POSTGRES_HOST_PORT` | No | Puerto de PostgreSQL publicado en el host (solo dev) |
+| `SQLITE_PATH` | No | Ruta del SQLite si no hay `POSTGRES_DB` |
+| `FOTO_MAX_SIZE` · `ATTACHMENT_MAX_SIZE` | No | Límites de subida en bytes (25 MB por foto, 20 MB por adjunto); nginx admite 30M por petición |
+| `S3_URL_EXPIRE` | No | Segundos de validez de las URLs firmadas de archivos privados (default: `300`) |
+| `DISK_ALERT_PERCENT` | No | % de disco a partir del cual el panel avisa (default: `85`) |
+| `GOOGLE_MAPS_API_KEY` | No | Mapa estático del informe de Registros |
+| `N8N_VERSION` · `N8N_MCP_VERSION` | No | Versión de las imágenes de n8n / n8n-MCP (default: `latest`) |
+| `BACKUP_KEEP` | No | Copias a conservar en `scripts/backup.sh` (default: `10`) |
 
 ---
 
@@ -260,7 +274,10 @@ Redis es siempre activo y optimiza tres aspectos clave:
 | `make dev-logs` | Logs de servicios de desarrollo |
 | `make dev-check` | Verifica estado del entorno de desarrollo |
 | `make dev` | `dev-up` + migrate + tailwind start + runserver |
-| `make sync-media` | Copia `media/` local al bucket S3 configurado en el admin |
+| `make sync-media` | Copia al bucket solo los archivos **públicos** de `media/` (no toca `media/privado/`) |
+| `make media-cdn ARGS="--dry-run"` | Sube toda la media local (pública y privada) a su bucket; `--borrar-local --antiguedad 7d` libera disco |
+| `make n8n-import` | Importa workflows y credenciales de n8n desde `n8n/` |
+| `make tailwind` | Compila el CSS una vez (`npm run build`) |
 | `make axes-reset` | Desbloquea todos los accesos bloqueados por axes |
 | `make migrate` | Ejecuta migraciones |
 | `make migrations` | Crea migraciones |
@@ -286,12 +303,18 @@ Redis es siempre activo y optimiza tres aspectos clave:
 ## Estructura
 
 ```
-├── core/                    # Configuración Django (settings, urls, wsgi)
-├── home/                    # App principal (index, sitemaps, healthz)
-├── cdn/                     # Config de media/CDN desde el admin (storage dinámico)
-├── templates/               # Templates globales (base, 404, 500, robots.txt)
+├── core/                    # settings, urls, asgi, routing (WebSocket), interno (API para n8n/cron)
+├── home/                    # Portada pública, healthz, comandos de siembra
+├── cuentas/ empresas/       # Usuarios, roles/capacidades (ROLES.md), empresas, contratistas, tenancy
+├── proyectos/ archivos/     # Proyecto común a los módulos; media/CDN/S3 (ex-app `cdn`)
+├── notificaciones/ mje_mensajes/ panel/   # Notificaciones en vivo; mensajes; panel de la empresa y de la plataforma
+├── reg_*/                   # Módulo Registros (base, construccion_base, txtss, construccion, fotos, actividades)
+├── tar_*/                   # Módulo Tareas (tickets, adjuntos)
+├── jor_*/                   # Módulo Asistencia (empleados, diario, actividades, reportes)
+├── ROLES.md                 # Roles base RACI y matriz de capacidades
+├── templates/               # Globales (base, shell, components/, 404, 500, robots.txt)
 ├── theme/                   # App Tailwind (static_src/ con npm build)
-├── static/                  # Assets estáticos (img, css)
+├── static/                  # Assets estáticos (img, js, vendor)
 ├── staticfiles/             # collectstatic output (generado)
 ├── media/                   # Uploads de usuarios (generado)
 ├── n8n/workflows/           # Workflows n8n versionados en git
@@ -301,6 +324,7 @@ Redis es siempre activo y optimiza tres aspectos clave:
 ├── docker/
 │   ├── n8n.Dockerfile       # n8n con Python 3.12 (para Code nodes)
 │   ├── n8n-export.sh        # Script de exportación de workflows
+│   ├── n8n-import.sh        # Importa workflows y credenciales
 │   └── init-db.sql          # Crea la base de datos n8n al iniciar postgres
 ├── Dockerfile               # Multi-stage: Node (CSS build) → Python (prod)
 ├── docker-compose.yml       # Producción: postgres* + redis + django + n8n* + mcp*
@@ -311,12 +335,13 @@ Redis es siempre activo y optimiza tres aspectos clave:
 ├── nginx-n8n-mcp.conf       # Location block para n8n-MCP (SSE)
 ├── nginx-deploy.sh          # Genera e instala config nginx (solo primera vez)
 ├── deploy.sh                # Despliegue VPS (build, backup condicional, healthcheck, rollback)
-├── scripts/                 # lib.sh, backup.sh, restore.sh, rollback.sh
+├── scripts/                 # lib.sh, backup.sh, restore.sh, rollback.sh, traer_legacy_reg.sh
 ├── setup.sh                 # Wizard de configuración inicial
 ├── check-ports.sh           # Verifica disponibilidad de puertos
 ├── Makefile
 ├── .env.example             # Plantilla de variables de entorno
-└── requirements.txt         # Dependencias Python de producción
+├── requirements.txt         # Dependencias Python de producción
+└── requirements-dev.txt     # + daphne, browser-reload (desarrollo y CI)
 ```
 
 `*` servicio opcional (Docker Compose profile)
@@ -340,6 +365,34 @@ Backups periódicos independientes del deploy (cron diario, 03:00):
 0 3 * * * cd /ruta/al/proyecto && bash scripts/backup.sh diario >/dev/null
 ```
 
+`backup.sh` respalda **solo PostgreSQL**. La carpeta `media/` (incluida `media/privado/`) no está incluida: respáldala aparte (o muévela a un bucket con `make media-cdn`).
+
+### Inicio de jornada verificado (sin agente de escritorio)
+
+La jornada se marca **desde el celular personal** de cada persona, en tres capas (`jor_diario/verificacion.py`, `jor_empleados/passkeys.py`):
+
+1. **Identidad:** el celular se vincula una vez con una passkey (WebAuthn, huella/PIN del teléfono; al servidor solo llega la clave pública). Un celular activo por persona; un administrador lo libera desde *Equipo → persona* si se pierde o se cambia.
+2. **Presencia:** 3 lecturas de GPS contra la geocerca de la **Sede** (`lat`, `lon`, `radio_m`, `precision_max_m`; se cargan en *Ajustes → Sedes*). Se valida precisión, antigüedad de las lecturas, saltos imposibles y que el navegador sea móvil. La IP y el user-agent se guardan solo como auditoría.
+3. **Excepción, no bloqueo:** si la presencia no valida, la persona indica un motivo y la jornada queda `excepción pendiente`; los coordinadores (`jor.excepciones.gestionar`) la aprueban o rechazan en *Equipo → Excepciones*. **Asistencia, estadísticas y certificado solo cuentan jornadas verificadas o aprobadas** (`Jornada.objects.computables()`). `Perfil.puede_excepcion` en falso rechaza esas marcaciones en vez de enviarlas a revisión.
+
+Requisitos de despliegue: HTTPS (WebAuthn no funciona sin él, salvo `localhost`), el dominio estable (la passkey queda atada al dominio) y cargar las coordenadas de cada sede; **una sede sin coordenadas manda toda marcación a revisión**. Riesgo residual: quien esté dentro del radio puede marcar, y Android con ubicación simulada puede engañar al GPS; se mitiga con las comprobaciones anteriores y la bandeja de excepciones.
+
+Tareas recurrentes de Asistencia (no hay nada que las programe por defecto; usa cron o un workflow de n8n):
+
+```cron
+# cierra las jornadas vencidas cada hora
+0 * * * * cd /ruta/al/proyecto && docker compose exec -T django python manage.py cerrar_jornadas_vencidas >/dev/null
+```
+
+Con n8n, los mismos trabajos se disparan por los endpoints internos (`INTERNAL_API_TOKEN`, ver «Plataforma multi-empresa y módulos»).
+
+**Migrar desde la antigua app `cdn`:** la migración `archivos/0002` copia su configuración. Una sola vez, en una base que ya tuvo `cdn`, elimina sus restos:
+
+```bash
+python manage.py shell -c "from django.db import connection as c; cur=c.cursor(); cur.execute(\"DELETE FROM django_migrations WHERE app='cdn'\")"
+python manage.py remove_stale_contenttypes --noinput
+```
+
 Las versiones de n8n / n8n-MCP son `latest` por defecto; fíjalas con `N8N_VERSION` / `N8N_MCP_VERSION` en `.env`. PostgreSQL se mantiene en 17 (la 18 cambia el layout de datos; migrar requiere dump/restore: `make backup` → cambiar imagen → `make restore`).
 
 ---
@@ -355,7 +408,7 @@ Por defecto los uploads se guardan en el propio VPS (`media/`, servidos por ngin
 
 - Los cambios aplican de inmediato (config cacheada en Redis, invalidada al guardar). Al guardar en modo S3 se prueba la conexión y se avisa si falla.
 - El origen de la CDN/bucket se agrega solo al CSP (`img-src`, `media-src`).
-- Los archivos ya subidos **no se mueven solos** al cambiar de modo: `make sync-media` copia `media/` al bucket (no borra nada).
+- Los archivos ya subidos **no se mueven solos** al cambiar de modo: `make media-cdn` sube lo que está en `media/` (público y privado, cada uno a su bucket); `make sync-media` copia solo lo público. Ninguno borra salvo con `--borrar-local`.
 - En plantillas/código usa siempre `campo.url` (no `{{ MEDIA_URL }}`) para que respete la configuración.
 - Las credenciales S3 se guardan en la base de datos: usa una clave limitada a ese bucket.
 
@@ -393,7 +446,7 @@ Por defecto los uploads se guardan en el propio VPS (`media/`, servidos por ngin
 Reglas a respetar al extender el proyecto:
 
 - **Apps nuevas:** añadir a `INSTALLED_APPS` y `@source "../../../<app>"` en `theme/static_src/src/styles.css`.
-- **Media:** usar siempre `campo.url`; la app `cdn` decide si es disco local o S3/CDN (`MediaCspMiddleware` va después de `CSPMiddleware`).
+- **Media:** usar siempre `campo.url`; la app `archivos` decide si es disco local o S3/CDN (`MediaCspMiddleware` va después de `CSPMiddleware`).
 - **CSP:** formato django-csp 4 (`CONTENT_SECURITY_POLICY`).
 - **Deploy:** imagen etiquetada con el SHA de git (`${PROJECT_NAME}_app:<sha>`), healthcheck en `/healthz`, contenedor no-root (UID 1000: `staticfiles/` y `media/` deben ser de ese usuario). PostgreSQL fijo en 17.
 - **nginx:** `make nginx` solo una vez; certbot modifica el archivo y `deploy.sh` nunca lo toca.
@@ -401,6 +454,34 @@ Reglas a respetar al extender el proyecto:
 - **Windows:** en `settings.py`, dentro de `if DEBUG:`, `NPM_BIN_PATH = r'C:\Program Files\nodejs\npm.cmd'`.
 
 ---
+
+## Plataforma multi-empresa y módulos
+
+skygroup es una plataforma para varias **empresas** (tenants) con **módulos** que se ven como aplicaciones (selector de apps en la cabecera y barra lateral propia por módulo).
+
+**Vocabulario (no mezclar):** *Empresa* = el cliente de la plataforma (URL `/<slug>/`). Dentro de cada empresa, las organizaciones externas son *Contratistas* (`empresas.Contratista`), nunca «empresa». El *Proyecto* (`proyectos.Proyecto`) es único por empresa y cada empresa puede renombrarlo (p. ej. «Sitios»): usa siempre `{{ termino_proyecto }}` / `{{ termino_proyectos }}` en las plantillas.
+
+| Grupo | Apps |
+|---|---|
+| Comunes (sin prefijo) | `cuentas` (usuario por correo, roles RACI, membresías, capacidades) · `empresas` (marca, tenancy, contratistas) · `proyectos` · `archivos` (storage híbrido local/S3, configuración de CDN/S3 en el admin, `media_a_cdn`) · `notificaciones` (campana + WebSocket) · `panel` (menú por aplicaciones, configuración y panel global) |
+| Tareas `tar_` | `tar_tickets` (tablero kanban, subtickets, aprobación, chat, dashboard, tiempo real) · `tar_adjuntos` |
+| Registros `reg_` | `reg_base` (alcance de datos, capacidades, estado, tipos de registro activos por empresa, revisiones) · `reg_construccion_base` («Supervisión Campo»: reporte de visita de supervisión con hallazgos, plantilla estándar para cualquier empresa) · `reg_txtss` · `reg_construccion` («Construcción») · `reg_fotos` (fotos con EXIF y miniaturas) · `reg_actividades` (pasos y widgets configurables por empresa) |
+| Asistencia `jor_` | `jor_empleados` (perfil por membresía, configuración) · `jor_diario` (jornadas, reporte diario, equipo, ausencias, calendario, cierre automático con `cerrar_jornadas_vencidas`) · `jor_actividades` (clasificación de las actividades del reporte, categorías y etiquetas por empresa) · `jor_reportes` (asistencia y estadísticas, con exportación a Excel, y certificado de pago sobre la plantilla .xlsx que sube cada empresa) · `jor_visitas` (observadores: personas con rol Observador y bitácora de sus ingresos) |
+| Mensajería `msj` | `mje_mensajes` (chat en tiempo real: canal General, un canal por proyecto y mensajes directos, con @menciones, imágenes adjuntas y no leídos). Se activa por empresa (`Empresa.modulos`) y por persona (`AccesoModulo`); es una **ventana flotante** disponible en todas las pantallas (icono de la barra superior o tarjeta del lanzador): no tiene páginas propias ni cambia de página; `mensajes/?c=<id>` solo redirige al inicio con la ventana abierta (destino de las notificaciones). WebSocket en `ws/empresa/<slug>/mensajes/`. Los avisos automáticos del sistema van a la campana, no al chat |
+| Análisis de Precios Unitarios con IA `apu` | Módulo anunciado como «Próximamente»: está registrado (activable por empresa y por persona, con tarjeta en el lanzador) pero aún no tiene apps ni pantallas. |
+
+**Convenciones**
+- **Permisos:** un solo sistema de *capacidades* (`cuentas.capacidades`). Cada app las declara con `registrar()` en `ready()`; en vistas se usa `@requiere_capacidad(...)` o el decorador del módulo (`acceso_tareas(...)`). Nunca compares nombres de rol: cada empresa define sus roles (`RolEmpresa`) sobre 4 roles base RACI (Coordinador, Ejecutor, Especialista, Observador; el Administrador de la plataforma es el superusuario) y edita la matriz en *Inicio → Roles y permisos*. El menú «Inicio» de cada empresa reúne su información (proyectos, usuarios, contratistas, roles y marca); «Plataforma» es solo del superusuario y se abre desde el menú de usuario. Ver [ROLES.md](ROLES.md).
+- **Menú:** cada módulo registra sus entradas con `panel.menu.registrar_item(...)` (con `condicion=fn(request)` para mostrarlas solo si aplica, p. ej. si la empresa tiene activo un tipo de registro).
+- **Tipos de registro (módulo Registros):** los tipos existen en código (`reg_base.tipos.registrar_tipo`) pero cada empresa activa solo los que usa (*Registros → Configuración → Tipos de registro*, solo superusuario). Un tipo desactivado se oculta (menú y rutas dan 404) sin borrar datos. «Supervisión Campo» (`construccion-base`) se activa sola en toda empresa nueva y siembra su plantilla de pasos estándar, que la empresa edita (`reg_construccion_base.estandar.sembrar_estandar`; «restaurar» la vuelve al estándar). El reporte tiene 6 pasos (datos de la visita, actividades ejecutadas, recursos presentes, hallazgos, verificación de observaciones previas, instrucciones y acuerdos) y cada widget de un paso es un botón de la línea de tiempo. Un botón de fotos puede exigir metadatos con `exigir_metadatos: true` en su configuración: la subida se rechaza si la foto no trae fecha y coordenadas EXIF (las reenviadas por WhatsApp las pierden) y la galería fuerza la cámara en el celular (`capture`); el estándar lo activa en las imágenes de actividades (mínimo 4). Un tipo puede admitir **revisiones** (`RevisionesMixin` + `con_revisiones=True`): cada revisión se crea copiando la anterior con un comentario obligatorio, las anteriores se conservan y se elige la vigente.
+- **Aislamiento:** todo dato operativo cuelga de `empresa` y toda consulta se acota a `request.empresa` (un id de otra empresa debe dar 404).
+- **Archivos privados:** `storages['privado']`, ruta `<empresa_id>/<módulo>/…`. Un módulo con autorización propia llama `archivos.registro.proteger_modulo('<código>')`. Nunca expongas el `.url` de un archivo privado: sírvelo desde una vista que valide el acceso. En producción los privados deben ir en un bucket privado (configuración de `archivos`).
+- **Endpoints internos (n8n/cron):** protegidos con `X-Internal-Token` = `INTERNAL_API_TOKEN` (`core/interno.py`; sin token configurado responden 404). Asistencia: `POST /api/jor/interno/cerrar-vencidas/`, `GET /api/jor/interno/actividades/pendientes/?empresa=<slug>` y `POST /api/jor/interno/actividades/clasificar/` (clasificación con LLM de lo que las palabras clave dejaron en «otros»), y `POST /api/mensajes/interno/cerrar-dia/` (el de `/api/jor/interno/mensajes/…` sigue vivo; ya no hace nada —el chat no tiene confirmación— y existe solo para no romper los cron/n8n ya configurados).
+- **Tiempo real:** Channels. Rutas WebSocket `ws/empresa/<slug>/<módulo>/` registradas en `core/routing.py`; los avisos salen tras el `commit` (`tar_tickets/realtime.py`). Producción: `gunicorn core.asgi -k uvicorn.workers.UvicornWorker`; en desarrollo, daphne reemplaza `runserver` (solo con `DEBUG`).
+- **CSP estricto:** sin `<script>` ni `style=` inline; el JS va en `static/js/` y los colores por empresa se sirven en `/<slug>/marca/tema.css`.
+- **Tests:** `DEBUG=True python manage.py test` (los de WebSocket usan `TransactionTestCase`). Los tests de permisos usan un módulo de prueba (`tst`) para no pisar las capacidades reales.
+- **Importar Registros desde reg.tekon-rl.cl:** `scripts/traer_legacy_reg.sh` (solo lee del servidor: `pg_dump` + `rsync` del media; variables `REG_SSH`, `REG_PORT`, `REG_DB_CONTAINER`, `REG_MEDIA_REMOTO`) deja JSONL en `backups/legacy/reg/` y fotos/mapas en `backups/legacy/reg_media/`. Luego `manage.py importar_reg <slug> [--limpiar] [--sin-archivos] [--dry-run]`: contratistas, usuarios (con su hash y una membresía según `user_type`), sitios → proyectos, pasos/widgets/plantillas (incluida la tabla de avance), registros TX/TSS y Construcción, datos de pasos (planos → `{widget: {…}}`), fotos y mapas. Es idempotente (`legacy_source='reg'` + `legacy_id`); `--limpiar` borra antes los datos de ejemplo de la empresa. Si dos pasos del original comparten nombre con widgets distintos, el segundo recibe el sufijo de su tipo (`sitio-torre`).
+- **Dev con otra base:** `SQLITE_PATH=/ruta/otra.sqlite3` (cambiar `AUTH_USER_MODEL` obliga a recrear un `db.sqlite3` antiguo).
 
 ## Producto
 
@@ -424,11 +505,11 @@ Reglas a respetar al extender el proyecto:
 
 | Rol | Light | Dark | Uso |
 |---|---|---|---|
-| Signal Indigo (primario) | `#6366f1` | `#818cf8` | Acciones primarias, selección activa, focus. ≤10% de la pantalla. Hover `#4f46e5`, pressed `#4338ca` |
-| Sky (info/secundario) | `#0ea5e9` | `#38bdf8` | Información y enlaces externos |
-| Superficie (`base-100`) | `#ffffff` | `#3a3a3e` | Tarjetas, inputs, paneles |
-| Fondo (`base-200`) | `#e6e6e6` | `#2e2e32` | Shell de página, sidebar |
-| Borde (`base-300`) | `#cccccc` | `#4a4a50` | Divisores y bordes en reposo |
+| Azul sistema (primario) | `#007AFF` | `#0A84FF` | Acciones primarias, selección activa, focus. ≤10% de la pantalla |
+| Info (neutro) | `#4F5D6E` | `#9FB0C4` | Información; neutro para no competir con la marca |
+| Superficie (`base-100`) | `#ffffff` | `#2b2c31` | Tarjetas, inputs, paneles |
+| Fondo (`base-200`) | `#f2f2f7` | `#1f2024` | Shell de página, sidebar |
+| Borde (`base-300`) | `#e5e5ea` | `#43444b` | Divisores y bordes en reposo |
 | Texto | `#000000` / `#45484d` / `#6b7280` | `#e8e8ed` / `#8e8e93` | Principal / secundario / terciario (nunca para cuerpo) |
 | Éxito · Aviso · Error | `#10b981` · `#f59e0b` · `#ea580c` | `#34d399` · `#fbbf24` · `#fb923c` | Estados semánticos (texto del aviso en oscuro: `#000`) |
 
@@ -436,7 +517,7 @@ El color es semántico, no estético: si no comunica acción, estado o severidad
 
 ### Tipografía
 
-Una sola pila `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif` (sin fuentes importadas) y `ui-monospace, Menlo, Monaco, 'Cascadia Code'` para código.
+Una sola pila `-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter Variable', 'Helvetica Neue', system-ui, sans-serif` (Inter Variable, vía `@fontsource-variable/inter`, sustituye a SF Pro fuera de dispositivos Apple) y `ui-monospace, Menlo, Monaco, 'Cascadia Code'` para código.
 
 | Nivel | Peso / tamaño | Uso |
 |---|---|---|
@@ -452,9 +533,10 @@ Ningún texto de UI por debajo de 13px.
 
 - **Plano por defecto:** la profundidad se logra con capas tonales (`base-100/200/300`), no con sombras. Solo la UI flotante (modales, dropdowns, tooltips, toasts) puede llevar sombra.
 - **Radios:** 8px en botones e inputs, 16px en tarjetas, 4px en código inline.
-- **Botón primario:** fondo Signal Indigo, texto blanco, padding 10×20, alto mínimo 40px; hover más oscuro, sin movimiento ni escala; focus `outline: 2px solid #6366f1; outline-offset: 2px`. Variantes *ghost* y *base* para acciones secundarias/terciarias. Deshabilitado: 40% de opacidad.
-- **Inputs:** contorno de 1px `#cccccc`, alto mínimo 48px, focus con borde índigo y halo `rgba(99,102,241,.15)`, error con borde `#ea580c`.
+- **Botón primario:** fondo azul primario, texto blanco, padding 10×20, alto mínimo 40px; hover más oscuro, sin movimiento ni escala; focus `outline: 2px solid #007AFF; outline-offset: 2px`. Variantes *ghost* y *base* para acciones secundarias/terciarias. Deshabilitado: 40% de opacidad.
+- **Inputs:** contorno de 1px `#cccccc`, alto mínimo 48px, focus con borde azul primario y halo suave, error con borde `#ea580c`.
 - **Tarjetas:** `bg-base-100` sobre `bg-base-200`, sin sombra, padding 24px (16px en variantes compactas).
+- **Botones de acción en tablas (estándar):** las acciones de fila son **solo icono, con color y sin texto**: `btn btn-ghost btn-square btn-sm` + `text-<color> hover:bg-<color>/10`, con `title` y `aria-label` (el texto va ahí, para tooltip y lectores de pantalla). Icono `size-5` vía `{% include "components/icon.html" with name="..." cls="size-5" %}` (SVG local, el CSP no permite fuentes). Iconos y colores fijos: Editar → `pencil` `text-primary-text`; Ver como → `eye` `text-info`; Permisos → `shield` `text-success`; Eliminar/Quitar → `trash` `text-error`; PDF → `pdf` `text-red-600`. Los botones fuera de tablas (Nuevo, Guardar, cabeceras) siguen siendo **icono + texto** (`plus` para Nuevo). Una acción nueva obliga a añadir su icono a `templates/components/icon.html` y a esta lista.
 - **Navegación:** barra superior de 56px con borde inferior, nunca con sombra; en móvil, patrón `drawer` de DaisyUI.
 - **Bloques de código:** `bg-base-200`, mono 0.875rem, padding 16px, radio 8px.
 

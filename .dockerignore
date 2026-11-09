@@ -30,3 +30,5 @@ static/css/dist/
 *.md
 n8n/
 *.conf
+.agents/
+skills-lock.json

@@ -1,0 +1,10 @@
+<div class="avatar-stack flex shrink-0 -space-x-2">
+  {% for a in asignaciones|slice:":4" %}
+    {% include "tar_tickets/parciales/_avatar.html" with u=a.user size=size|default:'w-7 h-7' %}
+  {% endfor %}
+  {% if asignaciones|length > 4 %}
+    <div class="avatar-user {{ size|default:'w-7 h-7' }} flex shrink-0 items-center justify-center rounded-full bg-neutral text-neutral-content" title="{{ asignaciones|length|add:'-4' }} más">
+      <span class="text-[10px] font-bold">+{{ asignaciones|length|add:'-4' }}</span>
+    </div>
+  {% endif %}
+</div>

@@ -1,0 +1,24 @@
+{% extends "shell.html" %}
+{% block page_title %}Eliminar contratista definitivamente{% endblock %}
+{% block content_main %}
+<form method="post" class="card bg-base-100 max-w-2xl">
+  <div class="card-body gap-4">
+    {% csrf_token %}
+    <p>Vas a eliminar <strong>definitivamente</strong> el contratista <strong>{{ obj.nombre }}</strong> ({{ obj.codigo }}). No se puede deshacer ni restaurar.</p>
+    {% if n_registros %}
+    <div role="alert" class="alert alert-warning">
+      <span><strong>Atención:</strong> está ligado a {{ n_registros }} registro{{ n_registros|pluralize }} de Construcción. Se conservan, pero quedarán <strong>sin contratista</strong> (campo vacío).</span>
+    </div>
+    {% endif %}
+    {% if n_membresias %}
+    <div role="alert" class="alert alert-error">
+      <span>Tiene {{ n_membresias }} miembro{{ n_membresias|pluralize }} ligado{{ n_membresias|pluralize }}. Muévelos a otro contratista antes de eliminarlo: no se puede continuar.</span>
+    </div>
+    {% endif %}
+    <div class="card-actions justify-end">
+      <a href="{% url 'panel:contratistas' %}" class="btn btn-ghost">Cancelar</a>
+      {% if not n_membresias %}<button type="submit" class="btn btn-error">Eliminar definitivamente</button>{% endif %}
+    </div>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "shell.html" %}
+{% block page_title %}TX/TSS{% endblock %}
+{% block content_main %}
+<div class="mb-4 flex flex-wrap items-end gap-2">
+  <form method="get" class="flex flex-1 flex-wrap items-end gap-2">
+    {% if tipo %}<input type="hidden" name="tipo" value="{{ tipo }}">{% endif %}
+    <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre o código…" class="input input-bordered input-sm w-full max-w-xs">
+    <select name="estado" class="select select-bordered select-sm">
+      <option value="">Todos los estados</option>
+      <option value="rojo" {% if estado == 'rojo' %}selected{% endif %}>Vacío</option>
+      <option value="amarillo" {% if estado == 'amarillo' %}selected{% endif %}>En proceso</option>
+      <option value="verde" {% if estado == 'verde' %}selected{% endif %}>Concluido</option>
+    </select>
+    <button class="btn btn-sm">Filtrar</button>
+  </form>
+  {% if puede_activar %}<a href="{% url 'reg_txtss:activar' %}" class="btn btn-primary btn-sm">{% include "components/icon.html" with name="plus" cls="size-4" %} Activar registro</a>{% endif %}
+</div>
+<div class="table-card">
+  <table class="table">
+    <thead><tr><th>{{ termino_proyecto }}</th><th>Tipo</th><th>Alt.</th><th>Fecha</th><th>Responsable</th><th class="text-center">Acciones</th></tr></thead>
+    <tbody>
+    {% for r in pagina %}
+      <tr data-href="{% url 'reg_txtss:detalle' r.pk %}" class="hover cursor-pointer row-{% if r.color == 'verde' %}concluido{% elif r.color == 'amarillo' %}parcial{% else %}vacio{% endif %}">
+        <td><span class="sr-only">{% if r.color == 'verde' %}Concluido{% elif r.color == 'amarillo' %}En proceso{% else %}Vacío{% endif %}. </span><a class="link font-medium" href="{% url 'reg_txtss:detalle' r.pk %}">{{ r.proyecto.codigo|default:"—" }}</a> <span class="text-sm text-base-content/60">{{ r.proyecto.nombre }}</span></td>
+        <td class="text-sm">{{ r.proyecto.tipo|default:termino_proyecto }}</td>
+        <td>{% if r.alternativa %}<span class="badge badge-ghost font-mono">{{ r.alternativa }}</span>{% else %}<span class="text-base-content/50">—</span>{% endif %}</td>
+        <td class="whitespace-nowrap text-sm">{{ r.fecha|date:"d/m/Y" }}</td>
+        <td class="text-sm">{{ r.responsable_nombre|default:"—" }}</td>
+        <td class="whitespace-nowrap">{% include "reg_txtss/_acciones_fila.html" %}</td>
+      </tr>
+    {% empty %}<tr><td colspan="6" class="py-8 text-center text-base-content/60">No hay registros{% if q or estado or tipo %} con esos filtros{% endif %}.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "tar_tickets/parciales/_paginacion.html" %}
+
+{% if puede_editar %}
+<dialog id="editar-registro" class="modal">
+  <form method="post" class="modal-box grid gap-3">{% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    <h3 class="text-lg font-semibold">Editar registro</h3>
+    <div><label class="mb-1 block text-sm">Responsable</label>{{ form_responsable.user }}</div>
+    <div><label class="mb-1 block text-sm">Alternativa</label>{{ form_responsable.alternativa }}</div>
+    <div class="modal-action"><button type="button" class="btn btn-ghost btn-sm" data-cerrar-dialogo>Cancelar</button><button class="btn btn-primary btn-sm">Guardar</button></div>
+  </form>
+  <form method="dialog" class="modal-backdrop"><button aria-label="Cerrar">Cerrar</button></form>
+</dialog>
+{% endif %}
+
+{% if es_super and borrados %}
+<section class="mt-10">
+  <h2 class="mb-1 text-lg font-semibold">Borrados</h2>
+  <p class="mb-3 text-sm text-base-content/60">Solo tú, como superusuario, ves y puedes restaurar estos registros.</p>
+  <div class="table-card">
+    <table class="table">
+      <thead><tr><th>{{ termino_proyecto }}</th><th>Tipo</th><th>Alt.</th><th>Fecha</th><th>Responsable</th><th>Borrado</th><th class="text-center">Acciones</th></tr></thead>
+      <tbody>
+      {% for b in borrados %}
+        <tr>
+          <td><span class="font-medium">{{ b.proyecto.codigo|default:"—" }}</span> <span class="text-sm text-base-content/60">{{ b.proyecto.nombre }}</span></td>
+          <td class="text-sm">{{ b.proyecto.tipo|default:termino_proyecto }}</td>
+          <td>{% if b.alternativa %}<span class="badge badge-ghost font-mono">{{ b.alternativa }}</span>{% else %}<span class="text-base-content/50">—</span>{% endif %}</td>
+          <td class="whitespace-nowrap text-sm">{{ b.fecha|date:"d/m/Y" }}</td>
+          <td class="text-sm">{{ b.responsable_nombre|default:"—" }}</td>
+          <td class="whitespace-nowrap text-sm">{{ b.updated_at|date:"d/m/Y H:i" }}</td>
+          <td class="text-center">
+            <form method="post" action="{% url 'reg_txtss:restaurar' b.pk %}" data-confirmar="¿Restaurar este registro?">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+              <button class="btn btn-ghost btn-square btn-sm text-success" title="Restaurar" aria-label="Restaurar">{% include "components/icon.html" with name="restore" cls="size-5" %}</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if borrados.paginator.num_pages > 1 %}
+  <div class="mt-5 flex items-center justify-center gap-3">
+    {% if borrados.has_previous %}<a href="{% querystring pb=borrados.previous_page_number %}" class="btn btn-ghost btn-sm">← Anterior</a>{% endif %}
+    <span class="text-sm text-base-content/60">Página {{ borrados.number }} / {{ borrados.paginator.num_pages }}</span>
+    {% if borrados.has_next %}<a href="{% querystring pb=borrados.next_page_number %}" class="btn btn-ghost btn-sm">Siguiente →</a>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

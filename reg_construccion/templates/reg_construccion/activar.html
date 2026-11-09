@@ -1,0 +1,10 @@
+{% extends "shell.html" %}
+{% block page_title %}Activar registro de construcción{% endblock %}
+{% block content_main %}
+<form method="post" class="card max-w-2xl bg-base-100"><div class="card-body gap-4">
+  {% csrf_token %}
+  <p class="text-sm text-base-content/70">Activa el registro de un {{ termino_proyecto|lower }} en obra: se crea su primer reporte. Después se agregan más reportes, uno por fecha.</p>
+  {% include "components/campos.html" %}
+  <div class="card-actions justify-end"><a href="{% url 'reg_construccion:lista' %}" class="btn btn-ghost">Cancelar</a><button type="submit" class="btn btn-primary">Activar</button></div>
+</div></form>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "shell.html" %}
+{% block page_title %}Configuración de Asistencia{% endblock %}
+{% block content_main %}
+{% include "jor_empleados/_pestanas_config.html" %}
+<section class="card mb-4 max-w-2xl bg-base-100"><div class="card-body gap-3">
+  <h2 class="card-title text-base">Plantilla de «{{ termino_certificado }}»</h2>
+  <p class="text-sm text-base-content/70">
+    {% if tiene_plantilla %}Se usa la <strong>plantilla subida</strong> por la empresa.{% else %}Se usa la <strong>plantilla base</strong> (no hay una propia).{% endif %}
+    El Excel define el formato: escribe variables como <code class="rounded bg-base-200 px-1">{% templatetag openvariable %} persona.nombre {% templatetag closevariable %}</code>
+    y el reporte las rellena. Descarga la base, adáptala y súbela abajo.
+  </p>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'jor_reportes:plantilla_base' %}" class="btn btn-sm">{% include "components/icon.html" with name="file-text" cls="size-4" %} Descargar plantilla base</a>
+    <a href="{% url 'jor_reportes:plantilla_modelo' %}" class="btn btn-sm">{% include "components/icon.html" with name="file-text" cls="size-4" %} Descargar plantilla modelo</a>
+    {% if tiene_plantilla %}<a href="{% url 'jor_reportes:plantilla_actual' %}" class="btn btn-sm">{% include "components/icon.html" with name="file-text" cls="size-4" %} Descargar plantilla actual</a>{% endif %}
+  </div>
+  <details class="rounded-box border border-base-content/10 p-3">
+    <summary class="cursor-pointer text-sm font-medium">Variables disponibles</summary>
+    <p class="mt-2 text-xs text-base-content/60">«N» va de 1 a 31. Una fila con variables de persona, día o proyecto se repite por cada elemento; una hoja con <code>{% templatetag openvariable %} persona.nombre {% templatetag closevariable %}</code> en su nombre se copia por persona.</p>
+    <div class="mt-2 max-h-80 overflow-auto">
+      {% for grupo, items in catalogo %}
+      <h3 class="mt-3 text-xs font-semibold uppercase tracking-wider text-base-content/50">{{ grupo }}</h3>
+      <table class="table table-sm"><tbody>
+        {% for nombre, descripcion, ejemplo in items %}<tr><td class="whitespace-nowrap"><code>{% templatetag openvariable %} {{ nombre }} {% templatetag closevariable %}</code></td><td>{{ descripcion }}</td><td class="text-base-content/60">{{ ejemplo }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% endfor %}
+    </div>
+  </details>
+</div></section>
+<form method="post" enctype="multipart/form-data" class="card max-w-2xl bg-base-100"><div class="card-body gap-4">
+  {% csrf_token %}
+  {% include "components/campos.html" %}
+  <div class="card-actions justify-end"><button type="submit" class="btn btn-primary">Guardar</button></div>
+</div></form>
+{% endblock %}

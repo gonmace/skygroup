@@ -1,0 +1,1 @@
+<span class="badge badge-soft badge-sm {% if h.severidad == 'critica' %}badge-error{% elif h.severidad == 'mayor' %}badge-warning{% else %}badge-ghost{% endif %}">{{ h.get_severidad_display }}</span>

@@ -1,0 +1,2 @@
+{# Nivel de acceso (rol base) con insignia de contorno pastel (escala por jerarquía, igual que el avatar). Pasar `rol` (RolEmpresa) y, opcional, `tam` (badge-xs…) y `extra` (clases). #}
+<span class="badge {{ tam|default:"badge-sm" }} badge-outline {{ extra }} badge-rol-{{ rol.jerarquia }}" title="Nivel de acceso">{{ rol.get_rol_base_display }}</span>

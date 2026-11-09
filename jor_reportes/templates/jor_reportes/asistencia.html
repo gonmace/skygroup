@@ -1,0 +1,82 @@
+{% extends "shell.html" %}
+{% block page_title %}Reporte de asistencia{% endblock %}
+{% block wrap_class %}space-y-4{% endblock %}
+{% block content_main %}
+{% url 'jor_reportes:asistencia_excel' as url_excel %}
+<div>
+  <p class="mb-3 text-sm text-base-content/60">{{ periodo.etiqueta }}</p>
+  {% include "jor_reportes/_periodo.html" %}
+</div>
+
+<div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="users" cls="size-4" %} Personas</div>
+    <p class="text-3xl font-semibold tabular-nums">{{ resumen.personas }}</p>
+    <p class="text-xs text-base-content/60">{{ resumen.ausencias }} día{{ resumen.ausencias|pluralize }} de ausencia</p>
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="clock" cls="size-4" %} Horas netas</div>
+    <p class="text-3xl font-semibold tabular-nums">{{ resumen.horas }}</p>
+    <p class="text-xs text-base-content/60">descontado el refrigerio</p>
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="calendar" cls="size-4" %} Días trabajados</div>
+    <p class="text-3xl font-semibold tabular-nums">{{ resumen.dias }}</p>
+    <p class="text-xs text-base-content/60">suma de todas las personas</p>
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="user-check" cls="size-4" %} Atraso total</div>
+    <p class="text-3xl font-semibold tabular-nums {% if resumen.atraso_min %}text-warning{% endif %}">{{ resumen.atraso_min }}<span class="text-base text-base-content/50"> min</span></p>
+    <p class="text-xs {% if resumen.no_cerro %}text-error{% else %}text-base-content/60{% endif %}">{{ resumen.no_cerro }} jornada{{ resumen.no_cerro|pluralize }} sin cerrar</p>
+  </div></div>
+</div>
+
+{% if personas %}
+<div class="table-card !overflow-visible">
+  <div class="hidden grid-cols-[minmax(0,2.5fr)_repeat(5,minmax(0,1fr))_1.5rem] gap-x-3 border-b border-base-300 bg-base-content/5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-base-content/60 md:grid">
+    <span>Persona</span><span class="text-right">Días</span><span class="text-right">Horas</span><span class="text-right">Atraso</span><span class="text-right">Sin cerrar</span><span class="text-right">Ausencias</span><span></span>
+  </div>
+  {% for p in personas %}
+  <details class="group border-b border-base-300 last:border-0" {% if personas|length == 1 %}open{% endif %}>
+    <summary class="grid cursor-pointer list-none grid-cols-3 items-center gap-x-3 gap-y-2 px-4 py-3 hover:bg-base-200/50 md:grid-cols-[minmax(0,2.5fr)_repeat(5,minmax(0,1fr))_1.5rem] [&::-webkit-details-marker]:hidden">
+      <div class="col-span-3 flex min-w-0 items-center gap-3 md:col-span-1">
+        <span class="avatar-iniciales badge-rol-{{ p.perfil.membresia.rol.jerarquia }} tono-{{ p.perfil.membresia.rol.tono }}" aria-hidden="true">{{ p.perfil.membresia.user.iniciales }}</span>
+        <div class="min-w-0 flex-1"><div class="truncate font-medium">{{ p.nombre }}</div>{% if p.cargo %}<div class="truncate text-xs text-base-content/60">{{ p.cargo }}</div>{% endif %}</div>
+        <span class="text-base-content/50 md:hidden"><span class="inline-block rotate-180 transition-transform group-open:-rotate-90">{% include "components/icon.html" with name="chevron-left" cls="size-5" %}</span></span>
+      </div>
+      <div class="md:text-right"><span class="block text-xs text-base-content/60 md:hidden">Días</span><span class="tabular-nums">{{ p.dias }}</span></div>
+      <div class="md:text-right"><span class="block text-xs text-base-content/60 md:hidden">Horas</span><span class="font-mono tabular-nums">{{ p.horas }} h</span></div>
+      <div class="md:text-right"><span class="block text-xs text-base-content/60 md:hidden">Atraso</span><span class="tabular-nums {% if p.atraso_min %}text-warning{% else %}text-base-content/40{% endif %}">{% if p.atraso_min %}{{ p.atraso_min }} min{% else %}—{% endif %}</span></div>
+      <div class="md:text-right"><span class="block text-xs text-base-content/60 md:hidden">Sin cerrar</span><span class="tabular-nums {% if p.no_cerro %}text-error{% else %}text-base-content/40{% endif %}">{% if p.no_cerro %}{{ p.no_cerro }}{% else %}—{% endif %}</span></div>
+      <div class="md:text-right"><span class="block text-xs text-base-content/60 md:hidden">Ausencias</span><span class="tabular-nums {% if not p.ausencias %}text-base-content/40{% endif %}">{% if p.ausencias %}{{ p.ausencias }}{% else %}—{% endif %}</span></div>
+      <span class="hidden justify-self-end text-base-content/50 md:block"><span class="inline-block rotate-180 transition-transform group-open:-rotate-90">{% include "components/icon.html" with name="chevron-left" cls="size-5" %}</span></span>
+    </summary>
+    <div class="overflow-x-auto border-t border-base-300 bg-base-200/30">
+      <table class="table table-sm">
+        <thead><tr><th>Fecha</th><th>Día</th><th class="text-right">Ingreso</th><th class="text-right">Salida</th><th class="text-right">Horas</th><th class="text-right">Atraso</th><th>Comentario</th></tr></thead>
+        <tbody>
+        {% for f in p.filas %}
+          <tr class="{% if f.fin_semana %}text-base-content/40{% endif %}">
+            <td class="tabular-nums">{{ f.fecha|date:"d/m/Y" }}</td>
+            <td class="capitalize">{{ f.dia }}</td>
+            <td class="text-right tabular-nums">{{ f.ingreso|default:"—" }}</td>
+            <td class="text-right tabular-nums">{{ f.salida|default:"—" }}</td>
+            <td class="text-right font-mono tabular-nums">{{ f.horas|default:"—" }}</td>
+            <td class="text-right tabular-nums">{% if f.atraso_min %}<span class="text-warning">{{ f.atraso_min }} min</span>{% else %}<span class="text-base-content/40">—</span>{% endif %}</td>
+            <td>{% for c in f.comentarios %}<span class="badge badge-soft badge-info badge-sm mr-1">{{ c }}</span>{% endfor %}{% if f.no_cerro %}<span class="badge badge-soft badge-error badge-sm">Sin cerrar</span>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot><tr class="font-semibold">
+          <td colspan="2">Total</td><td class="text-right tabular-nums">{{ p.dias }} día{{ p.dias|pluralize }}</td><td></td>
+          <td class="text-right font-mono tabular-nums">{{ p.horas }}</td><td class="text-right tabular-nums">{{ p.atraso_min }} min</td><td></td>
+        </tr></tfoot>
+      </table>
+    </div>
+  </details>
+  {% endfor %}
+</div>
+{% else %}
+<div class="table-card py-12 text-center text-base-content/60">No hay personas para mostrar.</div>
+{% endif %}
+{% endblock %}

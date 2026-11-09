@@ -1,0 +1,26 @@
+{% extends "shell.html" %}
+{% block page_title %}Empresas{% endblock %}
+{% block content_main %}
+<div class="mb-4 flex justify-end">
+  <a href="{% url 'panel:empresa_nueva' %}" class="btn btn-primary btn-sm">{% include "components/icon.html" with name="plus" cls="size-4" %} Nueva empresa</a>
+</div>
+<div class="table-card">
+  <table class="table">
+    <thead><tr><th>Empresa</th><th>Identificador</th><th>Módulos</th><th>Proyecto =</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+    {% for e in lista %}
+      <tr>
+        <td class="font-medium">{{ e.nombre }}</td>
+        <td><a class="link" href="/{{ e.slug }}/">/{{ e.slug }}/</a></td>
+        <td>{{ e.modulos|join:", "|default:"—" }}</td>
+        <td>{{ e.termino_proyecto_plural }}</td>
+        <td>{% if e.activa %}<span class="badge badge-success badge-sm">Activa</span>{% else %}<span class="badge badge-ghost badge-sm">Inactiva</span>{% endif %}</td>
+        <td class="text-right"><a class="btn btn-ghost btn-square btn-sm text-primary-text hover:bg-primary/10" title="Editar" aria-label="Editar" href="{% url 'panel:empresa_editar' e.pk %}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6" class="text-center text-base-content/60">Aún no hay empresas.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

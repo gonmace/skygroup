@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Empresa inactiva{% endblock %}
+{% block content %}
+<main class="min-h-screen grid place-items-center p-6">
+  <div class="card bg-base-200 max-w-md w-full">
+    <div class="card-body text-center">
+      <h1 class="card-title justify-center">{{ empresa.nombre }} está inactiva</h1>
+      <p class="text-base-content/70">Contacta al administrador de la plataforma para reactivar el acceso.</p>
+    </div>
+  </div>
+</main>
+{% endblock %}

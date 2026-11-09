@@ -1,0 +1,30 @@
+{% extends "shell.html" %}
+{% block page_title %}Tipos de actividad{% endblock %}
+{% block content_main %}
+<div class="max-w-2xl space-y-5">
+  <p class="text-sm text-base-content/50">Clasifica los tickets por tipo de actividad.</p>
+  <section class="rounded-2xl border border-base-300 bg-base-100 p-5">
+    <h2 class="mb-3 text-sm font-bold">Nuevo tipo de actividad</h2>
+    <form method="post" class="flex flex-col gap-2 sm:flex-row">{% csrf_token %}
+      <input type="hidden" name="action" value="add">
+      <input type="text" name="name" placeholder="Nombre" required maxlength="50" class="input input-bordered input-sm flex-1">
+      <select name="color" class="select select-bordered select-sm w-full sm:w-40">{% for val, lab in colores %}<option value="{{ val }}">{{ lab }}</option>{% endfor %}</select>
+      <button class="btn btn-success btn-sm">Crear</button>
+    </form>
+  </section>
+  <section class="rounded-2xl border border-base-300 bg-base-100 p-5">
+    <h2 class="mb-3 text-sm font-bold">Existentes</h2>
+    <div class="flex flex-wrap gap-2">
+      {% for l in etiquetas %}
+        <div class="flex items-center gap-1.5">
+          <span class="label-chip" data-color="{{ l.color }}">{{ l.nombre }}</span>
+          <form method="post" class="inline" data-confirmar="¿Eliminar el tipo de actividad {{ l.nombre }}?">{% csrf_token %}
+            <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ l.pk }}">
+            <button class="btn btn-ghost btn-xs text-error">✕</button>
+          </form>
+        </div>
+      {% empty %}<p class="text-sm text-base-content/40">Sin tipos de actividad todavía.</p>{% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

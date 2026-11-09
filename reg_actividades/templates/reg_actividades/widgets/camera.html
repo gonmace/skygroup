@@ -1,0 +1,5 @@
+<div class="flex flex-wrap items-center justify-between gap-2">
+  <p class="text-sm text-base-content/70">{{ b.total }} foto{{ b.total|pluralize }}{% if b.minimo %} · mínimo {{ b.minimo }}{% endif %}</p>
+  <a href="{% url 'reg_fotos:galeria' tipo.clave r.pk b.etapa %}" class="btn btn-primary btn-lg">{% if puede_escribir %}Subir / ver fotos{% else %}Ver fotos{% endif %}</a>
+</div>
+{% if b.fotos %}<div class="grid grid-cols-4 gap-2 sm:grid-cols-6">{% for f in b.fotos %}<a href="{% url 'reg_fotos:imagen' f.pk %}" target="_blank" rel="noopener"><img src="{% url 'reg_fotos:miniatura' f.pk %}" alt="{{ f.descripcion|default:'Foto' }}" loading="lazy" class="aspect-square w-full rounded-lg object-cover"></a>{% endfor %}</div>{% endif %}

@@ -1,61 +1,445 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter"; /* sustituto de SF Pro fuera de dispositivos Apple */
+@import "./tareas.css"; /* módulo Tareas: tarjetas, prioridad, etiquetas, avatares */
 @source not "../static";
 @source "../../../templates";
 @source "../../../home";
+@source "../../../cuentas";
+@source "../../../empresas";
+@source "../../../proyectos";
+@source "../../../archivos";
+@source "../../../panel";
+@source "../../../notificaciones";
+@source "../../../mje_mensajes";
+@source "../../../tar_tickets";
+@source "../../../tar_adjuntos";
+@source "../../../reg_base";
+@source "../../../reg_txtss";
+@source "../../../reg_construccion";
+@source "../../../reg_construccion_base";
+@source "../../../reg_fotos";
+@source "../../../reg_actividades";
+@source "../../../jor_empleados";
+@source "../../../jor_diario";
+@source "../../../jor_actividades";
+@source "../../../jor_reportes";
+@source "../../../jor_visitas";
+@source "../../../static/js";
+/* Variante para el tema que fija la app (data-theme), no la preferencia del sistema: `tema-oscuro:` */
+@custom-variant tema-oscuro (&:where([data-theme=dark], [data-theme=dark] *));
 @plugin "@tailwindcss/forms";
 @plugin "@tailwindcss/typography";
 @plugin "daisyui" {
   themes: light --default, dark --prefersdark;
 }
 
-/* ── Light theme ─────────────────────────────────────────────────────────── */
+/* ── Temas (paleta de skydesk: rojo + oro, superficies cálidas) ─────────── */
 @plugin "daisyui/theme" {
   name: "light";
   color-scheme: light;
-  --color-base-100: oklch(100% 0 0);
-  --color-base-200: oklch(90% 0 0);
-  --color-base-300: oklch(80% 0 0);
-  --color-base-content: #000;
-  --color-primary: #6366f1;
+  /* Superficies — matiz rojo, croma muy bajo (hue 25) */
+  --color-base-100: #ffffff;                /* tarjetas */
+  --color-base-200: #f2f2f7;                /* systemGroupedBackground */
+  --color-base-300: #e5e5ea;                /* separadores */
+  --color-base-content: #1c1c1e;            /* label */
+  /* Marca */
+  --color-primary: #007AFF;                 /* azul del sistema iOS */
   --color-primary-content: #fff;
-  --color-secondary: #45484d;
+  --color-secondary: #3b4250;
   --color-secondary-content: #fff;
-  --color-accent: #0ea5e9;
-  --color-accent-content: #fff;
-  --color-neutral: #45484d;
-  --color-neutral-content: oklch(92% 0.004 286.32);
-  --color-info: #0ea5e9;
-  --color-info-content: #fff;
-  --color-success: #10b981;
-  --color-success-content: #fff;
-  --color-warning: #f59e0b;
-  --color-warning-content: #fff;
-  --color-error: #ea580c;
-  --color-error-content: #fff;
+  --color-accent: #D1A23C;                  /* oro — reemplaza el morado */
+  --color-accent-content: #211A0C;
+  --color-neutral: #1b1f27;
+  --color-neutral-content: #f3f4f6;
+  /* Semantica */
+  --color-info: #4F5D6E;    --color-info-content: #fff;           /* neutros: no compiten con la marca */
+  --color-success: #248A3D; --color-success-content: #fff;
+  --color-warning: #FF9500; --color-warning-content: #1c1c1e;   /* ambar */
+  --color-error: #D70015;   --color-error-content: #fff;         /* < primary */
+  /* Acciones */
+  --color-edit: #5B5B66;   --color-edit-content: #fff;
+  --color-delete: #8C0014; --color-delete-content: #fff;
+  --color-view: #4F5D6E;   --color-view-content: #fff;
+  --radius-selector: 0.625rem; --radius-field: 0.75rem;
+  --radius-box: 1.25rem;         --radius-badge: 9999px;
 }
 
-/* ── Dark theme ──────────────────────────────────────────────────────────── */
 @plugin "daisyui/theme" {
   name: "dark";
   color-scheme: dark;
-  --color-base-100: #3a3a3e;
-  --color-base-200: #2e2e32;
-  --color-base-300: #4a4a50;
-  --color-base-content: #e8e8ed;
-  --color-primary: #818cf8;
-  --color-primary-content: #fff;
-  --color-secondary: #8e8e93;
-  --color-secondary-content: #fff;
-  --color-accent: #38bdf8;
-  --color-accent-content: #fff;
-  --color-neutral: #3a3a3c;
-  --color-neutral-content: #f5f5f7;
-  --color-info: #38bdf8;
-  --color-info-content: #fff;
-  --color-success: #34d399;
-  --color-success-content: #fff;
-  --color-warning: #fbbf24;
-  --color-warning-content: #000;
-  --color-error: #fb923c;
-  --color-error-content: #fff;
+  /* El fondo de página (base-200) es lo más oscuro; las cards (base-100) flotan encima. Grises neutros con un
+     leve matiz frío, en pasos de ~5 puntos de luminosidad (página → tarjeta → borde). El negro puro era
+     demasiado duro: texto #ececf0 sobre tarjeta #2b2c31 ≈ 11:1 (AAA) y el secundario (60 %) sigue ≥ 4.5:1. */
+  --color-base-100: #2b2c31;                /* tarjetas */
+  --color-base-200: #1f2024;                /* fondo de página */
+  --color-base-300: #43444b;                /* bordes y separadores */
+  --color-base-content: #ececf0;
+  --color-primary: #0A84FF;  --color-primary-content: #fff;
+  --color-secondary: #a3a9b7;--color-secondary-content: #1E1819;
+  --color-accent: #E6BC5A;   --color-accent-content: #211A0C;
+  --color-neutral: #2a2f3a;  --color-neutral-content: #eceef2;
+  --color-info: #9FB0C4;    --color-info-content: #000;
+  --color-success: #30D158; --color-success-content: #000;
+  --color-warning: #FF9F0A; --color-warning-content: #000;
+  --color-error: #FF453A;   --color-error-content: #000;
+  --color-edit: #C4C4CF;    --color-edit-content: #000;
+  --color-delete: #FF5247;  --color-delete-content: #fff;
+  --color-view: #9FB0C4;    --color-view-content: #000;
+  --radius-selector: 0.625rem; --radius-field: 0.75rem;
+  --radius-box: 1rem;          --radius-badge: 9999px;
 }
+
+/* ── Texto de marca ──────────────────────────────────────────────────────────
+   --p-text / --a-text: primario y acento aptos para TEXTO y foco (≥ 4.5:1). Los valores de
+   aquí son los del tema por defecto; la hoja de cada empresa (empresas/paleta.py) los recalcula
+   para su color. Nunca usar --color-primary crudo como color de texto: usar `text-primary-text`. */
+:root, [data-theme="light"] { --p-text: #005fcb; --a-text: #825e00; }
+[data-theme="dark"] { --p-text: #2d8eff; --a-text: #e6bc5a; }
+@theme inline {
+  --color-primary-text: var(--p-text);
+  --color-accent-text: var(--a-text);
+}
+
+/* ── Color por módulo ────────────────────────────────────────────────────────
+   Cada módulo tiene su pastel FIJO (no sigue al color de marca de la empresa, que queda para botones,
+   enlaces y foco): Registros = cielo, Tareas = lavanda, Asistencia = menta. Se evitan verde, ámbar y rojo
+   porque ya significan estado. --mod-soft: fondo · --mod-ink: icono/texto (≥ 4.5:1 sobre el pastel y las
+   superficies) · --mod-line: filete de la cabecera. `.mod-*` pinta un chip; `[data-modulo]` en el shell
+   hereda las variables a la barra lateral y la cabecera. */
+:root, [data-theme="light"] {
+  --mod-reg-soft: oklch(.93 .045 235); --mod-reg-ink: oklch(.42 .11 235);  --mod-reg-line: oklch(.80 .08 235);
+  --mod-tar-soft: oklch(.93 .045 295); --mod-tar-ink: oklch(.42 .12 295);  --mod-tar-line: oklch(.80 .08 295);
+  --mod-jor-soft: oklch(.95 .055 78);  --mod-jor-ink: oklch(.42 .10 62);   --mod-jor-line: oklch(.82 .10 78);
+  --mod-msj-soft: oklch(.94 .06 152);  --mod-msj-ink: oklch(.40 .11 152);  --mod-msj-line: oklch(.80 .10 152);
+  --mod-apu-soft: oklch(.94 .045 355); --mod-apu-ink: oklch(.42 .13 355);  --mod-apu-line: oklch(.82 .09 355);
+}
+[data-theme="dark"] {
+  --mod-reg-soft: oklch(.30 .05 235); --mod-reg-ink: oklch(.85 .09 235); --mod-reg-line: oklch(.55 .09 235);
+  --mod-tar-soft: oklch(.30 .05 295); --mod-tar-ink: oklch(.85 .09 295); --mod-tar-line: oklch(.55 .09 295);
+  --mod-jor-soft: oklch(.32 .06 78);  --mod-jor-ink: oklch(.88 .10 85);  --mod-jor-line: oklch(.58 .10 78);
+  --mod-msj-soft: oklch(.30 .06 152); --mod-msj-ink: oklch(.86 .11 152); --mod-msj-line: oklch(.55 .10 152);
+  --mod-apu-soft: oklch(.30 .06 355); --mod-apu-ink: oklch(.86 .10 355); --mod-apu-line: oklch(.55 .10 355);
+}
+.mod-reg, [data-modulo="reg"] { --mod-soft: var(--mod-reg-soft); --mod-ink: var(--mod-reg-ink); --mod-line: var(--mod-reg-line); }
+.mod-tar, [data-modulo="tar"] { --mod-soft: var(--mod-tar-soft); --mod-ink: var(--mod-tar-ink); --mod-line: var(--mod-tar-line); }
+.mod-jor, [data-modulo="jor"] { --mod-soft: var(--mod-jor-soft); --mod-ink: var(--mod-jor-ink); --mod-line: var(--mod-jor-line); }
+.mod-msj, [data-modulo="msj"] { --mod-soft: var(--mod-msj-soft); --mod-ink: var(--mod-msj-ink); --mod-line: var(--mod-msj-line); }
+.mod-apu, [data-modulo="apu"] { --mod-soft: var(--mod-apu-soft); --mod-ink: var(--mod-apu-ink); --mod-line: var(--mod-apu-line); }
+.mod-chip { background: var(--mod-soft); color: var(--mod-ink); }
+/* Tarjetas de módulo del inicio: invitan al clic. Fondo con el pastel del módulo que se enciende al pasar,
+   icono grande, descripción y llamada «Abrir →» que avanza. Respeta reduced-motion. */
+.mod-card { position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; gap: .9rem;
+  min-height: 12.5rem; padding: 1.4rem; border-radius: 1.5rem; color: inherit; text-decoration: none;
+  background: linear-gradient(145deg, color-mix(in oklab, var(--mod-soft) 70%, var(--color-base-100)) 0%, var(--color-base-100) 62%);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-line) 55%, transparent), 0 1px 2px rgb(0 0 0 / .05);
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease; }
+.mod-card-glow { position: absolute; z-index: -1; right: -3rem; top: -3rem; width: 11rem; height: 11rem; border-radius: 9999px;
+  background: radial-gradient(closest-side, var(--mod-line), transparent); opacity: .35; transition: opacity .3s ease, transform .4s ease; }
+.mod-card-icon { position: relative; display: grid; place-items: center; width: 4rem; height: 4rem; border-radius: 1.25rem;
+  box-shadow: 0 6px 16px -6px var(--mod-line), inset 0 0 0 1px rgb(255 255 255 / .35); transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+.mod-card-cta { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .85rem; border-radius: 9999px; font-size: .875rem;
+  font-weight: 600; background: var(--mod-soft); color: var(--mod-ink); transition: background .2s, color .2s, gap .2s; }
+a.mod-card { cursor: pointer; }
+a.mod-card:hover, a.mod-card:focus-visible { transform: translateY(-4px);
+  box-shadow: 0 0 0 1.5px var(--mod-line), 0 18px 36px -14px var(--mod-line); }
+a.mod-card:hover .mod-card-glow, a.mod-card:focus-visible .mod-card-glow { opacity: .75; transform: scale(1.15); }
+a.mod-card:hover .mod-card-icon { transform: scale(1.08) rotate(-4deg); }
+a.mod-card:hover .mod-card-cta, a.mod-card:focus-visible .mod-card-cta { gap: .75rem; background: var(--mod-ink); color: var(--mod-soft); }
+a.mod-card:active { transform: translateY(-1px) scale(.985); }
+.mod-card-off { opacity: .6; filter: saturate(.5); }
+/* «Próximamente»: la tarjeta conserva su color y lleva una cinta diagonal en la esquina superior derecha. */
+.mod-card-pronto { cursor: default; }
+/* «con IA»: píldora con destello que resalta dentro del título de la tarjeta, con los colores del módulo. */
+.mod-ia { display: inline-flex; align-items: center; gap: .25rem; vertical-align: .08em; padding: .08rem .55rem .1rem .45rem; border-radius: 9999px;
+  font-size: .8rem; font-weight: 700; line-height: 1.25; white-space: nowrap; background: var(--mod-ink); color: var(--mod-soft);
+  box-shadow: 0 1px 0 rgb(255 255 255 / .35) inset, 0 2px 6px -1px color-mix(in oklab, var(--mod-ink) 55%, transparent); }
+.mod-cinta { position: absolute; z-index: 2; top: 1.35rem; right: -2.7rem; width: 10.5rem; padding: .28rem 0; transform: rotate(45deg);
+  text-align: center; font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; line-height: 1.2;
+  background: var(--mod-ink); color: var(--mod-soft); box-shadow: 0 2px 6px rgb(0 0 0 / .28); pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .mod-card, .mod-card-glow, .mod-card-icon, .mod-card-cta { transition: none; }
+  a.mod-card:hover, a.mod-card:hover .mod-card-icon { transform: none; } }
+/* Ítem activo del menú lateral: pastel del módulo; en «Inicio» (sin módulo) cae al color de marca. */
+.nav-activo { background: var(--mod-soft, color-mix(in oklab, var(--color-primary) 10%, transparent)); color: var(--mod-ink, var(--p-text)); }
+/* Filete suave bajo la cabecera con el color del módulo activo */
+[data-modulo="reg"] > div > header, [data-modulo="tar"] > div > header, [data-modulo="jor"] > div > header { box-shadow: inset 0 -2px 0 var(--mod-line); }
+
+/* ── Cupertino: tipografía, superficies y controles ───────────────────── */
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter Variable", "Helvetica Neue", system-ui, sans-serif;
+}
+@layer base {
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  body { font-variant-numeric: tabular-nums; letter-spacing: -0.011em; }
+  h1, h2, h3 { letter-spacing: -0.022em; text-wrap: balance; }
+  :focus-visible { outline: 2px solid var(--p-text); outline-offset: 2px; }
+}
+/* Tarjetas: elevación por sombra (offset + desenfoque), sin borde. Va en @layer components para
+   que los utilitarios (ring-error, ring-warning, hover:ring-*) puedan componerse encima: el
+   --tw-shadow que declaramos aquí forma parte de su box-shadow. */
+:root, [data-theme="light"] {
+  --elev-1: 0 1px 2px rgb(0 0 0 / .06), 0 4px 12px -2px rgb(0 0 0 / .09);
+  --elev-2: 0 2px 4px rgb(0 0 0 / .06), 0 12px 28px -6px rgb(0 0 0 / .16);
+}
+[data-theme="dark"] {
+  /* sobre fondo casi negro la sombra no se ve: la superficie más clara + filete hacen la elevación */
+  --elev-1: 0 0 0 .5px rgb(255 255 255 / .09), 0 6px 18px -6px rgb(0 0 0 / .65);
+  --elev-2: 0 0 0 .5px rgb(255 255 255 / .14), 0 14px 32px -8px rgb(0 0 0 / .8);
+}
+@layer components {
+  .card {
+    border: 0;
+    --tw-shadow: var(--elev-1);
+    --tw-shadow-colored: var(--elev-1);
+    box-shadow: var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000),
+                var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  }
+  a.card { transition: box-shadow .2s ease, transform .2s ease; }
+  a.card:hover { --tw-shadow: var(--elev-2); --tw-shadow-colored: var(--elev-2); transform: translateY(-1px); }
+}
+/* Tablas: una superficie propia (como las tarjetas), no filas sueltas sobre el fondo de la página */
+@layer components {
+  .table-card { overflow-x: auto; border-radius: var(--radius-box); background: var(--color-base-100); box-shadow: var(--elev-1); }
+  /* Estado del registro en la fila (como en el proyecto de registros): franja izquierda de 4 px,
+     contorno fino y tinte suave en el color del estado. Verde = concluido, ámbar = parcial,
+     rojo = vacío. Los colores son los semánticos del tema, no el color de marca. */
+  .table tbody tr:is(.row-concluido, .row-parcial, .row-vacio) { border: 0; transition: background-color .2s ease; }
+  .table tbody tr.row-concluido { --estado: var(--color-success); }
+  .table tbody tr.row-parcial   { --estado: var(--color-warning); }
+  .table tbody tr.row-vacio     { --estado: var(--color-error); }
+  .table tbody tr:is(.row-concluido, .row-parcial, .row-vacio) {
+    box-shadow: inset 4px 0 0 var(--estado), 0 0 0 1px color-mix(in oklab, var(--estado) 25%, transparent);
+    background-color: color-mix(in oklab, var(--estado) 6%, var(--color-base-100));
+  }
+  .table tbody tr:is(.row-concluido, .row-parcial, .row-vacio):hover { background-color: color-mix(in oklab, var(--estado) 12%, var(--color-base-100)); }
+  .table-card .table :where(thead th) { background: color-mix(in oklab, var(--color-base-content) 4%, transparent); white-space: nowrap; }
+  .table-card .table :where(tbody tr:last-child) { border-bottom: 0; }
+}
+.table :where(thead th) { font-weight: 500; font-size: .75rem; color: color-mix(in oklab, var(--color-base-content) 70%, transparent); }
+.table :where(tbody tr) { border-color: color-mix(in oklab, var(--color-base-content) 8%, transparent); }
+/* Botones en píldora */
+.btn:not(.btn-outline) { border: 0; }
+.btn { border-radius: 9999px; font-weight: 500; letter-spacing: -0.011em; box-shadow: none; transition: transform .12s ease, background-color .15s, opacity .15s; }
+.btn:active { transform: scale(.97); }
+.btn-square { border-radius: 0.75rem; }
+/* Mapas de Registros (Leaflet): marcador circular con la letra del punto; el color llega por CSSOM (--pin) y el
+   lienzo crea su propio contexto de apilamiento para no pasar por encima de la cabecera ni de los menús. */
+.reg-mapa-lienzo { isolation: isolate; }
+/* Controles del mapa más pequeños que los de Leaflet (30 px en táctil). */
+.reg-mapa-lienzo.leaflet-touch .leaflet-control-zoom a { width: 26px; height: 26px; line-height: 26px; font-size: 16px; }
+.reg-mapa-pin {
+  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9999px;
+  background: var(--pin, var(--color-primary)); color: var(--pin-ink, #fff);
+  border: 2px solid #fff; box-shadow: 0 2px 4px rgb(0 0 0 / .4); font-size: 13px; font-weight: 700;
+}
+.leaflet-container { font-family: inherit; }
+
+/* Colores fijos de los estados de proyecto/obra. Ingeniería (violeta) y Construcción (azul) no usan los del tema:
+   el tema no trae violeta y `primary` lo reemplaza cada empresa por su color de marca. El estilo tintado de .badge
+   calcula fondo y texto desde --badge-color. */
+.badge-violeta { --badge-color: #7c3aed; }
+.badge-azul { --badge-color: #2563eb; }
+[data-theme="dark"] .badge-violeta { --badge-color: #a78bfa; }
+[data-theme="dark"] .badge-azul { --badge-color: #60a5fa; }
+/* Mismos colores para las barras del panel de Registros (barra de estados en SVG y puntos de la leyenda). */
+.bg-violeta { background-color: #7c3aed; }
+.bg-azul { background-color: #2563eb; }
+.fill-violeta { fill: #7c3aed; }
+.fill-azul { fill: #2563eb; }
+[data-theme="dark"] .bg-violeta { background-color: #a78bfa; }
+[data-theme="dark"] .bg-azul { background-color: #60a5fa; }
+[data-theme="dark"] .fill-violeta { fill: #a78bfa; }
+[data-theme="dark"] .fill-azul { fill: #60a5fa; }
+
+/* Tipo de proyecto: insignia solo con contorno, un tono pastel por tipo (ver TipoProyecto.color_idx). Sin rojos,
+   rosas ni naranjas: parecerían un problema. El contorno va en el pastel y el texto en un tono más oscuro de la misma
+   gama (el pastel puro no se lee sobre fondo claro). */
+/* Cada tono define dos variables (contorno pastel y texto más oscuro); las usan la insignia de contorno y el avatar. */
+/* Paleta elegida por distancia de color (CIELAB) y contraste: separa los tonos al máximo sin salir del pastel, y el
+   texto cumple ≥ 4,5:1 sobre el fondo del avatar. */
+.badge-tipo-0 { --tipo-borde: #67e8f9; --tipo-texto: #155e75; }   /* cian */
+.badge-tipo-1 { --tipo-borde: #93c5fd; --tipo-texto: #1e40af; }   /* azul */
+.badge-tipo-2 { --tipo-borde: #d8b4fe; --tipo-texto: #6b21a8; }   /* lavanda */
+.badge-tipo-3 { --tipo-borde: #bef264; --tipo-texto: #3f6212; }   /* lima */
+.badge-tipo-4 { --tipo-borde: #86efac; --tipo-texto: #166534; }   /* verde */
+.badge-tipo-5 { --tipo-borde: #d6d3d1; --tipo-texto: #44403c; }   /* piedra */
+[data-theme="dark"] .badge-tipo-0 { --tipo-texto: #a5f3fc; }
+[data-theme="dark"] .badge-tipo-1 { --tipo-texto: #bfdbfe; }
+[data-theme="dark"] .badge-tipo-2 { --tipo-texto: #e9d5ff; }
+[data-theme="dark"] .badge-tipo-3 { --tipo-texto: #d9f99d; }
+[data-theme="dark"] .badge-tipo-4 { --tipo-texto: #bbf7d0; }
+[data-theme="dark"] .badge-tipo-5 { --tipo-texto: #e7e5e4; }
+/* Roles: un color por rol, en el orden del espectro según la jerarquía (RACI): Coordinador (A) violeta → Ejecutor (R) azul
+   → Especialista (C) verde → Observador (I) gris. Colores distintos entre sí (ΔE ≥ 14, CIELAB), sin rojos ni naranjas.
+   Reutilizan las variables y reglas de los tipos. */
+.badge-rol-0 { --tipo-borde: #a78bfa; --tipo-texto: #4c1d95; }   /* violeta */
+.badge-rol-1 { --tipo-borde: #60a5fa; --tipo-texto: #1e3a8a; }   /* azul */
+.badge-rol-2 { --tipo-borde: #34d399; --tipo-texto: #064e3b; }   /* verde */
+.badge-rol-3 { --tipo-borde: #d6d3d1; --tipo-texto: #44403c; }   /* gris */
+[data-theme="dark"] .badge-rol-0 { --tipo-texto: #ddd6fe; }
+[data-theme="dark"] .badge-rol-1 { --tipo-texto: #dbeafe; }
+[data-theme="dark"] .badge-rol-2 { --tipo-texto: #d1fae5; }
+[data-theme="dark"] .badge-rol-3 { --tipo-texto: #e7e5e4; }
+/* Tono del avatar dentro del color de su rol base: cargos distintos del mismo nivel se distinguen por intensidad, no por color. */
+.tono-0 { --tipo-relleno: 14%; --tipo-contorno: 30%; --tipo-ancho: 1px; }
+.tono-1 { --tipo-relleno: 32%; --tipo-contorno: 60%; --tipo-ancho: 2px; }
+.tono-2 { --tipo-relleno: 52%; --tipo-contorno: 85%; --tipo-ancho: 3px; }
+.tono-3 { --tipo-relleno: 70%; --tipo-contorno: 100%; --tipo-ancho: 4px; }
+/* Fila de tabla distinguida por su tipo solo con una franja fina a la izquierda (sin pintar la fila). Va junto a `.badge-tipo-N`. */
+.fila-tipo > td:first-child { box-shadow: inset 3px 0 0 var(--tipo-borde); }
+.badge-outline[class*="badge-tipo-"], .badge-outline[class*="badge-rol-"] { border-color: var(--tipo-borde); color: var(--tipo-texto); }
+.select[class*="badge-rol-"] { border-color: var(--tipo-borde); border-width: 2px; }
+
+/* Tabla con encabezado fijo dentro de un contenedor con scroll: el fondo debe ser opaco para tapar las filas. */
+.tabla-fija thead th { position: sticky; top: 0; z-index: 1; background: color-mix(in oklab, var(--color-base-content) 4%, var(--color-base-100)); }
+
+/* iOS amplía la página al enfocar un campo con letra < 16 px: en pantallas angostas los campos usan 16 px. */
+@media (max-width: 639px) {
+  .input, .select, .textarea { font-size: 16px; }
+}
+
+/* Iniciales de la persona en listas (usuarios): círculo tintado con el color de marca. */
+.avatar-iniciales { display: grid; place-items: center; flex: none; width: 2.25rem; height: 2.25rem; border-radius: 9999px;
+  font-size: .8125rem; font-weight: 600; background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  color: var(--p-text, var(--color-primary)); }
+/* Con un tono (misma paleta que las insignias de contorno): el avatar de una persona toma el color de su rol base. */
+.avatar-iniciales[class*="badge-tipo-"], .avatar-iniciales[class*="badge-rol-"] { background: color-mix(in oklab, var(--tipo-borde) var(--tipo-relleno, 40%), transparent); color: var(--tipo-texto);
+  box-shadow: inset 0 0 0 var(--tipo-ancho, 2px) color-mix(in oklab, var(--tipo-borde) var(--tipo-contorno, 60%), transparent); }
+
+/* Botones fantasma con texto (Tipos, Cancelar, Volver…): contorno visible para que no parezcan texto suelto.
+   Los de solo icono (square/circle) y los desplegables de la cabecera (summary) siguen sin borde. */
+.btn-ghost:not(.btn-square):not(.btn-circle):not(summary) {
+  box-shadow: 0 0 0 1px color-mix(in oklab, currentColor 28%, transparent);
+}
+.btn-ghost:not(.btn-square):not(.btn-circle):not(summary):hover {
+  box-shadow: 0 0 0 1px color-mix(in oklab, currentColor 45%, transparent);
+}
+
+/* Control segmentado (estilo iOS): pista gris suave con las opciones dentro; la activa es una píldora blanca con sombra.
+   Hijos directos: <a> o <button>. Activo: aria-current o aria-pressed="true". La sombra queda dentro de la pista
+   (que hace su propio scroll), así que nunca se recorta. */
+.segmentado {
+  display: inline-flex; flex-shrink: 0; align-self: flex-start; gap: 2px; padding: 2px; max-width: 100%;
+  overflow-x: auto; scrollbar-width: none; border-radius: 9999px;
+  background: color-mix(in oklab, var(--color-base-content) 8%, transparent);
+}
+.segmentado::-webkit-scrollbar { display: none; }
+.segmentado > * {
+  display: inline-flex; flex: none; align-items: center; gap: .375rem; min-height: 2rem; padding: 0 .875rem;
+  white-space: nowrap; border-radius: 9999px; font-size: .8125rem; font-weight: 500; cursor: pointer;
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+  transition: background-color .15s, color .15s, box-shadow .15s;
+}
+.segmentado > *:hover { color: var(--color-base-content); }
+.segmentado > :is([aria-current], [aria-pressed="true"]) {
+  background: var(--color-base-100); color: var(--p-text); font-weight: 600;
+  box-shadow: 0 1px 3px rgb(0 0 0 / .12), 0 0 0 .5px rgb(0 0 0 / .04);
+}
+.segmentado > :focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+/* Sobre el mapa de Leaflet: fondo semitransparente para que se lea. */
+.leaflet-control.segmentado {
+  background: color-mix(in oklab, var(--color-base-100) 88%, transparent);
+  backdrop-filter: blur(6px); box-shadow: 0 1px 4px rgb(0 0 0 / .2);
+}
+
+/* Botón neutro (sin variante): relieve propio, o se pierde sobre el fondo gris de la página */
+.btn:not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-neutral):not(.btn-info):not(.btn-success):not(.btn-warning):not(.btn-error):not(.btn-ghost):not(.btn-outline):not(.btn-link):not(.btn-soft):not(.btn-dash):not(.tactil-fijo) {
+  --btn-bg: var(--color-base-100);
+  box-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 0 0 1px color-mix(in oklab, var(--color-base-content) 10%, transparent);
+}
+/* Campos: relleno gris sin borde, anillo al enfocar */
+.input, .select, .textarea {
+  background: color-mix(in oklab, var(--color-base-content) 6%, transparent);
+  border-color: transparent; box-shadow: none;
+}
+/* La lista nativa de un <select> hereda el relleno translúcido: darle fondo sólido */
+.select option, .select optgroup { background-color: var(--color-base-100); color: var(--color-base-content); }
+.input:focus, .input:focus-within, .select:focus, .textarea:focus {
+  background: var(--color-base-100);
+  border-color: var(--p-text);
+  outline: 3px solid color-mix(in oklab, var(--p-text) 25%, transparent); outline-offset: 0;
+}
+/* Insignias tintadas y suaves (estilo iOS) */
+.badge:not(.badge-ghost):not(.badge-outline) {
+  --b: var(--badge-color, var(--color-base-content));
+  border: 0; font-weight: 500;
+  background: color-mix(in oklab, var(--b) 14%, transparent);
+  color: color-mix(in oklab, var(--b) 85%, var(--color-base-content));
+}
+/* Interruptores en el color de marca */
+/* @tailwindcss/forms pinta un tick nativo en los checkbox marcados: el toggle de daisyUI dibuja su propia perilla */
+.toggle, .toggle:checked, .toggle:indeterminate { background-image: none; }
+.toggle:checked, .toggle[aria-checked="true"] { --input-color: var(--color-primary); color: var(--color-primary); }
+/* Menús flotantes: fondo sólido (el vidrio dejaba ver las cards de atrás) */
+.dropdown-content, .menu.dropdown-content, .modal-box {
+  background: var(--color-base-100);
+  box-shadow: 0 16px 40px -8px rgb(0 0 0 / .22), 0 0 0 .5px rgb(0 0 0 / .1);
+  border-radius: 1rem;
+}
+/* Táctil (obra, guantes): objetivos de al menos 44 px */
+@media (pointer: coarse) {
+  .btn-sm, .btn-xs { min-height: 2.75rem; }
+  .btn-sm.btn-square, .btn-xs.btn-square { min-width: 2.75rem; }
+  .menu :where(li > a, li > button, li > summary) { min-height: 2.75rem; }
+  /* Excepción deliberada para botones de herramientas de barras densas (Tipos, Nuevo): 36 px en vez de 44. */
+  .btn-sm.btn-compacto { min-height: 2.25rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition-duration: 0s !important; animation-duration: 0s !important; } }
+
+/* Registros · pasos como app móvil: título a la izquierda, primer botón en una columna central unida por una línea
+   vertical y el resto de botones a la derecha (≥ 56 px, táctiles). El color del botón indica el estado. */
+.paso-linea { list-style: none; margin: 0; padding: 0; }
+/* Formularios de los pasos en el celular: 16 px evita el zoom de iOS al enfocar y 48 px es un blanco táctil cómodo */
+@media (max-width: 40rem) {
+  .reg-paso :is(.input, .select, .textarea) { font-size: 1rem; min-height: 3rem; }
+  .reg-paso .textarea { min-height: 6rem; }
+  .reg-paso .toggle { --size: 1.75rem; }
+}
+
+/* Botones con aspecto de tecla (lo que se aprieta): borde inferior más oscuro que se «hunde» al presionar.
+   En el celular el feedback es inmediato (sin retardo de doble toque ni resaltado del navegador). */
+.btn-tactil {
+  --tecla: color-mix(in oklab, var(--btn-bg, #64748b) 60%, black);
+  --canto: 4px;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
+  /* Volumen: degradado convexo (luz arriba, sombra abajo) sobre el color del botón */
+  background-image: linear-gradient(to bottom, rgb(255 255 255 / .30), rgb(255 255 255 / 0) 52%, rgb(0 0 0 / .10));
+  box-shadow:
+    inset 0 1.5px 0 rgb(255 255 255 / .45), inset 0 -2px 0 rgb(0 0 0 / .12),   /* biseles interiores */
+    0 var(--canto) 0 var(--tecla),                                               /* canto de la tecla */
+    0 10px 16px -6px color-mix(in oklab, var(--btn-bg, #64748b) 70%, transparent), /* sombra teñida */
+    0 3px 5px rgb(0 0 0 / .16), 0 0 0 1px rgb(0 0 0 / .06);                       /* contacto y contorno */
+  transition: transform .1s ease, box-shadow .1s ease;
+}
+@media (hover: hover) { .btn-tactil:hover { --canto: 5px; transform: translateY(-1px); } }
+.btn-tactil:active {
+  --canto: 1px; transform: translateY(3px);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .25), inset 0 -1px 0 rgb(0 0 0 / .1),
+              0 var(--canto) 0 var(--tecla), 0 2px 4px rgb(0 0 0 / .25), 0 0 0 1px rgb(0 0 0 / .06);
+}
+.btn-tactil:focus-visible {
+  outline: none;
+  box-shadow: inset 0 1.5px 0 rgb(255 255 255 / .45), inset 0 -2px 0 rgb(0 0 0 / .12), 0 var(--canto) 0 var(--tecla),
+              0 0 0 4px color-mix(in oklab, var(--btn-bg, #64748b) 35%, transparent);
+}
+@media (prefers-reduced-motion: reduce) { .btn-tactil, .btn-tactil:hover, .btn-tactil:active { transform: none; transition: box-shadow .1s ease; } }
+.btn-tactil.btn-outline, .btn-tactil.btn-soft { --tecla: color-mix(in oklab, var(--color-base-content) 28%, transparent); background-image: none; }
+[data-theme="dark"] .btn-tactil:not(.tactil-fijo) {
+  --tecla: color-mix(in oklab, var(--btn-bg, #64748b) 45%, black);
+  background-image: linear-gradient(to bottom, rgb(255 255 255 / .18), rgb(255 255 255 / 0) 52%, rgb(0 0 0 / .18));
+  box-shadow: inset 0 1.5px 0 rgb(255 255 255 / .25), inset 0 -2px 0 rgb(0 0 0 / .25), 0 var(--canto) 0 var(--tecla),
+              0 10px 18px -6px rgb(0 0 0 / .7), 0 3px 6px rgb(0 0 0 / .45), 0 0 0 1px rgb(255 255 255 / .08);
+}
+[data-theme="dark"] .btn-tactil:not(.tactil-fijo):active { box-shadow: inset 0 1px 0 rgb(255 255 255 / .18), 0 var(--canto) 0 var(--tecla), 0 2px 4px rgb(0 0 0 / .5); }
+.btn-tactil.btn-soft.btn-error { --tecla: color-mix(in oklab, var(--color-error) 45%, transparent); }
+/* Interruptor apagado en oscuro: pista transparente con borde y perilla gris (no una píldora blanca) */
+[data-theme="dark"] .toggle:not(:checked) { color: color-mix(in oklab, white 55%, transparent); background-color: transparent; }
+/* «Concluido» y similares: el interruptor encendido es verde (la regla general de .toggle:checked lo pinta de azul) */
+.toggle.toggle-success:checked, .toggle.toggle-success[aria-checked="true"] { --input-color: var(--color-success); color: var(--color-success); }
+[data-theme="dark"] .toggle.toggle-success:checked { --input-color: #16a34a; color: #16a34a; }
+
+/* ── Mensajería (panel lateral) ───────────────────────────────────────────────────────────────── */
+.msj-avatar { display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; flex: none; border-radius: 9999px;
+  font-size: .75rem; font-weight: 600; background: color-mix(in oklab, var(--color-base-content) 12%, transparent); }
+.msj-avatar-general { background: color-mix(in oklab, var(--color-primary) 18%, transparent); color: var(--color-primary); }
+.msj-avatar-proyecto { background: color-mix(in oklab, var(--color-secondary) 18%, transparent); color: var(--color-secondary); }
+.mencion { font-weight: 600; border-radius: .25rem; padding: 0 .25rem; background: color-mix(in oklab, currentColor 18%, transparent); }

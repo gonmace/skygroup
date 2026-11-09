@@ -1,0 +1,83 @@
+{% extends "shell.html" %}
+{% block page_title %}Equipo{% endblock %}
+{# Página de altura fija como Usuarios: la barra queda quieta y solo la tabla (o la lista de tarjetas en móvil) hace scroll. #}
+{% block main_class %}flex flex-col overflow-hidden{% endblock %}
+{% block wrap_class %}flex min-h-0 w-full flex-1 flex-col{% endblock %}
+{% block content_main %}
+<div class="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+  <p class="text-sm text-base-content/70">
+    <span class="font-semibold tabular-nums text-success">{{ en_curso }}</span> activo{{ en_curso|pluralize }} ·
+    <span class="font-semibold tabular-nums">{{ completadas }}</span> completado{{ completadas|pluralize }}{% if es_hoy %} hoy{% endif %} ·
+    <span class="font-semibold tabular-nums">{{ total_usuarios }}</span> usuario{{ total_usuarios|pluralize }} ·
+    <span class="font-semibold tabular-nums">{{ actividades }}</span> actividad{{ actividades|pluralize:",es" }}
+    <span class="hidden text-base-content/50 sm:inline">· {{ con_jornada }} con jornada el {{ dia|date:"d/m/Y" }}</span>
+  </p>
+  <div class="flex items-center gap-1">
+    <a href="?fecha={{ anterior|date:'Y-m-d' }}{{ orden_qs }}" class="btn btn-ghost btn-md btn-square sm:btn-sm" aria-label="Día anterior">{% include "components/icon.html" with name="chevron-left" cls="size-5" %}</a>
+    <form method="get">{% if orden_qs %}<input type="hidden" name="orden" value="{{ request.GET.orden }}"><input type="hidden" name="dir" value="{{ request.GET.dir }}">{% endif %}<input type="date" name="fecha" value="{{ dia|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" class="input input-bordered input-md w-44 sm:input-sm sm:w-40" data-autoenviar-select aria-label="Fecha"></form>
+    {% if siguiente %}<a href="?fecha={{ siguiente|date:'Y-m-d' }}{{ orden_qs }}" class="btn btn-ghost btn-md btn-square sm:btn-sm" aria-label="Día siguiente"><span class="inline-block rotate-180">{% include "components/icon.html" with name="chevron-left" cls="size-5" %}</span></a>{% endif %}
+    {% if not es_hoy %}<a href="{% url 'jor_diario:equipo' %}" class="btn btn-ghost btn-md sm:btn-sm">Hoy</a>{% endif %}
+  </div>
+</div>
+{% if ultimo_con_datos %}<div class="mb-3 shrink-0 rounded-box bg-base-100 p-3 text-sm shadow-sm">No hay jornadas el {{ dia|date:"d/m/Y" }}. <a class="link" href="?fecha={{ ultimo_con_datos|date:'Y-m-d' }}">Ver el último día con datos ({{ ultimo_con_datos|date:"d/m/Y" }})</a></div>{% endif %}
+
+{# Móvil: tarjetas; la tabla de 10 columnas obliga a desplazarse de lado #}
+<div class="flex min-h-0 flex-1 flex-col md:hidden">
+  <ul class="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
+    {% for f in filas %}
+    <li class="rounded-box bg-base-100 p-3 shadow-sm {% if f.perfil and not f.perfil.activo %}opacity-60{% endif %}">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex min-w-0 items-center gap-3">
+          <span class="avatar-iniciales badge-rol-{{ f.m.rol.jerarquia }} tono-{{ f.m.rol.tono }}" aria-hidden="true">{{ f.m.user.iniciales }}</span>
+          <div class="min-w-0">
+            <a class="block truncate font-medium" href="{% url 'jor_diario:persona' f.m.pk %}">{{ f.m.user }}</a>
+            <div class="truncate text-xs text-base-content/60">{{ f.perfil.cargo_completo|default:f.m.user.email }}</div>
+          </div>
+        </div>
+        {% include "jor_diario/_estado_jornada.html" %}
+      </div>
+      <div class="mt-2 grid grid-cols-3 gap-2 text-center text-sm tabular-nums">
+        <div><div class="text-xs text-base-content/60">Inicio</div>{% if f.jornada %}{{ f.jornada.inicio|date:"H:i" }}{% else %}—{% endif %}</div>
+        <div><div class="text-xs text-base-content/60">Fin</div><span class="{% if f.jornada.fin %}text-success{% endif %}">{% if f.jornada.fin %}{{ f.jornada.fin|date:"H:i" }}{% else %}—{% endif %}</span></div>
+        <div><div class="text-xs text-base-content/60">Duración</div><span class="{% if f.jornada.fin %}text-success{% endif %}">{{ f.duracion|default:"—" }}</span></div>
+      </div>
+      {% if f.hizo or f.planes %}<dl class="mt-2 space-y-1 text-sm">
+        {% if f.hizo %}<div><dt class="inline text-xs text-base-content/60">Realizado: </dt><dd class="inline">{{ f.hizo }}</dd></div>{% endif %}
+        {% if f.planes %}<div><dt class="inline text-xs text-base-content/60">Planificado: </dt><dd class="inline">{{ f.planes }}</dd></div>{% endif %}
+      </dl>{% endif %}
+      <div class="mt-2 flex items-center justify-between gap-1 border-t border-base-content/10 pt-2">
+        {% if puede_perfiles and f.perfil %}<form method="post" action="{% url 'jor_empleados:perfil_reporte' f.m.pk %}" class="flex items-center gap-2 text-xs text-base-content/60">{% csrf_token %}
+          <input type="checkbox" class="toggle toggle-success" {% if f.perfil.exige_reporte %}checked{% endif %} data-autoenviar="{% if f.perfil.exige_reporte %}¿Dejar de exigir el reporte diario a {{ f.m.user|escapejs }}?{% else %}¿Exigir el reporte diario (Realizado y Planificado) a {{ f.m.user|escapejs }}?{% endif %}" aria-label="Reporte obligatorio de {{ f.m.user }}"> Reporte obligatorio
+        </form>{% else %}<span></span>{% endif %}
+        <div class="flex gap-1">{% include "jor_diario/_acciones_equipo.html" with btn="" %}</div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+
+<div class="table-card hidden min-h-0 overflow-auto md:block">
+  <table class="table tabla-fija">
+    <thead><tr><th><div class="flex items-center gap-3">{% for c in cabeceras %}<a href="{{ c.url }}" class="inline-flex items-center gap-1 hover:text-base-content {% if c.activa %}text-base-content{% endif %}" title="Ordenar por {{ c.titulo|lower }}"{% if c.activa %} aria-sort="{% if c.desc %}descending{% else %}ascending{% endif %}"{% endif %}>{{ c.titulo }}<span aria-hidden="true" class="text-[0.7em] {% if not c.activa %}opacity-30{% endif %}">{% if c.desc %}▼{% elif c.activa %}▲{% else %}↕{% endif %}</span></a>{% endfor %}</div></th><th class="text-center">Jornada</th><th>Inicio</th><th>Fin</th><th>Duración</th>{% if puede_perfiles %}<th class="text-center">Reporte obligatorio</th>{% endif %}<th>Realizado</th><th>Planificado</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+    <tbody>
+    {% for f in filas %}
+      <tr class="hover {% if f.perfil and not f.perfil.activo %}opacity-60{% endif %}">
+        <td><div class="flex items-center gap-3"><span class="avatar-iniciales badge-rol-{{ f.m.rol.jerarquia }} tono-{{ f.m.rol.tono }}" aria-hidden="true">{{ f.m.user.iniciales }}</span><div class="min-w-0 max-w-[13rem]"><a class="block truncate font-medium hover:underline" href="{% url 'jor_diario:persona' f.m.pk %}" title="{{ f.m.user }}">{{ f.m.user }}</a><div class="truncate text-xs text-base-content/60" title="{{ f.perfil.cargo_completo|default:f.m.user.email }}">{{ f.perfil.cargo_completo|default:f.m.user.email }}</div></div></div></td>
+        <td class="text-center">{% include "jor_diario/_estado_jornada.html" %}</td>
+        <td class="tabular-nums">{% if f.jornada %}{{ f.jornada.inicio|date:"H:i" }}{% else %}—{% endif %}</td>
+        <td class="tabular-nums {% if f.jornada.fin %}text-success{% endif %}">{% if f.jornada.fin %}{{ f.jornada.fin|date:"H:i" }}{% else %}—{% endif %}</td>
+        <td class="tabular-nums {% if f.jornada.fin %}text-success{% endif %}">{{ f.duracion|default:"—" }}</td>
+        {% if puede_perfiles %}<td class="text-center">
+          {% if f.perfil %}<form method="post" action="{% url 'jor_empleados:perfil_reporte' f.m.pk %}">{% csrf_token %}
+            <input type="checkbox" class="toggle toggle-success toggle-sm" {% if f.perfil.exige_reporte %}checked{% endif %} data-autoenviar="{% if f.perfil.exige_reporte %}¿Dejar de exigir el reporte diario a {{ f.m.user|escapejs }}?{% else %}¿Exigir el reporte diario (Realizado y Planificado) a {{ f.m.user|escapejs }}?{% endif %}" aria-label="Reporte obligatorio de {{ f.m.user }}">
+          </form>{% endif %}
+        </td>{% endif %}
+        <td class="max-w-48 truncate text-sm" title="{{ f.hizo }}">{{ f.hizo|default:"—" }}</td>
+        <td class="max-w-48 truncate text-sm" title="{{ f.planes }}">{{ f.planes|default:"—" }}</td>
+        <td class="text-right whitespace-nowrap">{% include "jor_diario/_acciones_equipo.html" with btn="btn-sm" %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "shell.html" %}
+{% block page_title %}Administradores{% endblock %}
+{% block content_main %}
+<p class="mb-4 max-w-3xl text-sm text-base-content/70">Los <strong>superusuarios</strong> administran toda la plataforma. Los <strong>administradores</strong> gestionan miembros, cargos, marca, contratistas y proyectos de las empresas que les asignes, aunque no sean miembros. Esto es independiente de los cargos y niveles de acceso de cada empresa.</p>
+<div class="mb-4 flex justify-end">
+  <a href="{% url 'panel:administrador_nuevo' %}" class="btn btn-primary btn-sm">{% include "components/icon.html" with name="plus" cls="size-4" %} Nuevo administrador</a>
+</div>
+<div class="table-card">
+  <table class="table">
+    <thead><tr><th>Persona</th><th>Tipo</th><th>Empresas</th><th></th></tr></thead>
+    <tbody>
+    {% for u in lista %}
+      <tr>
+        <td><div class="font-medium">{{ u.get_full_name|default:u.email }}{% if not u.is_active %} <span class="badge badge-error badge-sm">Bloqueado</span>{% endif %}</div><div class="text-xs text-base-content/60">{{ u.email }}</div></td>
+        <td>{% if u.is_superuser %}<span class="badge badge-primary badge-sm">Superusuario</span>{% else %}<span class="badge badge-ghost badge-sm">Administrador</span>{% endif %}</td>
+        <td>{% if u.is_superuser %}<span class="text-base-content/60">Todas</span>{% else %}{% for e in u.empresas_administradas.all %}{{ e.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</td>
+        <td class="text-right whitespace-nowrap">
+          {% if request.user.is_superuser and not request.impersonador and u.is_active and not u.is_superuser %}
+          <form method="post" action="{% url 'cuentas:impersonar' u.pk %}" class="inline">{% csrf_token %}
+            <button type="submit" class="btn btn-ghost btn-square btn-sm text-accent hover:bg-accent/10" title="Ver como {{ u.email }}" aria-label="Ver la aplicación como {{ u.email }}">{% include "components/icon.html" with name="user-switch" cls="size-5" %}</button>
+          </form>
+          {% endif %}
+          <a class="btn btn-ghost btn-square btn-sm text-primary-text hover:bg-primary/10" title="Editar" aria-label="Editar a {{ u.email }}" href="{% url 'panel:administrador_editar' u.pk %}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+          {% if u.pk != request.user.pk %}
+          <form method="post" action="{% url 'panel:administrador_quitar' u.pk %}" class="inline" data-confirmar="¿Quitar a {{ u.email }} como administrador? La cuenta y sus membresías no se tocan.">{% csrf_token %}
+            <button type="submit" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Quitar administrador" aria-label="Quitar administrador a {{ u.email }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="text-center text-base-content/60">Aún no hay administradores.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

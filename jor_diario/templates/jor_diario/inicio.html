@@ -1,0 +1,92 @@
+{% extends "shell.html" %}
+{% load static jor_extras %}
+{% block page_title %}Mi jornada{% endblock %}
+{% block content_main %}
+{% if not perfil %}
+  <div class="alert alert-info">Eres administrador de la plataforma sin membresía en esta empresa: no tienes jornada propia. Revisa el <a class="link" href="{% url 'jor_diario:equipo' %}">equipo</a>.</div>
+{% else %}
+{# Estado de la jornada de hoy, lo primero que se ve al entrar. #}
+<section class="mb-4 flex flex-wrap items-center gap-4 rounded-2xl border p-4 {% if estado_hoy == 'en_curso' %}border-success/40 bg-success/10{% elif estado_hoy == 'cerrada' %}border-base-content/15 bg-base-100{% else %}border-warning/50 bg-warning/10{% endif %}" role="status" aria-live="polite">
+  <span class="relative flex size-4 shrink-0" aria-hidden="true">
+    {% if estado_hoy == 'en_curso' %}<span class="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60 motion-reduce:animate-none"></span><span class="relative inline-flex size-4 rounded-full bg-success"></span>
+    {% elif estado_hoy == 'cerrada' %}<span class="relative inline-flex size-4 rounded-full bg-base-content/40"></span>
+    {% else %}<span class="relative inline-flex size-4 rounded-full bg-warning"></span>{% endif %}
+  </span>
+  <div class="min-w-0">
+    {% if estado_hoy == 'en_curso' %}
+      <p class="text-lg font-semibold">Jornada en curso</p>
+      <p class="text-sm text-base-content/70">Iniciada a las <strong>{{ jornada_hoy.inicio|date:"H:i" }}</strong>{% if jornada_hoy.proyecto %} · {{ jornada_hoy.proyecto.nombre }}{% endif %} · lleva <strong data-jor-reloj="{{ jornada_hoy.inicio|date:'c' }}"></strong></p>
+    {% elif estado_hoy == 'cerrada' %}
+      <p class="text-lg font-semibold">Jornada cerrada{% if jornada_hoy.cierre_auto %} <span class="badge badge-warning badge-sm align-middle">cierre automático</span>{% endif %}</p>
+      <p class="text-sm text-base-content/70">{{ jornada_hoy.inicio|date:"H:i" }} → {{ jornada_hoy.fin|date:"H:i" }}{% if jornada_hoy.duracion_min %} · {{ jornada_hoy.duracion_min|horas_min }} trabajadas{% endif %}</p>
+    {% else %}
+      <p class="text-lg font-semibold">Aún no has iniciado tu jornada</p>
+      <p class="text-sm text-base-content/70">Inícala abajo para empezar a registrar tu tiempo.</p>
+    {% endif %}
+  </div>
+</section>
+<div class="grid gap-4 lg:grid-cols-3">
+  <div class="card bg-base-100 lg:col-span-2"><div class="card-body gap-4" data-marcar-raiz
+       data-url-desafio="{% url 'jor_diario:desafio' %}" data-url-opciones="{% url 'jor_diario:vincular_opciones' %}" data-url-vincular="{% url 'jor_diario:vincular' %}">
+    <div class="alert alert-error hidden text-sm" role="alert" data-marcar-error></div>
+    {% if not es_movil %}
+      <div class="alert alert-warning text-sm" role="status">
+        <div>
+          <p class="font-medium">La jornada se marca desde tu celular.</p>
+          <p>Abre esta misma página en el celular vinculado: <span class="font-mono break-all">{{ url_marcar }}</span></p>
+        </div>
+      </div>
+    {% elif not dispositivo %}
+      <div class="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
+        <p class="font-medium">Vincula este celular para marcar tu jornada.</p>
+        <p class="mb-3 text-base-content/70">Se confirma con tu huella o el PIN del teléfono; no se envía ningún dato biométrico. Solo puedes tener un celular vinculado.</p>
+        <button type="button" class="btn btn-primary btn-sm" data-vincular>Vincular este celular</button>
+      </div>
+    {% elif not sede or not sede.tiene_geocerca %}
+      <div class="alert alert-info text-sm" role="status">Tu sede aún no tiene ubicación configurada: tu marcación quedará pendiente de aprobación.</div>
+    {% endif %}
+    {% if en_curso %}
+      <div class="flex flex-wrap items-center gap-3">
+        <span class="badge badge-success gap-1">● En curso</span>
+        <p class="text-sm">Iniciada a las <strong>{{ en_curso.inicio|date:"H:i" }}</strong> del {{ en_curso.inicio|date:"d/m/Y" }}{% if en_curso.proyecto %} · {{ en_curso.proyecto.nombre }}{% endif %}.</p>
+        {% if en_curso.estado_verificacion == 'excepcion_pendiente' %}<span class="badge badge-warning badge-sm">Pendiente de aprobación</span>{% endif %}
+      </div>
+      <form method="post" action="{% url 'jor_diario:finalizar' %}" data-marcar data-confirmar-marcar="¿Finalizar la jornada?" class="space-y-3">
+        {% csrf_token %}
+        <input type="hidden" name="jornada" value="{{ en_curso.pk }}">
+        <div><label class="mb-1 block text-sm font-medium">{{ form.realizado.label }}{% if exige_reporte %} *{% endif %}</label>{{ form.realizado }}</div>
+        <div><label class="mb-1 block text-sm font-medium">{{ form.planificado.label }}{% if exige_reporte %} *{% endif %}</label>{{ form.planificado }}</div>
+        <button type="submit" class="btn btn-error" {% if not es_movil or not dispositivo %}disabled{% endif %}>Finalizar jornada</button>
+      </form>
+    {% else %}
+      <p class="text-sm text-base-content/70">No tienes una jornada activa.</p>
+      <form method="post" action="{% url 'jor_diario:iniciar' %}" data-marcar class="space-y-3">
+        {% csrf_token %}
+        <div class="flex flex-wrap items-end gap-3">
+          {% if proyectos %}
+            <div><label class="mb-1 block text-sm font-medium" for="proyecto">{{ termino_proyecto }} (opcional)</label>
+              <select id="proyecto" name="proyecto" class="select select-bordered"><option value="">—</option>{% for p in proyectos %}<option value="{{ p.pk }}">{{ p.nombre }}</option>{% endfor %}</select></div>
+          {% endif %}
+          <button type="submit" class="btn btn-primary" {% if not es_movil or not dispositivo %}disabled{% endif %}>Iniciar jornada</button>
+        </div>
+        {# Solo aparece cuando la ubicación no valida y la persona puede pedir una excepción. #}
+        <div class="hidden" data-motivo>
+          <label class="mb-1 block text-sm font-medium" for="motivo">Motivo (estás fuera de la sede)</label>
+          <input id="motivo" name="motivo" maxlength="300" class="input input-bordered w-full" placeholder="Ej.: visita a terreno, reunión con el cliente">
+          <p class="mt-1 text-xs text-base-content/60">Tu coordinador deberá aprobarla para que las horas cuenten.</p>
+        </div>
+      </form>
+    {% endif %}
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-2">
+    <h2 class="font-semibold">Hoy</h2>
+    {% for j in hoy %}
+      <div class="flex items-center justify-between text-sm"><span>{{ j.inicio|date:"H:i" }} → {% if j.fin %}{{ j.fin|date:"H:i" }}{% else %}…{% endif %}</span>
+        <span class="flex gap-1">{% if j.estado_verificacion == 'excepcion_pendiente' %}<span class="badge badge-warning badge-sm">Pendiente</span>{% elif j.estado_verificacion == 'rechazada' %}<span class="badge badge-error badge-sm">Rechazada</span>{% endif %}<span class="badge badge-outline badge-sm">{{ j.get_estado_display }}</span></span></div>
+    {% empty %}<p class="text-sm text-base-content/50">Aún no hay jornadas hoy.</p>{% endfor %}
+  </div></div>
+</div>
+<script src="{% static 'js/jor-passkey.js' %}" defer></script>
+<script src="{% static 'js/jor-reloj.js' %}" defer></script>
+{% endif %}
+{% endblock %}

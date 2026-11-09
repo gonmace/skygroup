@@ -1,0 +1,145 @@
+{% extends "shell.html" %}
+{% block page_title %}Resumen{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div class="flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h2 class="text-2xl font-semibold tracking-tight">Hola, {{ request.user.first_name|default:request.user.email }}</h2>
+    <p class="text-sm text-base-content/60">{{ hoy|date:"l j \d\e F \d\e Y" }} · Semana {{ hoy|date:"W" }}{% if not laboral %} · día no laboral{% endif %}</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    {% if puede_ver_equipo %}<a href="{% url 'jor_diario:equipo' %}" class="btn btn-sm btn-primary">{% include "components/icon.html" with name="users" cls="size-4" %} Ver equipo</a>{% endif %}
+    {% if puede_aprobar %}<a href="{% url 'jor_diario:ausencias' %}" class="btn btn-sm">{% include "components/icon.html" with name="calendar-off" cls="size-4" %} Ausencias</a>{% endif %}
+  </div>
+</div>
+
+{% if not total %}
+<section class="card bg-base-100"><div class="card-body items-center p-8 text-center">
+  <h2 class="text-lg font-semibold">Aún no hay personas que fichen</h2>
+  <p class="max-w-md text-sm text-base-content/60">Cuando el equipo empiece a registrar jornadas, aquí verás quién está trabajando, las horas y las ausencias.</p>
+</div></section>
+{% else %}
+<div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="user-check" cls="size-4" %} Presentes hoy</div>
+    <p class="text-3xl font-semibold tabular-nums">{{ kpis.presentes }}<span class="text-base text-base-content/50">/{{ total }}</span></p>
+    <p class="text-xs text-base-content/60">{{ kpis.en_curso }} en curso · {{ kpis.termino }} terminaron · {{ kpis.ausentes }} ausente{{ kpis.ausentes|pluralize }}</p>
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="clock" cls="size-4" %} Sin iniciar</div>
+    <p class="text-3xl font-semibold tabular-nums {% if kpis.sin_iniciar %}text-warning{% else %}text-success{% endif %}">{{ kpis.sin_iniciar }}</p>
+    <p class="text-xs text-base-content/60">{% if laboral %}{{ kpis.sin_cerrar }} jornada{{ kpis.sin_cerrar|pluralize }} cerrada{{ kpis.sin_cerrar|pluralize }} sola{{ kpis.sin_cerrar|pluralize }} en 30 d{% else %}Hoy no es día laboral{% endif %}</p>
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="chart" cls="size-4" %} Horas · últimos 30 días</div>
+    <p class="text-3xl font-semibold tabular-nums">{{ kpis.horas_30 }}</p>
+    <p class="text-xs">
+      {% if kpis.delta_horas is None %}<span class="text-base-content/60">Sin horas en los 30 días previos</span>
+      {% elif kpis.delta_horas > 0 %}<span class="text-success">▲ +{{ kpis.delta_horas }}%</span> <span class="text-base-content/60">vs. 30 días previos</span>
+      {% elif kpis.delta_horas < 0 %}<span class="text-error">▼ {{ kpis.delta_horas }}%</span> <span class="text-base-content/60">vs. 30 días previos</span>
+      {% else %}<span class="text-base-content/60">Igual que los 30 días previos</span>{% endif %}
+    </p>
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="calendar-off" cls="size-4" %} Ausencias por aprobar</div>
+    <p class="text-3xl font-semibold tabular-nums {% if kpis.pendientes %}text-warning{% endif %}">{{ kpis.pendientes }}</p>
+    <p class="text-xs text-base-content/60">{{ kpis.ausentes }} ausente{{ kpis.ausentes|pluralize }} hoy</p>
+  </div></div>
+</div>
+
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-5">
+  <section class="card bg-base-100 lg:col-span-2"><div class="card-body p-5">
+    <h3 class="text-sm font-semibold">Estado del equipo hoy</h3>
+    <svg viewBox="0 0 100 3" preserveAspectRatio="none" class="mt-2 h-3 w-full overflow-hidden rounded-full bg-base-200" role="img" aria-label="Distribución del equipo hoy">
+      {% for e in estados %}{% if e.count %}<rect x="{{ e.x }}" y="0" width="{{ e.w }}" height="3" class="{{ e.fill }}"><title>{{ e.label }}: {{ e.count }}</title></rect>{% endif %}{% endfor %}
+    </svg>
+    <ul class="mt-3 space-y-2">
+      {% for e in estados %}<li class="flex items-center gap-2 text-sm">
+        <span class="size-2.5 shrink-0 rounded-full {{ e.bg }}"></span><span class="flex-1">{{ e.label }}</span>
+        <span class="font-semibold tabular-nums">{{ e.count }}</span><span class="w-12 text-right text-xs tabular-nums text-base-content/50">{{ e.pct }}%</span>
+      </li>{% endfor %}
+    </ul>
+    <div class="mt-4 border-t border-base-300 pt-4">
+      <h3 class="text-sm font-semibold">Actividades por categoría <span class="font-normal text-base-content/50">· 30 días</span></h3>
+      <div class="mt-3 space-y-2">
+        {% for c in actividades %}<div class="flex items-center gap-2 text-sm">
+          <span class="w-28 shrink-0 truncate sm:w-36" title="{{ c.label }}">{{ c.label }}</span>
+          <svg class="h-2 flex-1 rounded-full" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="{{ c.label }}: {{ c.count }}">
+            <rect width="100" height="8" rx="4" class="text-base-200" fill="currentColor"></rect>
+            <rect width="{{ c.pct }}" height="8" rx="4" fill="{{ c.color }}"></rect>
+          </svg>
+          <span class="w-8 shrink-0 text-right font-bold tabular-nums">{{ c.count }}</span>
+        </div>{% empty %}<p class="text-sm text-base-content/50">Sin actividades clasificadas.</p>{% endfor %}
+      </div>
+    </div>
+  </div></section>
+
+  <section class="card bg-base-100 lg:col-span-3"><div class="card-body p-5">
+    <h3 class="text-sm font-semibold">Horas trabajadas por día <span class="font-normal text-base-content/50">· últimos 14 días</span></h3>
+    <svg viewBox="0 0 100 46" preserveAspectRatio="none" class="mt-2 h-40 w-full" role="img" aria-label="Horas trabajadas por día, últimos 14 días">
+      {% for s in serie %}<rect x="{{ s.x }}" y="{{ s.y }}" width="{{ s.w }}" height="{{ s.h }}" rx="1" class="{% if s.finde %}text-base-content/30{% else %}text-primary{% endif %}" fill="currentColor"><title>{{ s.label }}: {{ s.horas }}</title></rect>{% endfor %}
+    </svg>
+    <div class="flex text-[10px] text-base-content/40">{% for s in serie %}<span class="flex-1 text-center">{{ s.label|slice:":2" }}</span>{% endfor %}</div>
+    <div class="mt-3 border-t border-base-300 pt-3">
+      <h3 class="mb-2 text-sm font-semibold">Horas por proyecto <span class="font-normal text-base-content/50">· 30 días</span></h3>
+      <div class="space-y-2">
+        {% for p in proyectos %}{% include "tar_tickets/parciales/_barra.html" with row=p %}{% empty %}<p class="text-sm text-base-content/50">Sin jornadas completadas.</p>{% endfor %}
+      </div>
+    </div>
+  </div></section>
+</div>
+
+<div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+  <section class="card bg-base-100"><div class="card-body p-5">
+    <h3 class="mb-2 text-sm font-semibold">Trabajando ahora</h3>
+    {% for p in en_curso %}
+    <div class="flex items-center gap-3 border-t border-base-300 py-2 first:border-0">
+      <span class="size-2 shrink-0 rounded-full bg-success"></span>
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-medium">{{ p.nombre }}</p>
+        <p class="truncate text-xs text-base-content/60">{{ p.cargo }}{% if p.proyecto %} · {{ p.proyecto }}{% endif %}</p>
+      </div>
+      <span class="shrink-0 text-right text-xs text-base-content/50">desde {{ p.desde|date:"H:i" }}<br>{{ p.minutos }}</span>
+    </div>
+    {% empty %}<p class="py-4 text-sm text-base-content/50">Nadie tiene una jornada abierta.</p>{% endfor %}
+  </div></section>
+
+  <section class="card bg-base-100"><div class="card-body p-5">
+    <h3 class="mb-2 text-sm font-semibold">Sin iniciar hoy</h3>
+    {% for p in sin_iniciar %}
+    <div class="flex items-center gap-3 border-t border-base-300 py-2 first:border-0">
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-medium">{{ p.nombre }}</p>
+        <p class="truncate text-xs text-base-content/60">{{ p.cargo }}{% if p.entrada %} · entrada {{ p.entrada|date:"H:i" }}{% endif %}</p>
+      </div>
+      {% if p.tarde %}<span class="badge badge-soft badge-warning badge-sm shrink-0">Atrasado</span>{% endif %}
+    </div>
+    {% empty %}<p class="py-4 text-sm text-base-content/50">{% if laboral %}Todos iniciaron su jornada o están ausentes.{% else %}Hoy no es día laboral.{% endif %}</p>{% endfor %}
+  </div></section>
+
+  <section class="card bg-base-100"><div class="card-body p-5">
+    <h3 class="mb-2 text-sm font-semibold">Ausencias por aprobar</h3>
+    {% for a in pendientes %}
+    <div class="flex items-center gap-3 border-t border-base-300 py-2 first:border-0">
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-medium">{{ a.nombre }}</p>
+        <p class="truncate text-xs text-base-content/60">{{ a.tipo }} · {{ a.desde|date:"d/m" }}{% if a.hasta != a.desde %} al {{ a.hasta|date:"d/m" }}{% endif %}{% if a.nota %} · {{ a.nota }}{% endif %}</p>
+      </div>
+      <span class="badge badge-soft badge-warning badge-sm shrink-0">Pendiente</span>
+    </div>
+    {% empty %}<p class="py-4 text-sm text-base-content/50">No hay solicitudes pendientes.</p>{% endfor %}
+  </div></section>
+
+  <section class="card bg-base-100"><div class="card-body p-5">
+    <h3 class="mb-2 text-sm font-semibold">Próximos 14 días <span class="font-normal text-base-content/50">· feriados, eventos y ausencias</span></h3>
+    {% for p in proximos %}
+    <div class="flex items-center gap-3 border-t border-base-300 py-2 first:border-0">
+      <span class="w-12 shrink-0 text-sm font-semibold tabular-nums">{{ p.fecha|date:"d/m" }}</span>
+      <p class="min-w-0 flex-1 truncate text-sm">{{ p.texto }}</p>
+      <span class="badge badge-soft badge-sm shrink-0">{{ p.tipo }}</span>
+    </div>
+    {% empty %}<p class="py-4 text-sm text-base-content/50">Nada programado.</p>{% endfor %}
+  </div></section>
+</div>
+{% endif %}
+{% endblock %}

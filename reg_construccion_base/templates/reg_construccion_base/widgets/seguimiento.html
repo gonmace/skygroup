@@ -1,0 +1,24 @@
+{% if b.filas %}
+<ul class="space-y-3">
+  {% for f in b.filas %}
+  <li class="rounded-box border border-base-300 p-3">
+    <div class="flex flex-wrap items-start justify-between gap-2">
+      <div class="min-w-0">
+        <p class="text-sm"><a class="link font-semibold tabular-nums" href="{% url 'reg_construccion_base:hallazgo_detalle' f.h.pk %}">{{ f.h.codigo }}</a> · {{ f.h.get_tipo_display }}</p>
+        <p class="text-sm text-base-content/70">{{ f.h.descripcion }}</p>
+        <p class="text-xs text-base-content/50">Levantado en la visita {{ f.h.visita.numero }} ({{ f.h.visita.fecha|date:"d/m/Y" }}){% if f.h.plazo %} · plazo {{ f.h.plazo|date:"d/m/Y" }}{% endif %}</p>
+      </div>
+      <div class="flex gap-1">{% with h=f.h %}{% include "reg_construccion_base/_severidad.html" %}{% include "reg_construccion_base/_estado_hallazgo.html" %}{% endwith %}</div>
+    </div>
+    <div class="mt-2 grid gap-2 sm:grid-cols-[12rem_1fr]">
+      <select name="{{ f.campo_estado }}" aria-label="Resultado de la verificación de {{ f.h.codigo }}" {% if not puede_escribir %}disabled{% endif %} class="select select-bordered select-sm w-full">
+        <option value="">Sin verificar</option>
+        {% for v, l in b.resultados %}<option value="{{ v }}" {% if f.estado == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+      </select>
+      <input type="text" name="{{ f.campo_comentario }}" value="{{ f.comentario }}" maxlength="1000" placeholder="Comentario" aria-label="Comentario sobre {{ f.h.codigo }}" {% if not puede_escribir %}disabled{% endif %} class="input input-bordered input-sm w-full">
+    </div>
+    <p class="mt-1 text-xs"><a class="link" href="{% url 'reg_fotos:galeria' tipo.clave r.pk f.etapa %}">{% if puede_escribir %}Fotos de la verificación{% else %}Ver fotos{% endif %}</a></p>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}<p class="text-sm text-base-content/60">No hay observaciones abiertas de visitas anteriores.</p>{% endif %}

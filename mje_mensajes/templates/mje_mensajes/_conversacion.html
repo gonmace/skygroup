@@ -1,0 +1,30 @@
+<header class="flex items-center gap-1 border-b border-base-content/10 px-2 py-3">
+  <button type="button" class="btn btn-ghost btn-square btn-sm" data-msj="volver" aria-label="Volver a las conversaciones">{% include "components/icon.html" with name="chevron-left" cls="size-5" %}</button>
+  <div class="min-w-0 flex-1">
+    <h2 class="truncate text-base font-semibold">{{ titulo }}</h2>
+    <p class="truncate text-xs text-base-content/55">{% if conv.tipo == 'general' %}Toda la empresa{% elif conv.tipo == 'proyecto' %}Equipo del proyecto y coordinadores{% else %}Mensaje directo{% endif %}</p>
+  </div>
+  <button type="button" class="btn btn-ghost btn-square btn-sm" data-msj="cerrar" aria-label="Cerrar mensajería">✕</button>
+</header>
+<div id="msj-hilo" class="min-h-0 flex-1 overflow-y-auto px-3 py-3" tabindex="0" aria-label="Mensajes de {{ titulo }}" aria-live="polite"
+     data-conv="{{ conv.pk }}" data-primero="{{ primero_id }}" data-ultimo="{{ ultimo_id }}" data-hay-mas="{% if hay_mas %}1{% else %}0{% endif %}" data-directo="{% if es_directo %}1{% else %}0{% endif %}">
+  <button type="button" class="btn btn-ghost btn-xs mx-auto mb-2 {% if not hay_mas %}hidden{% endif %}" data-msj="mas">Cargar mensajes anteriores</button>
+  <div data-msj-lista>{% include "mje_mensajes/_mensajes.html" %}</div>
+  <p class="py-8 text-center text-sm text-base-content/50{% if mensajes %} hidden{% endif %}" data-msj-vacio>Aún no hay mensajes. ¡Escribe el primero!</p>
+</div>
+<form class="border-t border-base-content/10 p-3" data-msj-form action="{% url 'mje_mensajes:enviar' conv.pk %}" method="post" enctype="multipart/form-data" data-max-adjuntos="{{ max_adjuntos }}">
+  <p class="mb-2 hidden rounded-lg bg-error/10 px-3 py-2 text-sm text-error" role="alert" data-msj-error></p>
+  <ul class="mb-2 flex flex-wrap gap-2 empty:hidden" data-msj-previas></ul>
+  <div class="relative">
+    <ul class="menu absolute inset-x-0 bottom-full z-10 mb-1 hidden max-h-48 flex-nowrap overflow-y-auto rounded-xl border border-base-content/10 bg-base-100 p-1 shadow-xl" data-msj-menciones role="listbox" aria-label="Mencionar a"></ul>
+    <label class="sr-only" for="msj-texto">Mensaje</label>
+    <textarea id="msj-texto" name="texto" rows="1" maxlength="{{ maximo }}" class="textarea textarea-bordered max-h-40 min-h-10 w-full resize-none leading-snug" placeholder="Escribe un mensaje… usa @ para mencionar" data-msj-texto></textarea>
+  </div>
+  <div class="mt-2 flex items-center justify-between gap-2">
+    <label class="btn btn-ghost btn-sm gap-1">
+      {% include "components/icon.html" with name="paperclip" cls="size-4" %} Adjuntar
+      <input type="file" class="hidden" multiple accept="image/*,application/pdf" data-msj-archivos>
+    </label>
+    <button type="submit" class="btn btn-primary btn-sm gap-1" data-msj-enviar>{% include "components/icon.html" with name="send" cls="size-4" %} Enviar</button>
+  </div>
+</form>

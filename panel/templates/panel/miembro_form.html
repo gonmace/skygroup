@@ -1,0 +1,17 @@
+{% extends "shell.html" %}
+{% block page_title %}{% if obj %}{{ obj.user.email }}{% else %}Agregar miembro{% endif %}{% endblock %}
+{% block content_main %}
+<form method="post" class="card bg-base-100 max-w-2xl">
+  <div class="card-body gap-4">
+    {% csrf_token %}
+    {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
+    {% if not obj %}<p class="text-sm text-base-content/70">Si la persona no tiene cuenta, recibirá un correo para elegir su contraseña; si ya la tiene, un aviso de que fue agregada.</p>{% endif %}
+    <div class="flex items-center gap-1 text-sm text-base-content/70">Cargo = nivel de acceso RACI {% include "panel/_ayuda_raci.html" with id="raci-form" %}</div>
+    {% include "components/campos.html" %}
+    <div class="card-actions justify-end">
+      <a href="{{ volver }}" class="btn btn-ghost">Cancelar</a>
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

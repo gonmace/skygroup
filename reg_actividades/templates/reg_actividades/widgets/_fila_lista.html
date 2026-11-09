@@ -1,0 +1,9 @@
+<li class="flex items-center gap-2" data-reg-lista-fila>
+  <span class="w-7 shrink-0 text-right text-base font-medium text-base-content/60 {% if not b.numerada %}hidden{% endif %}" data-reg-lista-num></span>
+  <input type="text" name="{{ b.campo }}" value="{{ valor }}" maxlength="1000" placeholder="{{ b.placeholder }}" class="input input-bordered w-full min-w-0">
+  <div class="flex shrink-0 items-center">
+    <button type="button" class="btn btn-ghost btn-square btn-sm text-base-content/50" data-reg-lista-subir title="Subir" aria-label="Subir">{% include "components/icon.html" with name="arrow-up" cls="size-4" %}</button>
+    <button type="button" class="btn btn-ghost btn-square btn-sm text-base-content/50" data-reg-lista-bajar title="Bajar" aria-label="Bajar">{% include "components/icon.html" with name="arrow-down" cls="size-4" %}</button>
+    <button type="button" class="btn btn-ghost btn-square btn-sm text-warning hover:bg-warning/10" data-reg-lista-quitar title="Quitar" aria-label="Quitar">{% include "components/icon.html" with name="trash" cls="size-4" %}</button>
+  </div>
+</li>

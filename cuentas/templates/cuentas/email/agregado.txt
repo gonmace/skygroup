@@ -1,0 +1,8 @@
+{% autoescape off %}Hola,
+
+{{ invitador }} te agregó a {{ site_name }} con el cargo «{{ cargo }}».
+
+Entra con tu cuenta de siempre:
+
+{{ enlace }}
+{% endautoescape %}

@@ -1,0 +1,10 @@
+{# Fila de barra horizontal (SVG: el CSP no admite estilos inline). Espera `row`: label, count, pct, color. #}
+<div class="flex items-center gap-2 text-sm">
+  <span class="w-28 shrink-0 truncate sm:w-36" title="{{ row.label }}">{{ row.label }}</span>
+  <svg class="h-2 flex-1 rounded-full" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="{{ row.label }}: {{ row.count }}">
+    <rect width="100" height="8" rx="4" class="text-base-200" fill="currentColor"></rect>
+    <rect width="{{ row.pct }}" height="8" rx="4" fill="currentColor"
+          class="{% if row.color == 'info' %}text-info{% elif row.color == 'warning' %}text-warning{% elif row.color == 'success' %}text-success{% elif row.color == 'error' %}text-error{% elif row.color == 'ghost' %}text-base-content/25{% else %}text-base-content/50{% endif %}"></rect>
+  </svg>
+  <span class="w-8 shrink-0 text-right font-bold tabular-nums">{{ row.count }}</span>
+</div>

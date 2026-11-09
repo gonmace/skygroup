@@ -1,0 +1,13 @@
+{% extends "shell.html" %}
+{% block page_title %}{% if h %}Editar {{ h.codigo }}{% else %}Nuevo hallazgo{% endif %}{% endblock %}
+{% block content_main %}
+<form method="post" class="card max-w-2xl bg-base-100"><div class="card-body gap-4">
+  {% csrf_token %}
+  <p class="text-sm text-base-content/70">{% if h %}Hallazgo {{ h.codigo }}{% else %}Hallazgo de la visita {{ visita.numero }}{% endif %} · {{ visita.proyecto.nombre }}. Sé objetivo y medible: «fisura de 2 mm en viga V-3, eje B» en lugar de «mala calidad».</p>
+  {% include "components/campos.html" %}
+  <div class="card-actions justify-end">
+    <a href="{% if h %}{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}{% else %}{% url 'reg_construccion_base:detalle' visita.pk %}{% endif %}" class="btn btn-ghost">Cancelar</a>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+  </div>
+</div></form>
+{% endblock %}

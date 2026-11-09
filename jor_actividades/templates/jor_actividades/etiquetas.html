@@ -1,0 +1,28 @@
+{% extends "shell.html" %}
+{% block page_title %}Etiquetas de actividad{% endblock %}
+{% block content_main %}
+{% include "jor_empleados/_pestanas_config.html" %}
+<p class="mb-4 text-sm text-base-content/60">Proyectos, sedes y entregables que aparecen en los reportes. Fusiona las variantes de un mismo nombre para que las estadísticas las cuenten juntas.</p>
+<div class="grid gap-4 lg:grid-cols-3">
+{% for g in grupos %}
+  <div class="card bg-base-100"><div class="card-body gap-3 p-4">
+    <h2 class="font-semibold">{{ g.nombre }}s</h2>
+    {% for e in g.etiquetas %}
+      <details class="rounded-lg bg-base-200/60 px-3 py-2">
+        <summary class="cursor-pointer text-sm"><span class="font-medium {% if e.ignorada %}line-through text-base-content/40{% endif %}">{{ e.nombre }}</span>{% if e.codigo %} <span class="font-mono text-xs">{{ e.codigo }}</span>{% endif %}
+          <span class="badge badge-ghost badge-sm">{{ e.usos }}</span>{% if e.alias.all %} <span class="text-xs text-base-content/50">+{{ e.alias.all|length }} variante{{ e.alias.all|length|pluralize }}</span>{% endif %}</summary>
+        <div class="mt-2 space-y-2 text-sm">
+          <form method="post" action="{% url 'jor_actividades:etiqueta_accion' e.pk %}" class="flex flex-wrap gap-2">{% csrf_token %}<input type="hidden" name="accion" value="renombrar">
+            <input name="nombre" value="{{ e.nombre }}" class="input input-bordered input-sm flex-1" aria-label="Nombre"><input name="codigo" value="{{ e.codigo }}" placeholder="Código" class="input input-bordered input-sm w-28" aria-label="Código"><button class="btn btn-sm">Guardar</button></form>
+          <form method="post" action="{% url 'jor_actividades:etiqueta_accion' e.pk %}" class="flex flex-wrap gap-2">{% csrf_token %}<input type="hidden" name="accion" value="fusionar">
+            <select name="destino" class="select select-bordered select-sm flex-1" aria-label="Fusionar con">{% for o in g.etiquetas %}{% if o.pk != e.pk %}<option value="{{ o.pk }}">{{ o.nombre }}</option>{% endif %}{% endfor %}</select><button class="btn btn-sm" data-confirmar-click="¿Fusionar «{{ e.nombre }}» dentro de la etiqueta elegida?">Fusionar en…</button></form>
+          {% for a in e.alias.all %}<form method="post" action="{% url 'jor_actividades:etiqueta_accion' a.pk %}" class="flex items-center gap-2">{% csrf_token %}<input type="hidden" name="accion" value="separar"><span class="flex-1 text-base-content/70">↳ {{ a.nombre }}</span><button class="btn btn-ghost btn-xs">Separar</button></form>{% endfor %}
+          <form method="post" action="{% url 'jor_actividades:etiqueta_accion' e.pk %}">{% csrf_token %}{% if e.ignorada %}<input type="hidden" name="accion" value="restaurar"><button class="btn btn-ghost btn-xs">Dejar de ignorar</button>{% else %}<input type="hidden" name="accion" value="ignorar"><button class="btn btn-ghost btn-xs text-error">Ignorar (extracción errónea)</button>{% endif %}</form>
+        </div>
+      </details>
+    {% empty %}<p class="text-sm text-base-content/50">Aún no hay etiquetas.</p>{% endfor %}
+    <form method="post" class="flex gap-2">{% csrf_token %}<input type="hidden" name="tipo" value="{{ g.valor }}"><input name="nombre" placeholder="Nueva…" class="input input-bordered input-sm flex-1" aria-label="Nueva etiqueta"><button class="btn btn-primary btn-sm">Agregar</button></form>
+  </div></div>
+{% endfor %}
+</div>
+{% endblock %}

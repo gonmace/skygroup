@@ -1,0 +1,147 @@
+/* Estilos del módulo Tareas (portados de skydesk). Se importa desde styles.css. */
+
+/* ── Tarjetas del tablero: elevación ─────────────────────────────────────── */
+.ticket-card {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.60), 0 1px 2px rgba(0,0,0,.04), 0 3px 8px rgba(0,0,0,.07);
+}
+[data-theme="dark"] .ticket-card {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.30), 0 3px 8px rgba(0,0,0,.35);
+}
+.ticket-card.is-locked { opacity: .75; cursor: not-allowed; }
+.ticket-card.is-readonly { cursor: default; }
+.kanban-col { background: color-mix(in oklab, var(--color-base-content) 4%, transparent); }
+
+/* ── Borde de la card por ESTADO (data-status) — mismo mapeo que el punto de la
+   columna en _board_columns.html, para reforzar de qué columna es sin tener que mirar
+   el encabezado. ─────────────────────────────────────────────────────────────── */
+.ticket-card {
+  --status-color: var(--color-base-300);
+  border: 1px solid color-mix(in srgb, var(--status-color) 40%, transparent);
+  border-left: 3px solid var(--status-color);
+}
+.ticket-card[data-status="BACKLOG"]     { --status-color: var(--color-base-content); }
+.ticket-card[data-status="TODO"]        { --status-color: var(--color-info); }
+.ticket-card[data-status="IN_PROGRESS"] { --status-color: var(--color-warning); }
+.ticket-card[data-status="DONE"]        { --status-color: var(--color-success); }
+.ticket-card[data-status="WAITING"]     { --status-color: var(--color-error); }
+
+/* ── Prioridad como barras de intensidad (forma + color propio por nivel) ────
+   El estado tiñe la card entera (borde, arriba); la prioridad usa barras
+   ascendentes — la FORMA (barras vs. borde/punto) evita la confusión aunque el
+   color de un nivel coincida con el de algún estado. Blanco/negro → verde →
+   amarillo → rojo, de menor a mayor. */
+.prio-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+.prio-bars i {
+  width: 3px; border-radius: 1px; display: block;
+  background: color-mix(in oklab, var(--color-base-content) 22%, transparent); /* vacía */
+}
+.prio-bars i:nth-child(1) { height: 5px; }
+.prio-bars i:nth-child(2) { height: 8px; }
+.prio-bars i:nth-child(3) { height: 11px; }
+.prio-bars i:nth-child(4) { height: 14px; }
+.prio-bars[data-priority="LOW"]    i:nth-child(-n+1) { background: var(--color-base-content); }
+.prio-bars[data-priority="MEDIUM"] i:nth-child(-n+2) { background: var(--color-success); }
+.prio-bars[data-priority="HIGH"]   i:nth-child(-n+3) { background: var(--color-warning); }
+.prio-bars[data-priority="URGENT"] i:nth-child(-n+4) { background: var(--color-error); }
+
+/* ── Flash momentáneo de las cards derivadas al clickear "Dividido" ─────────── */
+@keyframes card-highlight-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  25%, 75% { box-shadow: 0 0 0 3px var(--color-accent); }
+}
+.card-highlight {
+  animation: card-highlight-pulse 1.2s ease-in-out;
+}
+
+/* ── Fecha vencida: destello tipo foco encendiéndose/atenuándose, en loop ────── */
+@keyframes overdue-glow {
+  0%, 100% { text-shadow: 0 0 2px currentColor; opacity: 0.7; }
+  50% { text-shadow: 0 0 6px currentColor, 0 0 10px currentColor; opacity: 1; }
+}
+.overdue-glow {
+  animation: overdue-glow 1.8s ease-in-out 3; /* tres pulsos y queda fijo: un parpadeo eterno atrae la mirada hacia lo menos accionable */
+}
+@media (prefers-reduced-motion: reduce) {
+  .overdue-glow { animation: none; }
+}
+
+/* ── Chips de etiqueta (color por data-color, sin clases dinámicas de Tailwind) ── */
+.label-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-badge);
+  border: 1px solid transparent;
+}
+.label-chip[data-color="info"]      { background: color-mix(in srgb, var(--color-info) 15%, transparent);      color: var(--color-info);      border-color: color-mix(in srgb, var(--color-info) 30%, transparent); }
+.label-chip[data-color="success"]   { background: color-mix(in srgb, var(--color-success) 15%, transparent);   color: var(--color-success);   border-color: color-mix(in srgb, var(--color-success) 30%, transparent); }
+.label-chip[data-color="warning"]   { background: color-mix(in srgb, var(--color-warning) 18%, transparent);   color: var(--color-warning);   border-color: color-mix(in srgb, var(--color-warning) 35%, transparent); }
+.label-chip[data-color="error"]     { background: color-mix(in srgb, var(--color-error) 15%, transparent);     color: var(--color-error);     border-color: color-mix(in srgb, var(--color-error) 30%, transparent); }
+.label-chip[data-color="accent"]    { background: color-mix(in srgb, var(--color-accent) 15%, transparent);    color: var(--color-accent);    border-color: color-mix(in srgb, var(--color-accent) 30%, transparent); }
+.label-chip[data-color="neutral"]   { background: color-mix(in srgb, var(--color-neutral) 12%, transparent);   color: var(--color-neutral);   border-color: color-mix(in srgb, var(--color-neutral) 25%, transparent); }
+.label-chip[data-color="secondary"] { background: color-mix(in srgb, var(--color-secondary) 15%, transparent); color: var(--color-secondary); border-color: color-mix(in srgb, var(--color-secondary) 30%, transparent); }
+[data-theme="dark"] .label-chip[data-color="neutral"] { color: var(--color-base-content); }
+
+/* ── Avatar de usuario — color pastel estable por persona (8 variantes, por pk) ── */
+.avatar-user { border: 1px solid transparent; }
+.avatar-user[data-avatar-color="0"] { background: hsl(0 75% 88%);   color: hsl(0 55% 32%);   border-color: hsl(0 60% 78%); }
+.avatar-user[data-avatar-color="1"] { background: hsl(45 75% 85%);  color: hsl(35 55% 30%);  border-color: hsl(45 60% 72%); }
+.avatar-user[data-avatar-color="2"] { background: hsl(90 55% 85%);  color: hsl(90 40% 28%);  border-color: hsl(90 45% 70%); }
+.avatar-user[data-avatar-color="3"] { background: hsl(150 55% 85%); color: hsl(150 45% 26%); border-color: hsl(150 45% 68%); }
+.avatar-user[data-avatar-color="4"] { background: hsl(190 65% 87%); color: hsl(195 55% 28%); border-color: hsl(190 50% 72%); }
+.avatar-user[data-avatar-color="5"] { background: hsl(220 70% 90%); color: hsl(220 55% 35%); border-color: hsl(220 55% 78%); }
+.avatar-user[data-avatar-color="6"] { background: hsl(265 60% 90%); color: hsl(265 45% 35%); border-color: hsl(265 45% 78%); }
+.avatar-user[data-avatar-color="7"] { background: hsl(320 65% 90%); color: hsl(320 45% 35%); border-color: hsl(320 45% 78%); }
+/* En dark los pastel claros encandilan — mismo matiz, fondo oscuro y texto claro */
+[data-theme="dark"] .avatar-user[data-avatar-color="0"] { background: hsl(0 40% 24%);   color: hsl(0 75% 84%);   border-color: hsl(0 40% 38%); }
+[data-theme="dark"] .avatar-user[data-avatar-color="1"] { background: hsl(42 45% 22%);  color: hsl(45 70% 78%);  border-color: hsl(45 45% 36%); }
+[data-theme="dark"] .avatar-user[data-avatar-color="2"] { background: hsl(90 35% 20%);  color: hsl(90 50% 78%);  border-color: hsl(90 35% 34%); }
+[data-theme="dark"] .avatar-user[data-avatar-color="3"] { background: hsl(150 35% 19%); color: hsl(150 50% 76%); border-color: hsl(150 35% 33%); }
+[data-theme="dark"] .avatar-user[data-avatar-color="4"] { background: hsl(195 45% 20%); color: hsl(190 60% 78%); border-color: hsl(190 45% 34%); }
+[data-theme="dark"] .avatar-user[data-avatar-color="5"] { background: hsl(220 45% 25%); color: hsl(220 70% 84%); border-color: hsl(220 45% 40%); }
+[data-theme="dark"] .avatar-user[data-avatar-color="6"] { background: hsl(265 35% 26%); color: hsl(265 60% 86%); border-color: hsl(265 35% 42%); }
+[data-theme="dark"] .avatar-user[data-avatar-color="7"] { background: hsl(320 35% 24%); color: hsl(320 55% 84%); border-color: hsl(320 35% 38%); }
+
+/* ── Pila de avatares superpuestos — cada uno tapa al anterior, con anillo que
+   los separa visualmente del fondo de la tarjeta ─────────────────────────── */
+.avatar-stack > .avatar-user {
+  position: relative;
+  box-shadow: 0 0 0 2px var(--color-base-100);
+}
+.avatar-stack > .avatar-user:nth-child(1) { z-index: 1; }
+.avatar-stack > .avatar-user:nth-child(2) { z-index: 2; }
+.avatar-stack > .avatar-user:nth-child(3) { z-index: 3; }
+.avatar-stack > .avatar-user:nth-child(4) { z-index: 4; }
+.avatar-stack > .avatar-user:nth-child(5) { z-index: 5; }
+.avatar-stack > .avatar-user:nth-child(6) { z-index: 6; }
+.avatar-stack > .avatar-user:nth-child(7) { z-index: 7; }
+.avatar-stack > .avatar-user:nth-child(8) { z-index: 8; }
+
+/* ── Vínculo entre cards del mismo ticket (tablero de subticket, multiproducto con
+   varios ejecutores) — pestaña de color en el borde DERECHO, centrada a media altura:
+   mismo tono (8 variantes bien separadas por 45° de tono) en todas las cards del mismo
+   ticket. No compite con el borde izquierdo, que ya codifica el estado. */
+.ticket-card[data-link-color] { position: relative; }
+.ticket-card[data-link-color]::after {
+  content: '';
+  position: absolute;
+  right: -2.5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 45%;
+  min-height: 1.5rem;
+  border-radius: 9999px;
+  background-color: var(--link-color);
+}
+.ticket-card[data-link-color="0"] { --link-color: hsl(0 75% 50%); }     /* rojo */
+.ticket-card[data-link-color="1"] { --link-color: hsl(45 85% 50%); }     /* naranja */
+.ticket-card[data-link-color="2"] { --link-color: hsl(60 85% 45%); }     /* amarillo */
+.ticket-card[data-link-color="3"] { --link-color: hsl(135 70% 40%); }    /* verde */
+.ticket-card[data-link-color="4"] { --link-color: hsl(190 75% 45%); }    /* cian */
+.ticket-card[data-link-color="5"] { --link-color: hsl(230 70% 55%); }    /* azul */
+.ticket-card[data-link-color="6"] { --link-color: hsl(280 65% 55%); }    /* violeta */
+.ticket-card[data-link-color="7"] { --link-color: hsl(320 75% 50%); }     /* magenta */

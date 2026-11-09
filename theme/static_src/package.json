@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "npx @tailwindcss/cli -i ./src/styles.css -o ../../static/css/dist/styles.css --watch",
-    "build": "npx @tailwindcss/cli -i ./src/styles.css -o ../../static/css/dist/styles.css --minify"
+    "start": "mkdir -p ../../static/css/dist/files && cp node_modules/@fontsource-variable/inter/files/inter-latin-*-normal.woff2 ../../static/css/dist/files/ && npx @tailwindcss/cli -i ./src/styles.css -o ../../static/css/dist/styles.css --watch",
+    "build": "mkdir -p ../../static/css/dist/files && cp node_modules/@fontsource-variable/inter/files/inter-latin-*-normal.woff2 ../../static/css/dist/files/ && npx @tailwindcss/cli -i ./src/styles.css -o ../../static/css/dist/styles.css --minify"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
@@ -12,5 +12,8 @@
     "@tailwindcss/typography": "^0.5.20",
     "daisyui": "^5.7.50",
     "tailwindcss": "^4.3.3"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0"
   }
 }

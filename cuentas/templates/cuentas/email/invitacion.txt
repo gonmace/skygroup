@@ -1,0 +1,10 @@
+{% autoescape off %}Hola,
+
+{{ invitador }} te dio acceso a {{ site_name }} con el cargo «{{ cargo }}».
+
+Elige tu contraseña con este enlace (vale {{ dias_vigencia }} días):
+
+{{ enlace }}
+
+Tu usuario es este mismo correo. Si no esperabas esta invitación, ignora este mensaje.
+{% endautoescape %}

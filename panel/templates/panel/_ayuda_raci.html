@@ -1,0 +1,27 @@
+{# Botón «?» + modal que explica RACI. Uso: {% include "panel/_ayuda_raci.html" with id="raci-ayuda" %} #}
+<button type="button" class="btn btn-ghost btn-circle btn-sm text-info" title="¿Qué es RACI?" aria-label="¿Qué es RACI?"
+        onclick="document.getElementById('{{ id|default:'raci-ayuda' }}').showModal()">{% include "components/icon.html" with name="help" cls="size-5" %}</button>
+<dialog id="{{ id|default:'raci-ayuda' }}" class="modal">
+  <div class="modal-box max-w-2xl">
+    <h3 class="text-lg font-semibold">¿Qué es RACI?</h3>
+    <p class="mt-2 text-sm text-base-content/70">Es una matriz que define la responsabilidad de cada persona sobre el trabajo. Cada <strong>cargo</strong> de la empresa (ITO, Supervisor…) se apoya en uno de estos cuatro niveles de acceso, que fijan sus permisos por defecto.</p>
+    <div class="mt-4 overflow-x-auto">
+      <table class="table table-sm">
+        <thead><tr><th>Letra</th><th>Nivel de acceso</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-rol-0 font-bold">A</span></td><td class="font-medium">Coordinador<br><span class="text-xs font-normal text-base-content/60">Accountable</span></td><td>Responde por el resultado. Administra usuarios, cargos y configuración, y aprueba.</td></tr>
+          <tr><td><span class="badge badge-rol-1 font-bold">R</span></td><td class="font-medium">Ejecutor<br><span class="text-xs font-normal text-base-content/60">Responsible</span></td><td>Ejecuta el trabajo.</td></tr>
+          <tr><td><span class="badge badge-rol-2 font-bold">C</span></td><td class="font-medium">Especialista<br><span class="text-xs font-normal text-base-content/60">Consulted</span></td><td>Asesora: consulta y comenta, sin ejecutar el flujo.</td></tr>
+          <tr><td><span class="badge badge-rol-3 font-bold">I</span></td><td class="font-medium">Observador<br><span class="text-xs font-normal text-base-content/60">Informed</span></td><td>Solo ve. No ejecuta ni aprueba (mandante, ejecutivo, externo).</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul class="mt-4 list-disc space-y-1 pl-5 text-sm text-base-content/80">
+      <li>Cada empresa pone sus propios nombres de cargo sobre estos cuatro niveles y puede ajustar los permisos en <strong>Cargos y permisos</strong>.</li>
+      <li>Un <strong>Coordinador con contratista</strong> queda acotado a ese contratista: gestiona lo suyo pero no administra la empresa entera.</li>
+      <li>El <strong>Administrador</strong> de la plataforma no es un cargo de empresa: es la cuenta superusuario.</li>
+    </ul>
+    <div class="modal-action"><form method="dialog"><button class="btn">Cerrar</button></form></div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button aria-label="Cerrar">cerrar</button></form>
+</dialog>

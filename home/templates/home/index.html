@@ -1,17 +1,27 @@
 {% extends 'base.html' %}
 
 {% block title %}Inicio{% endblock %}
+{% block meta_description %}Registros de campo, tareas y jornadas del equipo en una sola plataforma.{% endblock %}
 
 {% block content %}
-<div class="min-h-screen flex items-center justify-center bg-base-200">
-    <div class="card w-96 bg-base-100 shadow-xl">
-        <div class="card-body items-center text-center">
-            <h1 class="card-title text-3xl font-bold">Mi Proyecto Django</h1>
-            <p class="text-base-content/70">Tailwind v4 + DaisyUI v5</p>
-            <div class="card-actions mt-4">
-                <a href="/admin/" class="btn btn-primary">Panel Admin</a>
-            </div>
+<main class="min-h-screen bg-base-200">
+  <div class="mx-auto max-w-5xl px-6 py-16">
+    <header class="mb-12 text-center">
+      <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">{{ producto }}</h1>
+      <p class="mx-auto mt-3 max-w-xl text-base-content/70">Registros de campo, tareas y jornadas del equipo en una sola plataforma, separada por empresa.</p>
+      <a href="{% url 'cuentas:login' %}" class="btn btn-primary mt-6">Iniciar sesión</a>
+    </header>
+    <div class="grid gap-4 md:grid-cols-3">
+      {% for m in lanzador_publico %}
+      <section class="card bg-base-100">
+        <div class="card-body gap-3">
+          <span class="grid size-12 place-items-center rounded-xl {{ m.clases }}">{% include "components/icon.html" with name=m.icono cls="size-6" %}</span>
+          <h2 class="card-title">{{ m.nombre }}</h2>
+          <p class="text-sm text-base-content/70">{{ m.descripcion }}</p>
         </div>
+      </section>
+      {% endfor %}
     </div>
-</div>
+  </div>
+</main>
 {% endblock %}

@@ -1,0 +1,18 @@
+{% extends "shell.html" %}
+{% block page_title %}Plantillas de pasos{% endblock %}
+{% block content_main %}
+<p class="mb-4 max-w-3xl text-sm text-base-content/70">Una plantilla define qué pasos, y en qué orden, se llenan en cada tipo de registro. Puede aplicar a un tipo de {{ termino_proyecto|lower }} concreto o a todos. Hay una sola plantilla activa por combinación.</p>
+<div class="grid gap-4 lg:grid-cols-3">
+  <div class="table-card lg:col-span-2">
+    <table class="table"><thead><tr><th>Plantilla</th><th>Registro</th><th>{{ termino_proyecto }}</th><th>Pasos</th><th>Estado</th></tr></thead><tbody>
+    {% for p in lista %}<tr class="hover"><td><a class="link font-medium" href="{% url 'reg_actividades:plantilla_editar' p.pk %}">{{ p.nombre }}</a></td><td>{{ p.tipo_registro }}</td><td>{{ p.tipo_proyecto|default:"Todos" }}</td><td>{{ p.n }}</td>
+      <td>{% if p.activa %}<span class="badge badge-success badge-sm">Activa</span>{% else %}<span class="badge badge-ghost badge-sm">Inactiva</span>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="5" class="py-8 text-center text-base-content/60">Aún no hay plantillas. Puedes <form method="post" action="{% url 'reg_actividades:sembrar' %}" class="inline">{% csrf_token %}<button class="link">crear una configuración de ejemplo</button></form>.</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+  <form method="post" class="card bg-base-100"><div class="card-body gap-3">{% csrf_token %}
+    <h2 class="card-title text-base">Nueva plantilla</h2>{% include "components/campos.html" %}
+    <div class="card-actions justify-end"><button class="btn btn-primary btn-sm">Crear</button></div>
+  </div></form>
+</div>
+{% endblock %}

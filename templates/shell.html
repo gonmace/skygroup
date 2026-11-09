@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% comment %}
+Shell de la aplicación: barra lateral + cabecera. Las vistas de empresa/panel extienden esto
+y rellenan `page_title` y `content_main`. El menú viene de panel.menu (context processor).
+{% endcomment %}
+{% block title %}{{ app_activa.nombre|default:marca }}{% endblock %}
+{% block body %}
+<a href="#contenido" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-xl focus:bg-base-100 focus:px-4 focus:py-2 focus:shadow-lg">Saltar al contenido</a>
+<div class="flex h-dvh overflow-hidden print:block print:h-auto print:overflow-visible"{% if app_activa.codigo %} data-modulo="{{ app_activa.codigo }}"{% endif %}>
+  <div id="sidebar-velo" class="hidden fixed inset-0 bg-black/40 z-40 md:hidden"></div>
+
+  <aside id="sidebar" class="print:hidden fixed md:static inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-base-content/10 bg-base-200 shadow-xl md:bg-base-200/80 md:shadow-none md:backdrop-blur-2xl md:backdrop-saturate-150 -translate-x-full md:translate-x-0 transition-transform duration-200">
+    <div class="flex h-16 items-center px-4">
+      {% if logo_claro_url %}
+        <img src="{{ logo_claro_url }}" alt="{{ marca }}" class="max-h-10 w-auto dark:hidden">
+        <img src="{{ logo_oscuro_url }}" alt="{{ marca }}" class="max-h-10 w-auto hidden dark:block">
+      {% else %}
+        <span class="text-lg font-semibold tracking-tight">{{ marca }}</span>
+      {% endif %}
+    </div>
+
+    {% if app_activa %}
+    <div class="mx-3 mb-3 flex items-center gap-3 rounded-2xl bg-base-100 px-3 py-2 shadow-sm">
+      <span class="grid size-8 place-items-center rounded-lg {{ app_activa.clases }}">{% include "components/icon.html" with name=app_activa.icono %}</span>
+      <span class="font-medium">{{ app_activa.nombre }}</span>
+    </div>
+    {% endif %}
+
+    <nav class="flex-1 overflow-y-auto px-3 pb-4 space-y-1" aria-label="{{ app_activa.nombre|default:'Principal' }}">
+      {% for item in menu_lateral %}
+        {% ifchanged item.grupo item.seccion %}{% if item.grupo == "superusuario" %}<div role="separator" class="!mt-3 mb-1 border-t border-base-content/10 px-3 pt-3 text-xs font-medium uppercase tracking-wider text-base-content/50">Administración</div>{% elif item.seccion %}<div role="separator" class="!mt-3 mb-1 border-t border-base-content/10 px-3 pt-3 text-xs font-medium uppercase tracking-wider text-base-content/50">{{ item.seccion }}</div>{% endif %}{% endifchanged %}
+        <a href="{{ item.url }}" {% if item.activo %}aria-current="page"{% endif %}
+           class="flex min-h-9 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors {% if item.activo %}nav-activo font-medium{% else %}text-base-content/70 hover:bg-base-content/5 hover:text-base-content{% endif %}">
+          {% include "components/icon.html" with name=item.icono %}
+          <span>{{ item.nombre }}</span>
+        </a>
+      {% empty %}
+        <p class="px-3 py-2 text-sm text-base-content/70">Sin opciones todavía.</p>
+      {% endfor %}
+    </nav>
+  </aside>
+
+  <div class="flex min-w-0 flex-1 flex-col">
+    {% if request.impersonador %}
+    <div class="flex flex-wrap items-center justify-center gap-3 bg-warning px-4 py-2 text-sm text-warning-content" role="status">
+      <span>Viendo como <strong>{{ request.user.get_full_name|default:request.user.email }}</strong> ({{ request.user.email }})</span>
+      <form method="post" action="{% url 'cuentas:impersonar_detener' %}">{% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <button type="submit" class="btn btn-xs">Dejar de impersonar</button>
+      </form>
+    </div>
+    {% endif %}
+    <header class="print:hidden relative z-30 flex h-14 shrink-0 items-center gap-2 border-b border-base-content/10 bg-base-200/70 px-4 backdrop-blur-2xl backdrop-saturate-150">
+      <button type="button" class="btn btn-ghost btn-square md:hidden" data-accion="menu" aria-label="Abrir menú">
+        {% include "components/icon.html" with name="menu" %}
+      </button>
+      {% if apps_menu %}
+      <details class="dropdown">
+        <summary class="btn btn-ghost btn-sm gap-2" aria-label="Cambiar de aplicación">
+          {% include "components/icon.html" with name="grid" cls="size-4" %}
+          <span class="hidden sm:inline">{{ app_activa.nombre|default:"Aplicaciones" }}</span>
+        </summary>
+        <ul class="menu dropdown-content z-10 bg-base-100 shadow-xl border border-base-content/10 mt-2 w-64 rounded-2xl p-2 max-sm:fixed max-sm:inset-x-2 max-sm:top-14 max-sm:mt-1 max-sm:w-auto">
+          {% for a in apps_menu %}
+            {% ifchanged a.nivel %}{% if not forloop.first %}<li role="separator" class="pointer-events-none my-1 h-px bg-base-content/10 p-0"></li>{% endif %}{% endifchanged %}
+            <li {% if not a.disponible %}class="menu-disabled"{% endif %}>
+              <a href="{{ a.url }}" {% if a.activa %}class="menu-active"{% endif %}>
+                <span class="grid size-6 place-items-center rounded {{ a.clases }}">{% include "components/icon.html" with name=a.icono cls="size-4" %}</span>
+                {{ a.nombre }}{% if not a.disponible %} <span class="badge badge-ghost badge-xs">Próximamente</span>{% endif %}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </details>
+      {% endif %}
+      <h1 class="ml-2 truncate text-base font-semibold">{% block page_title %}{% endblock %}</h1>
+      <div class="ml-auto flex items-center gap-1">
+        {% if nav_empresas %}
+        <details class="dropdown dropdown-end">
+          <summary class="btn btn-ghost btn-sm max-w-40 sm:max-w-56" aria-label="Cambiar de empresa"><span class="truncate">{{ marca }}</span><span aria-hidden="true">▾</span></summary>
+          <ul class="menu dropdown-content z-10 bg-base-100 shadow-xl border border-base-content/10 mt-2 w-56 rounded-2xl p-2 max-sm:fixed max-sm:inset-x-2 max-sm:top-14 max-sm:mt-1 max-sm:w-auto">
+            {% for e in nav_empresas %}
+              <li><a href="/{{ e.empresa.slug }}/" {% if e.activa %}class="menu-active"{% endif %}>{{ e.empresa.nombre }}</a></li>
+            {% endfor %}
+          </ul>
+        </details>
+        {% endif %}
+        {% if empresa %}
+        {% if msj_activo %}
+        <button type="button" class="btn btn-ghost btn-square btn-sm indicator" data-accion="mensajeria" aria-label="Mensajería{% if mensajes_no_leidos %} ({{ mensajes_no_leidos }} sin leer){% endif %}" aria-haspopup="dialog" aria-controls="msj">
+          {% include "components/icon.html" with name="chat" %}
+          <span class="indicator-item badge badge-warning badge-xs{% if not mensajes_no_leidos %} hidden{% endif %}" data-msj-contador>{{ mensajes_no_leidos|default:"" }}</span>
+        </button>
+        {% endif %}
+        <a href="{% url 'notificaciones:lista' %}" class="btn btn-ghost btn-square btn-sm indicator" aria-label="Notificaciones{% if notif_no_leidas %} ({{ notif_no_leidas }} sin leer){% endif %}" data-campana data-campana-ws="/ws/empresa/{{ empresa.slug }}/notificaciones/">
+          {% include "components/icon.html" with name="bell" %}
+          <span class="indicator-item badge badge-primary badge-xs{% if not notif_no_leidas %} hidden{% endif %}" data-campana-contador>{{ notif_no_leidas|default:"" }}</span>
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-ghost btn-square btn-sm" data-accion="tema" aria-label="Modo oscuro" aria-pressed="false">
+          <span data-tema-icono="sun" class="dark:hidden">{% include "components/icon.html" with name="moon" %}</span>
+          <span data-tema-icono="moon" class="hidden dark:inline">{% include "components/icon.html" with name="sun" %}</span>
+        </button>
+        <details class="dropdown dropdown-end">
+          <summary class="btn btn-ghost btn-sm max-w-40 sm:max-w-56"><span class="truncate">{{ request.user.get_short_name|default:request.user.email }}</span></summary>
+          <ul class="menu dropdown-content z-10 bg-base-100 shadow-xl border border-base-content/10 mt-2 w-56 rounded-2xl p-2 max-sm:fixed max-sm:inset-x-2 max-sm:top-14 max-sm:mt-1 max-sm:w-auto">
+            <li class="menu-title">{{ request.user.email }}</li>
+            {% if request.user.is_superuser %}<li><a href="{% url 'panel:empresas' %}">Plataforma</a></li>{% endif %}
+            <li>
+              <form method="post" action="{% url 'cuentas:logout' %}">{% csrf_token %}
+                <button type="submit" class="w-full text-left">Cerrar sesión</button>
+              </form>
+            </li>
+          </ul>
+        </details>
+      </div>
+    </header>
+
+    {% if messages %}
+    <div class="toast toast-top toast-end z-50" role="region" aria-label="Avisos">
+      {% for m in messages %}
+        <div class="alert {% if m.tags == 'error' %}alert-error{% elif m.tags == 'success' %}alert-success{% elif m.tags == 'warning' %}alert-warning{% else %}alert-info{% endif %}" role="{% if m.tags == 'error' %}alert{% else %}status{% endif %}" data-autocerrar>
+          <span>{{ m }}</span>
+          <button type="button" class="btn btn-ghost btn-xs btn-square" data-accion="cerrar-aviso" aria-label="Cerrar aviso">✕</button>
+        </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <main id="contenido" tabindex="-1" class="flex-1 bg-base-200 p-4 md:p-8 {% block main_class %}overflow-y-auto{% endblock %} print:overflow-visible print:p-0">
+      <div class="mx-auto max-w-6xl {% block wrap_class %}{% endblock %}">{% block content_main %}{% endblock %}</div>
+    </main>
+  </div>
+  {% if msj_activo %}{% include "components/mensajeria_drawer.html" %}{% endif %}
+</div>
+{% endblock %}

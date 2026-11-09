@@ -1,0 +1,30 @@
+{% extends "shell.html" %}
+{% block page_title %}Configuración de Registros{% endblock %}
+{% block content_main %}
+<div class="max-w-xl space-y-4">
+  <section class="card bg-base-100"><div class="card-body gap-3">
+    <h2 class="card-title text-base">Tipo de {{ termino_proyecto }} <span class="text-sm font-normal text-base-content/60">(opcional)</span></h2>
+    <p class="text-sm text-base-content/70">Por ejemplo «Torre» o «Poste», o los que use tu empresa. Sin tipos, todos los {{ termino_proyectos|lower }} son de tipo «{{ termino_proyecto }}» y TX/TSS no se separa en pestañas.</p>
+    <table class="table table-sm">
+      <tbody>
+      {% for t, n in tipos %}
+        <tr><td>{{ t.nombre }}</td><td class="text-sm text-base-content/60">{{ n }}</td>
+          <td class="text-right">
+            <form method="post" action="{% url 'reg_base:tipo_eliminar' t.pk %}" data-confirmar="¿Eliminar el tipo «{{ t.nombre }}»?">{% csrf_token %}
+              <button type="submit" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar el tipo {{ t.nombre }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+            </form>
+          </td></tr>
+      {% empty %}
+        <tr><td>{{ termino_proyecto }}</td><td colspan="2" class="text-sm text-base-content/60">Tipo por defecto</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <form method="post" class="flex flex-col gap-3">
+      {% csrf_token %}
+      {% include "components/campos.html" %}
+      <div class="card-actions justify-end"><button type="submit" class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Crear tipo</button></div>
+    </form>
+  </div></section>
+  <p class="text-sm">Además: <a class="link" href="{% url 'reg_base:tipos' %}">Tipos de registro</a> · <a class="link" href="{% url 'reg_actividades:pasos_config' %}">Pasos</a> · <a class="link" href="{% url 'reg_actividades:plantillas' %}">Plantillas de pasos</a></p>
+</div>
+{% endblock %}

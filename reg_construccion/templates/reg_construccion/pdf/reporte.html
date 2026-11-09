@@ -1,0 +1,193 @@
+{% load l10n %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reporte de avance — {{ codigo }}</title>
+  {# Los estilos los carga la vista desde disco (pdf_stylesheets): un <link> a /static/ haría que WeasyPrint se pida el CSS por HTTP a este mismo servidor. #}
+</head>
+<body>
+
+{% if borrador %}<div class="marca-agua">BORRADOR</div>{% endif %}
+
+<!-- ENCABEZADO -->
+<div id="page-header">
+  <table class="header-table">
+    <tr>
+      <td class="header-logo left">
+        {% if logo_empresa %}<img src="{{ logo_empresa }}" alt="{{ empresa.nombre }}">{% endif %}
+      </td>
+      <td class="header-title">
+        <h1>Reporte de Avance de Obra<br>
+        {{ codigo }}</h1>
+      </td>
+      <td class="header-logo right"></td>
+    </tr>
+  </table>
+</div>
+
+<!-- PIE DE PÁGINA -->
+<div id="page-footer">
+  <span class="page-number"></span>
+</div>
+
+<!-- ============================================================
+     1. IDENTIFICACIÓN DEL PROYECTO + DATOS DE LA VISITA
+     ============================================================ -->
+<div class="seccion-2col">
+  <article class="seccion-2col-izq">
+    <table class="datos-2col">
+      <tr><th>Nombre:</th><td>{{ proyecto.nombre }}</td></tr>
+      <tr><th>Código:</th><td>{{ codigo }}</td></tr>
+      <tr><th>Código Operador:</th><td>{{ proyecto.codigo_operador|default:"—" }}</td></tr>
+      <tr><th>Tipo:</th><td>{{ proyecto.tipo.nombre|default:"—" }}</td></tr>
+      <tr><th>Fecha de Inicio:</th><td>{{ fecha_inicio|date:"d/m/Y"|default:"—" }}</td></tr>
+      <tr><th>Contratista:</th><td>{{ registro.contratista.nombre|default:"—" }}</td></tr>
+    </table>
+  </article>
+
+  <article class="seccion-2col-der">
+    <h2>Datos del Reporte</h2>
+    <table class="datos-2col">
+      <tr><th>ITO:</th><td>{{ supervisor }}</td></tr>
+      <tr><th>Fecha:</th><td>{{ registro.fecha|date:"d/m/Y" }}</td></tr>
+      <tr><th>Semana:</th><td>{{ registro.fecha|date:"W" }}</td></tr>
+      <tr><th>Días transcurridos:</th><td>{{ dias_transcurridos|default_if_none:"—" }}</td></tr>
+    </table>
+    <h2>Coordenadas</h2>
+    <table class="coords">
+      <tr><th>Lat.</th><td>{{ coord_lat }}</td><td class="coords-dec">{{ coord_lat_deg }}</td></tr>
+      <tr><th>Lon.</th><td>{{ coord_lon }}</td><td class="coords-dec">{{ coord_lon_deg }}</td></tr>
+    </table>
+  </article>
+</div>
+
+<!-- ============================================================
+     2. ACTIVIDADES
+     ============================================================ -->
+<article id="actividades">
+  <h2>Actividades</h2>
+  {% if actividades %}
+  <ol class="lista-numerada">{% for a in actividades %}<li>{{ a }}</li>{% endfor %}</ol>
+  {% else %}<p class="sin-datos">Sin actividades registradas.</p>{% endif %}
+</article>
+
+<!-- ============================================================
+     3. ÍTEMS DEL PROYECTO Y AVANCE
+     ============================================================ -->
+<article id="items-avance">
+  <h2>Ítems del Proyecto y Avance</h2>
+  {% if partidas %}
+  <section class="tabla-avance">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Ítem</th>
+          <th>% Incidencia</th>
+          <th>% Ejec. Anterior</th>
+          <th>% Ejec. Actual</th>
+          <th>% Ejec. Acumulada</th>
+          <th>% Ejecución Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in partidas %}
+        <tr>
+          <td>{{ p.nombre }}</td>
+          <td>{{ p.incidencia }}%</td>
+          <td>{{ p.anterior }}%</td>
+          <td>{{ p.actual }}%</td>
+          <td>{{ p.acumulada }}%</td>
+          <td><strong>{{ p.total }}%</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>Avance total de la obra</td>
+          <td>{{ suma_incidencia }}%</td>
+          <td></td><td></td><td></td>
+          <td>{{ total_general }}%</td>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+
+
+  {% if total_anterior %}
+  <div class="resumen-avance">
+    <span>Reporte anterior: <strong>{{ total_anterior }}%</strong> &nbsp;→&nbsp; Este reporte: <strong>{{ total_general }}%</strong></span>
+    <span>Variación: <strong>{% if delta_positivo %}+{% endif %}{{ delta }} pp</strong></span>
+  </div>
+  {% endif %}
+
+  <section class="grafico-avance">
+    <h3>Avance por ítem</h3>
+    <div class="grafico-barras">
+      {% for p in partidas %}
+      <div class="barra-componente">
+        <span class="nombre-componente">{{ p.nombre }}</span>
+        <div class="barra-progreso">
+          <div class="barra-anterior" style="width: {{ p.w_anterior|unlocalize }}%"></div>
+          <div class="barra-actual" style="width: {{ p.w_actual|unlocalize }}%; left: {{ p.w_anterior|unlocalize }}%"></div>
+        </div>
+        <span class="porcentaje-texto">{{ p.acumulada }}%</span>
+      </div>
+      {% endfor %}
+      <div class="barra-componente barra-total">
+        <span class="nombre-componente">Avance total</span>
+        <div class="barra-progreso"><div class="barra-total-relleno" style="width: {{ w_total|unlocalize }}%"></div></div>
+        <span class="porcentaje-texto">{{ total_general }}%</span>
+      </div>
+    </div>
+    <div class="leyenda-grafico">
+      <span class="leyenda-item"><span class="leyenda-color leyenda-anterior"></span> Ejecución anterior</span>
+      <span class="leyenda-item"><span class="leyenda-color leyenda-actual"></span> Avance de este reporte</span>
+    </div>
+  </section>
+  {% else %}
+  <p class="sin-datos">Este proyecto aún no tiene ítems definidos.</p>
+  {% endif %}
+</article>
+
+<!-- Fotos de Actividades: después de Ítems y avance, antes de Eléctrico -->
+{% if fotos_actividades %}
+<article id="fotos-actividades">
+  <h2>Registro Fotográfico — Actividades</h2>
+  {% include "reg_construccion/pdf/_fotos_tabla.html" with fotos=fotos_actividades cols=fotos_actividades_cols %}
+</article>
+{% endif %}
+
+<!-- Imágenes del libro de obras (opcionales) -->
+{% if fotos_libro %}
+<article id="libro-obras">
+  <h2>Libro de Obras</h2>
+  {% include "reg_construccion/pdf/_fotos_tabla.html" with fotos=fotos_libro cols=fotos_libro_cols %}
+</article>
+{% endif %}
+
+<!-- ============================================================
+     4. ELÉCTRICO (solo si tiene texto o fotos)
+     ============================================================ -->
+{% if electrico_texto or fotos_electrico %}
+<article id="electrico">
+  <h2>Eléctrico</h2>
+  {% if electrico_texto %}<div class="parrafos">{{ electrico_texto|linebreaks }}</div>{% endif %}
+  {% if fotos_electrico %}
+    {% include "reg_construccion/pdf/_fotos_tabla.html" with fotos=fotos_electrico cols=fotos_electrico_cols %}
+  {% endif %}
+</article>
+{% endif %}
+
+<!-- ============================================================
+     5. COMENTARIOS Y ACCIONES (solo si hay comentarios)
+     ============================================================ -->
+{% if comentarios %}
+<article id="comentarios">
+  <h2>Comentarios y Acciones</h2>
+  <div class="parrafos">{% for c in comentarios %}{{ c|linebreaks }}{% endfor %}</div>
+</article>
+{% endif %}
+
+</body>
+</html>

@@ -1,0 +1,14 @@
+{% extends "shell.html" %}
+{% block page_title %}{% if obj %}Editar contratista «{{ obj.nombre }}»{% else %}Nuevo contratista{% endif %}{% endblock %}
+{% block content_main %}
+<form method="post" class="card max-w-2xl bg-base-100">
+  <div class="card-body gap-4">
+    {% csrf_token %}
+    {% include "components/campos.html" %}
+    <div class="card-actions justify-end">
+      <a href="{% url 'panel:contratistas' %}" class="btn btn-ghost">Cancelar</a>
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

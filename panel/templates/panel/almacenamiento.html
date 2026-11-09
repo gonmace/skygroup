@@ -1,0 +1,64 @@
+{% extends "shell.html" %}
+{% block page_title %}Almacenamiento{% endblock %}
+{% block content_main %}
+<div class="grid gap-4 md:grid-cols-3">
+  <div class="card bg-base-100"><div class="card-body gap-1">
+    <p class="text-xs uppercase tracking-wide text-base-content/60">Backend de media</p>
+    <p class="text-2xl font-semibold">{% if s3 %}S3 / CDN{% else %}Disco local{% endif %}</p>
+    {% if s3 %}<p class="text-sm text-base-content/70">Bucket {{ estado.bucket }}{% if estado.cdn_domain %} · {{ estado.cdn_domain }}{% endif %}</p>
+    {% else %}<p class="text-sm text-base-content/70">Activa el modo S3 para mover los archivos fuera del VPS.</p>{% endif %}
+    <a class="link text-sm" href="{% url 'admin:archivos_mediastorageconfig_changelist' %}">Configurar bucket y CDN (admin)</a>
+  </div></div>
+  <div class="card bg-base-100{% if estado.alerta %} ring-1 ring-error{% endif %}"><div class="card-body gap-1">
+    <p class="text-xs uppercase tracking-wide text-base-content/60">Disco del VPS</p>
+    <p class="text-2xl font-semibold">{{ estado.disco_pct }}%</p>
+    <progress class="progress {% if estado.alerta %}progress-error{% else %}progress-primary{% endif %}" value="{{ estado.disco_pct }}" max="100"></progress>
+    <p class="text-sm text-base-content/70">{{ estado.disco_libre|filesizeformat }} libres de {{ estado.disco_total|filesizeformat }} (alerta al {{ estado.umbral_pct }}%)</p>
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-1">
+    <p class="text-xs uppercase tracking-wide text-base-content/60">Media en disco</p>
+    <p class="text-2xl font-semibold">{{ estado.bytes_locales|filesizeformat }}</p>
+    <p class="text-sm text-base-content/70">{{ estado.archivos_locales }} archivo{{ estado.archivos_locales|pluralize }} {% if s3 %}por mover al CDN{% endif %}</p>
+  </div></div>
+</div>
+
+{% if s3 and not estado.bucket_privado %}
+<div role="alert" class="alert alert-warning mt-6 text-sm">
+  <span>Los archivos privados comparten bucket con los públicos (carpeta <code>privado/</code>). Define un <strong>bucket privado</strong> sin acceso público ni CDN, o asegúrate de que la política del bucket y de la CDN denieguen la lectura anónima de <code>privado/*</code>. <a class="link" href="{% url 'admin:archivos_mediastorageconfig_changelist' %}">Configurar</a></span>
+</div>
+{% endif %}
+
+<section class="card mt-6 bg-base-100">
+  <form method="post" action="{% url 'panel:almacenamiento_migrar' %}" class="card-body gap-3" data-confirmar="¿Iniciar la migración de media al CDN?">
+    {% csrf_token %}
+    <h2 class="card-title text-base">Mover archivos al CDN</h2>
+    <p class="text-sm text-base-content/70">Sube lo que sigue en disco al bucket. Es reanudable: lo ya subido se omite. Con «borrar del disco» solo se elimina lo verificado en el bucket.</p>
+    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="dry_run" class="checkbox checkbox-sm"> Solo simular (no sube ni borra)</label>
+    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="borrar_local" class="checkbox checkbox-sm"> Borrar del disco los archivos verificados</label>
+    <label class="flex items-center gap-2 text-sm">Solo archivos de más de <input type="number" name="antiguedad" min="0" value="0" class="input input-bordered input-sm w-20"> días</label>
+    <div class="card-actions justify-end"><button type="submit" class="btn btn-primary" {% if not s3 %}disabled{% endif %}>Mover a CDN</button></div>
+  </form>
+</section>
+
+<section class="mt-6">
+  <h2 class="mb-2 text-base font-semibold">Últimas ejecuciones</h2>
+  <div class="table-card">
+    <table class="table table-sm">
+      <thead><tr><th>Inicio</th><th>Estado</th><th>Subidos</th><th>Omitidos</th><th>Borrados</th><th>Datos</th><th>Errores</th></tr></thead>
+      <tbody>
+      {% for t in historial %}
+        <tr>
+          <td>{{ t.iniciada|date:"d/m/Y H:i" }}{% if t.dry_run %} <span class="badge badge-ghost badge-xs">simulación</span>{% endif %}</td>
+          <td>{{ t.get_estado_display }}{% if t.estado == "EN_CURSO" %} · {{ t.progreso }}%{% endif %}</td>
+          <td>{{ t.archivos_subidos }}</td><td>{{ t.archivos_omitidos }}</td><td>{{ t.archivos_borrados }}</td>
+          <td>{{ t.bytes_subidos|filesizeformat }}</td>
+          <td class="max-w-xs truncate text-error" title="{{ t.errores }}">{{ t.errores|truncatechars:60 }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="text-center text-base-content/60">Sin ejecuciones todavía.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

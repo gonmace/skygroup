@@ -1,32 +1,36 @@
-<!DOCTYPE html>
+{% load static tailwind_tags %}<!DOCTYPE html>
 <html lang="es" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <script src="{% static 'js/theme-init.js' %}"></script>
 
-    <title>{% block title %}Mi Proyecto{% endblock %}</title>
+    <title>{% block title %}{{ marca }}{% endblock %} · {{ marca }}</title>
     <meta name="description" content="{% block meta_description %}{% endblock %}">
 
     <!-- Open Graph -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ request.build_absolute_uri }}">
-    <meta property="og:title" content="{% block og_title %}{% block title_og %}Mi Proyecto{% endblock %}{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}{{ marca }}{% endblock %}">
     <meta property="og:description" content="{% block og_description %}{% endblock %}">
-    <meta property="og:image" content="{% block og_image %}{% endblock %}">
+    {% block og_image_tag %}{% endblock %}
 
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{% block twitter_title %}{% endblock %}">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{% block twitter_title %}{{ marca }}{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}{% endblock %}">
 
-    {% load static tailwind_tags %}
-    <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
+    {% if favicon_url %}<link rel="icon" href="{{ favicon_url }}">{% else %}<link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">{% endif %}
     {% tailwind_css %}
+    {% if tema_css_url %}<link rel="stylesheet" href="{{ tema_css_url }}">{% endif %}
     {% block extra_head %}{% endblock %}
 </head>
-<body>
-    {% block content %}{% endblock %}
+<body class="min-h-screen bg-base-100 text-base-content">
+    {% block body %}{% block content %}{% endblock %}{% endblock %}
 
+    <script src="{% static 'js/shell.js' %}" defer></script>
+    {% if request.user.is_authenticated and empresa %}<script src="{% static 'js/campana.js' %}" defer></script>{% endif %}
+    {% if msj_activo %}<script src="{% static 'js/mensajeria.js' %}" defer></script>{% endif %}
     {% block extra_scripts %}{% endblock %}
 
     {% if debug %}

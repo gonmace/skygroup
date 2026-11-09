@@ -1,0 +1,13 @@
+{# Selectores propios de Estadísticas (dentro del formulario de la barra de período). #}
+<select name="tipo" class="select select-bordered select-md sm:select-sm" data-autoenviar-select aria-label="Actividades">
+  <option value="hecho" {% if d.tipo == 'hecho' %}selected{% endif %}>Realizadas</option>
+  <option value="planificado" {% if d.tipo == 'planificado' %}selected{% endif %}>Planificadas</option>
+</select>
+<select name="cargo" class="select select-bordered select-md sm:select-sm" data-autoenviar-select aria-label="Cargo"><option value="">Todos los cargos</option>{% for c in cargos %}<option value="{{ c.pk }}" {% if get.cargo == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select>
+<select name="gran" class="select select-bordered select-md sm:select-sm" data-autoenviar-select aria-label="Evolución">
+  <option value="auto" {% if get.gran|default:'auto' == 'auto' %}selected{% endif %}>Evolución automática</option>
+  <option value="week" {% if get.gran == 'week' %}selected{% endif %}>Por semana</option>
+  <option value="month" {% if get.gran == 'month' %}selected{% endif %}>Por mes</option>
+  <option value="quarter" {% if get.gran == 'quarter' %}selected{% endif %}>Por trimestre</option>
+  <option value="year" {% if get.gran == 'year' %}selected{% endif %}>Por año</option>
+</select>

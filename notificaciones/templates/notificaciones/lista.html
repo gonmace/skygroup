@@ -1,0 +1,30 @@
+{% extends "shell.html" %}
+{% block page_title %}Notificaciones{% endblock %}
+{% block content_main %}
+<div class="mb-4 flex items-center justify-between gap-2">
+  <div role="tablist" class="tabs tabs-box">
+    <a role="tab" class="tab {% if not solo_no_leidas %}tab-active{% endif %}" href="{% url 'notificaciones:lista' %}">Todas</a>
+    <a role="tab" class="tab {% if solo_no_leidas %}tab-active{% endif %}" href="{% url 'notificaciones:lista' %}?filtro=no_leidas">Sin leer</a>
+  </div>
+  <form method="post" action="{% url 'notificaciones:leer_todas' %}">{% csrf_token %}
+    <button type="submit" class="btn btn-ghost btn-sm">Marcar todas como leídas</button>
+  </form>
+</div>
+<ul class="divide-y divide-base-300 rounded-box bg-base-100 ring-1 ring-base-300">
+  {% for n in notificaciones %}
+    <li>
+      <form method="post" action="{% url 'notificaciones:leer' n.pk %}">{% csrf_token %}
+        <button type="submit" class="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-base-200 {% if not n.leida %}font-medium{% endif %}">
+          <span class="mt-1.5 size-2 shrink-0 rounded-full {% if n.leida %}bg-transparent{% else %}bg-primary{% endif %}"></span>
+          <span class="flex-1">
+            <span class="block text-sm">{% if n.actor %}<strong>{{ n.actor.get_full_name|default:n.actor.email }}</strong> {% endif %}{{ n.mensaje }}</span>
+            <span class="block text-xs font-normal text-base-content/60">{{ n.creada|timesince }}</span>
+          </span>
+        </button>
+      </form>
+    </li>
+  {% empty %}
+    <li class="px-4 py-8 text-center text-sm text-base-content/60">No hay notificaciones.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

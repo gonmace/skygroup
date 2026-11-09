@@ -1,0 +1,30 @@
+{% extends "shell.html" %}
+{% block page_title %}Tipos de {{ termino_proyecto|lower }}{% endblock %}
+{% block content_main %}
+<div class="grid gap-4 md:grid-cols-2">
+  <section class="table-card">
+    <table class="table">
+      <thead><tr><th>Tipo</th><th class="hidden sm:table-cell">Descripción</th><th>{{ termino_proyectos }}</th><th></th></tr></thead>
+      <tbody>
+      {% for t, n in tipos %}
+        <tr><td>{% include "proyectos/_badge_tipo.html" with tipo=t sin_tipo="" %}{% if t.descripcion %}<span class="mt-1 block text-xs text-base-content/70 sm:hidden">{{ t.descripcion }}</span>{% endif %}</td><td class="hidden text-base-content/70 sm:table-cell">{{ t.descripcion|default:"—" }}</td><td>{{ n }}</td>
+          <td class="text-right">
+            <form method="post" action="{% url 'proyectos:tipo_eliminar' t.pk %}" data-confirmar="¿Eliminar el tipo «{{ t.nombre }}»?">{% csrf_token %}
+              <button type="submit" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+            </form>
+          </td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-base-content/60">Aún no hay tipos.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </section>
+  <form method="post" class="card bg-base-100"><div class="card-body gap-3">
+    {% csrf_token %}
+    <h2 class="card-title text-base">Nuevo tipo</h2>
+    {% include "components/campos.html" %}
+    <div class="card-actions flex-col-reverse items-stretch sm:flex-row sm:items-center sm:justify-end">
+      <a href="{% url 'proyectos:lista' %}" class="btn btn-ghost">Volver</a>
+      <button type="submit" class="btn btn-primary">Crear</button>
+    </div>
+  </div></form>
+</div>
+{% endblock %}

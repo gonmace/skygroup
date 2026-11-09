@@ -1,0 +1,21 @@
+{% extends "shell.html" %}
+{% block page_title %}{{ termino_certificado }}{% endblock %}
+{% block content_main %}
+<form method="get" class="card max-w-xl bg-base-100"><div class="card-body gap-4">
+  <input type="hidden" name="descargar" value="1">
+  <p class="text-sm text-base-content/70">Rellena la plantilla de la empresa con las jornadas, ausencias y notas del calendario del período.
+    Usa la {% if plantilla_propia %}plantilla subida por la empresa{% else %}plantilla base{% endif %}.{% if puede_config %} <a class="link" href="{% url 'jor_empleados:config' %}">Cambiar plantilla</a>.{% endif %}</p>
+  <fieldset class="space-y-2"><legend class="mb-1 text-sm font-medium">Mes</legend>
+    <div class="flex gap-2">
+      <select name="month" class="select select-bordered">{% for n, m in meses %}<option value="{{ n }}"{% if n == mes_sel %} selected{% endif %}>{{ m }}</option>{% endfor %}</select>
+      <select name="year" class="select select-bordered">{% for a in anios %}<option value="{{ a }}"{% if a == anio_sel %} selected{% endif %}>{{ a }}</option>{% endfor %}</select>
+    </div>
+  </fieldset>
+  <fieldset class="space-y-2"><legend class="mb-1 text-sm font-medium">o un rango (máximo {{ max_dias }} días)</legend>
+    <div class="flex items-center gap-2"><input type="date" name="from" class="input input-bordered"><span>—</span><input type="date" name="to" class="input input-bordered"></div>
+    <label class="flex items-center gap-2 text-sm"><input type="radio" name="mode" value="month" class="radio radio-sm" checked> Usar el mes</label>
+    <label class="flex items-center gap-2 text-sm"><input type="radio" name="mode" value="range" class="radio radio-sm"> Usar el rango</label>
+  </fieldset>
+  <div class="card-actions justify-end"><button class="btn btn-primary">Descargar .xlsx</button></div>
+</div></form>
+{% endblock %}

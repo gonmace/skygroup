@@ -1,0 +1,12 @@
+{% if puede_escribir %}
+<div data-reg-lista data-max="{{ b.max_items }}" class="space-y-3">
+  <ol class="space-y-2" data-reg-lista-filas>
+    {% for i in b.items %}{% include "reg_actividades/widgets/_fila_lista.html" with valor=i %}{% endfor %}
+    {% if not b.items %}{% include "reg_actividades/widgets/_fila_lista.html" with valor="" %}{% endif %}
+  </ol>
+  <button type="button" class="btn btn-soft btn-success btn-sm gap-1" data-reg-lista-agregar>{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar</button>
+</div>
+{% elif b.items %}
+  {% if b.numerada %}<ol class="list-decimal space-y-1 pl-5 text-sm">{% for i in b.items %}<li>{{ i }}</li>{% endfor %}</ol>
+  {% else %}<ul class="list-disc space-y-1 pl-5 text-sm">{% for i in b.items %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}
+{% else %}<p class="text-sm text-base-content/50">Sin elementos.</p>{% endif %}

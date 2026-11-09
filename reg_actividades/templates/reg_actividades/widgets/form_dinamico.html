@@ -1,0 +1,18 @@
+<div class="grid gap-3 sm:grid-cols-2">
+  {% for c in b.campos %}
+    <div class="{% if c.tipo == 'textarea' %}sm:col-span-2{% endif %}">
+      {% if c.tipo == 'toggle' %}
+        <label class="flex items-center gap-2"><input type="checkbox" name="{{ c.campo }}" class="toggle toggle-primary toggle-sm" {% if c.marcado %}checked{% endif %} {% if not puede_escribir %}disabled{% endif %}><span class="text-sm">{{ c.label }}{% if c.obligatorio %} *{% endif %}</span></label>
+      {% else %}
+        <label class="mb-1 block text-sm font-medium" for="id_{{ c.campo }}">{{ c.label }}{% if c.obligatorio %} <span class="text-error">*</span>{% endif %}</label>
+        {% if c.tipo == 'textarea' %}<textarea id="id_{{ c.campo }}" name="{{ c.campo }}" rows="3" placeholder="{{ c.placeholder }}" {% if not puede_escribir %}disabled{% endif %} class="textarea textarea-bordered w-full">{{ c.valor }}</textarea>
+        {% elif c.tipo == 'select' %}<select id="id_{{ c.campo }}" name="{{ c.campo }}" {% if not puede_escribir %}disabled{% endif %} class="select select-bordered w-full"><option value="">—</option>{% for o in c.opciones %}<option value="{{ o }}" {% if c.valor == o %}selected{% endif %}>{{ o }}</option>{% endfor %}</select>
+        {% elif c.tipo == 'number' %}<input id="id_{{ c.campo }}" type="number" step="any" name="{{ c.campo }}" value="{{ c.valor }}" placeholder="{{ c.placeholder }}" {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full">
+        {% elif c.tipo == 'time' %}<input id="id_{{ c.campo }}" type="time" name="{{ c.campo }}" value="{{ c.valor }}" {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full">
+        {% elif c.tipo == 'date' %}<input id="id_{{ c.campo }}" type="date" name="{{ c.campo }}" value="{{ c.valor }}" {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full">
+        {% else %}<input id="id_{{ c.campo }}" type="text" name="{{ c.campo }}" value="{{ c.valor }}" placeholder="{{ c.placeholder }}" {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full">{% endif %}
+      {% endif %}
+      {% if c.ayuda %}<p class="mt-1 text-xs text-base-content/50">{{ c.ayuda }}</p>{% endif %}
+    </div>
+  {% endfor %}
+</div>

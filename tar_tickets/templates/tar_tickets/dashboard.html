@@ -1,0 +1,151 @@
+{% extends "shell.html" %}
+{% block page_title %}Resumen{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div class="flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h2 class="text-2xl font-semibold tracking-tight">Hola, {{ request.user.first_name|default:request.user.email }}</h2>
+    <p class="text-sm text-base-content/60">{{ hoy|date:"l j \d\e F \d\e Y" }} · Semana {{ hoy|date:"W" }}</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'tar_tickets:tablero' %}" class="btn btn-sm btn-primary">{% include "components/icon.html" with name="kanban" cls="size-4" %} Ver tablero</a>
+    <a href="{% url 'tar_tickets:mis_tickets' %}" class="btn btn-sm">{% include "components/icon.html" with name="list" cls="size-4" %} Mis tickets</a>
+    {% if puede_crear %}<a href="{% url 'tar_tickets:nuevo' %}" class="btn btn-sm">{% include "components/icon.html" with name="plus" cls="size-4" %} Nuevo ticket</a>{% endif %}
+  </div>
+</div>
+
+<div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="clipboard" cls="size-4" %} Abiertos</div>
+    <p class="text-3xl font-semibold tabular-nums">{{ kpis.abiertos }}<span class="text-base text-base-content/50">/{{ kpis.activos }}</span></p>
+    <p class="text-xs text-base-content/60">{{ kpis.en_progreso }} en progreso · {{ kpis.por_hacer }} por hacer · {{ kpis.entrada }} en entrada</p>
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="clock" cls="size-4" %} Vencidos</div>
+    <p class="text-3xl font-semibold tabular-nums {% if kpis.vencidos %}text-error{% else %}text-success{% endif %}">{{ kpis.vencidos }}</p>
+    <p class="text-xs text-base-content/60">{{ kpis.pct_vencidos }}% de los abiertos · {{ kpis.proximos }} vence{{ kpis.proximos|pluralize:",n" }} en {{ dias_proximos }} d</p>
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="check" cls="size-4" %} Concluidos · últimos 30 días</div>
+    <p class="text-3xl font-semibold tabular-nums">{{ kpis.concluidos_30 }}</p>
+    <p class="text-xs">
+      {% if kpis.delta_concluidos is None %}<span class="text-base-content/60">Sin concluidos en los 30 días previos</span>
+      {% elif kpis.delta_concluidos > 0 %}<span class="text-success">▲ +{{ kpis.delta_concluidos }}%</span> <span class="text-base-content/60">vs. 30 días previos</span>
+      {% elif kpis.delta_concluidos < 0 %}<span class="text-error">▼ {{ kpis.delta_concluidos }}%</span> <span class="text-base-content/60">vs. 30 días previos</span>
+      {% else %}<span class="text-base-content/60">Igual que los 30 días previos</span>{% endif %}
+    </p>
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="user-check" cls="size-4" %} Por aprobar</div>
+    <p class="text-3xl font-semibold tabular-nums {% if kpis.por_aprobar %}text-warning{% endif %}">{{ kpis.por_aprobar }}</p>
+    <p class="text-xs text-base-content/60">{{ kpis.creados_30 }} creado{{ kpis.creados_30|pluralize }} en 30 d{% if kpis.delta_creados is not None %} ({% if kpis.delta_creados > 0 %}+{% endif %}{{ kpis.delta_creados }}%){% endif %}</p>
+  </div></div>
+</div>
+
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-5">
+  <section class="card bg-base-100 lg:col-span-2"><div class="card-body p-5">
+    <h3 class="text-sm font-semibold">Por estado</h3>
+    <svg viewBox="0 0 100 3" preserveAspectRatio="none" class="mt-2 h-3 w-full overflow-hidden rounded-full bg-base-200" role="img" aria-label="Distribución por estado">
+      {% for e in estados %}{% if e.count %}<rect x="{{ e.x }}" y="0" width="{{ e.w }}" height="3" class="{{ e.fill }}"><title>{{ e.label }}: {{ e.count }}</title></rect>{% endif %}{% endfor %}
+    </svg>
+    <ul class="mt-3 space-y-2">
+      {% for e in estados %}<li class="flex items-center gap-2 text-sm">
+        <span class="size-2.5 shrink-0 rounded-full {{ e.bg }}"></span><span class="flex-1">{{ e.label }}</span>
+        <span class="font-semibold tabular-nums">{{ e.count }}</span><span class="w-12 text-right text-xs tabular-nums text-base-content/50">{{ e.pct }}%</span>
+      </li>{% endfor %}
+    </ul>
+    <div class="mt-4 border-t border-base-300 pt-4">
+      <h3 class="text-sm font-semibold">Por prioridad <span class="font-normal text-base-content/50">· abiertos</span></h3>
+      <div class="mt-3 space-y-2">{% for row in prioridades %}{% include "tar_tickets/parciales/_barra.html" %}{% endfor %}</div>
+    </div>
+  </div></section>
+
+  <section class="card bg-base-100 lg:col-span-3"><div class="card-body p-5">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <h3 class="text-sm font-semibold">Creados y concluidos por semana <span class="font-normal text-base-content/50">· últimas 8</span></h3>
+      <div class="flex gap-3 text-[11px] text-base-content/60">
+        <span class="inline-flex items-center gap-1"><span class="size-2 rounded-full bg-base-content/30"></span>Creados</span>
+        <span class="inline-flex items-center gap-1"><span class="size-2 rounded-full bg-primary"></span>Concluidos</span>
+      </div>
+    </div>
+    <svg viewBox="0 0 100 46" preserveAspectRatio="none" class="mt-2 h-40 w-full" role="img" aria-label="Tickets creados y concluidos por semana, últimas 8 semanas">
+      {% for w in serie %}
+        <rect x="{{ w.creados_g.x }}" y="{{ w.creados_g.y }}" width="{{ w.creados_g.w }}" height="{{ w.creados_g.h }}" rx="1" class="text-base-content/30" fill="currentColor"><title>{{ w.label }} · creados: {{ w.creados }}</title></rect>
+        <rect x="{{ w.concluidos_g.x }}" y="{{ w.concluidos_g.y }}" width="{{ w.concluidos_g.w }}" height="{{ w.concluidos_g.h }}" rx="1" class="text-primary" fill="currentColor"><title>{{ w.label }} · concluidos: {{ w.concluidos }}</title></rect>
+      {% endfor %}
+    </svg>
+    <div class="flex text-[10px] text-base-content/40">{% for w in serie %}<span class="flex-1 text-center">{{ w.label }}</span>{% endfor %}</div>
+    <div class="mt-3 grid grid-cols-1 gap-2 border-t border-base-300 pt-3 sm:grid-cols-3">
+      {% for tm in tiempos %}<div class="text-center">
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-base-content/40">{{ tm.label }}</p>
+        <p class="mt-0.5 text-lg font-semibold tabular-nums">{{ tm.value|default:"—" }}</p>
+      </div>{% endfor %}
+    </div>
+  </div></section>
+</div>
+
+<div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+  <section class="card bg-base-100"><div class="card-body p-5">
+    <h3 class="mb-2 text-sm font-semibold">Vencidos</h3>
+    {% for t in vencidos %}
+    <a href="{{ t.url }}" class="-mx-1 flex items-center gap-3 rounded-md border-t border-base-300 px-1 py-2 first:border-0 hover:bg-base-200/60">
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-medium"><span class="font-mono text-xs text-base-content/60">{{ t.clave }}</span> {{ t.titulo }}</p>
+        <p class="truncate text-xs text-base-content/60">{{ t.estado }} · {{ t.prioridad }}{% if t.proyecto %} · {{ t.proyecto }}{% endif %}</p>
+      </div>
+      <span class="badge badge-soft badge-error badge-sm shrink-0">{{ t.dias }} día{{ t.dias|pluralize }}</span>
+    </a>
+    {% empty %}<p class="py-4 text-sm text-base-content/50">No hay tickets vencidos.</p>{% endfor %}
+  </div></section>
+
+  <section class="card bg-base-100"><div class="card-body p-5">
+    <h3 class="mb-2 text-sm font-semibold">Próximos a vencer <span class="font-normal text-base-content/50">· {{ dias_proximos }} días</span></h3>
+    {% for t in proximos %}
+    <a href="{{ t.url }}" class="-mx-1 flex items-center gap-3 rounded-md border-t border-base-300 px-1 py-2 first:border-0 hover:bg-base-200/60">
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-medium"><span class="font-mono text-xs text-base-content/60">{{ t.clave }}</span> {{ t.titulo }}</p>
+        <p class="truncate text-xs text-base-content/60">{{ t.estado }} · {{ t.prioridad }}{% if t.proyecto %} · {{ t.proyecto }}{% endif %}</p>
+      </div>
+      <span class="badge badge-soft badge-warning badge-sm shrink-0">{{ t.vence|date:"d/m" }}</span>
+    </a>
+    {% empty %}<p class="py-4 text-sm text-base-content/50">Nada vence en los próximos {{ dias_proximos }} días.</p>{% endfor %}
+  </div></section>
+
+  <section class="card bg-base-100"><div class="card-body p-5">
+    <h3 class="mb-2 text-sm font-semibold">Por aprobar</h3>
+    {% for t in por_aprobar %}
+    <a href="{{ t.url }}" class="-mx-1 flex items-center gap-3 rounded-md border-t border-base-300 px-1 py-2 first:border-0 hover:bg-base-200/60">
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-medium"><span class="font-mono text-xs text-base-content/60">{{ t.clave }}</span> {{ t.titulo }}</p>
+        <p class="truncate text-xs text-base-content/60">{{ t.prioridad }}{% if t.proyecto %} · {{ t.proyecto }}{% endif %}</p>
+      </div>
+      <span class="badge badge-soft badge-success badge-sm shrink-0">Revisar</span>
+    </a>
+    {% empty %}<p class="py-4 text-sm text-base-content/50">No hay tickets esperando aprobación.</p>{% endfor %}
+  </div></section>
+
+  <section class="card bg-base-100"><div class="card-body p-5">
+    <h3 class="mb-2 text-sm font-semibold">Actividad reciente</h3>
+    {% for a in actividad %}
+    <a href="{{ a.url }}" class="-mx-1 flex items-center gap-3 rounded-md border-t border-base-300 px-1 py-2 first:border-0 hover:bg-base-200/60">
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-medium"><span class="font-mono text-xs text-base-content/60">{{ a.ticket }}</span> {{ a.titulo }}</p>
+        <p class="truncate text-xs text-base-content/60">{{ a.actor }} {{ a.detalle }}</p>
+      </div>
+      <span class="shrink-0 text-xs text-base-content/50">{{ a.creado|timesince }}</span>
+    </a>
+    {% empty %}<p class="py-4 text-sm text-base-content/50">Aún no hay actividad.</p>{% endfor %}
+  </div></section>
+</div>
+
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+  <section class="card bg-base-100"><div class="card-body p-5">
+    <h3 class="mb-2 text-sm font-semibold">Carga por asignado <span class="font-normal text-base-content/50">· abiertos</span></h3>
+    <div class="space-y-2">{% for row in por_asignado %}{% include "tar_tickets/parciales/_barra.html" %}{% if row.atrasados %}<p class="-mt-1 pl-28 text-[11px] text-error sm:pl-36">{{ row.atrasados }} vencido{{ row.atrasados|pluralize }}</p>{% endif %}{% empty %}<p class="text-sm text-base-content/50">Sin tickets asignados.</p>{% endfor %}</div>
+  </div></section>
+  <section class="card bg-base-100"><div class="card-body p-5">
+    <h3 class="mb-2 text-sm font-semibold">Por {{ termino_proyecto|lower }} <span class="font-normal text-base-content/50">· abiertos</span></h3>
+    <div class="space-y-2">{% for row in por_proyecto %}{% include "tar_tickets/parciales/_barra.html" %}{% empty %}<p class="text-sm text-base-content/50">Sin tickets asociados a un {{ termino_proyecto|lower }}.</p>{% endfor %}</div>
+  </div></section>
+</div>
+{% endblock %}

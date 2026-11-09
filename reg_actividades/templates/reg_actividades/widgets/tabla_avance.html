@@ -1,0 +1,50 @@
+{% load static %}
+<div data-tabla-avance>
+  {% if b.puede_estructura and b.plantillas %}
+    <div class="mb-3 flex flex-wrap items-end gap-2">
+      <label class="text-sm"><span class="mb-1 block text-base-content/60">Plantilla de ítems</span>
+        <select name="{{ b.campo_plantilla }}" class="select select-bordered select-sm">
+          <option value="">—</option>{% for n in b.plantillas %}<option value="{{ n }}" {% if n == b.plantilla_actual %}selected{% endif %}>{{ n }}</option>{% endfor %}
+        </select></label>
+      <button type="submit" name="{{ b.campo_aplicar }}" value="1" class="btn" data-confirmar-click="Se reemplazan los ítems de la tabla por los de la plantilla. ¿Continuar?">Aplicar plantilla</button>
+    </div>
+  {% endif %}
+  <div class="overflow-x-auto">
+    <table class="table table-sm">
+      <thead><tr><th>Ítem</th><th class="text-right">Incidencia %</th><th class="text-right">Anterior %</th><th class="text-right">Actual %</th><th class="text-right">Acumulado %</th><th class="text-right">Total %</th>{% if b.puede_estructura %}<th></th>{% endif %}</tr></thead>
+      <tbody data-filas>
+        {% for f in b.filas %}
+          <tr data-fila data-anterior="{{ f.anterior|floatformat:'2u' }}">
+            <td><input type="hidden" name="{{ b.campo_id }}" value="{{ f.id }}"><input type="text" name="{{ b.campo_nombre }}" value="{{ f.nombre }}" maxlength="120" {% if not b.puede_estructura %}readonly{% endif %} class="input input-bordered input-xs w-full min-w-40"></td>
+            <td><input type="text" inputmode="decimal" name="{{ b.campo_incidencia }}" value="{{ f.incidencia_txt }}" data-incidencia {% if not b.puede_estructura %}readonly{% endif %} class="input input-bordered input-xs w-20 text-right"></td>
+            <td class="text-right tabular-nums">{{ f.anterior|floatformat:"2u" }}</td>
+            <td><input type="text" inputmode="decimal" name="{{ b.campo_actual }}" value="{{ f.actual_txt }}" data-actual {% if not b.puede_actual %}readonly{% endif %} class="input input-bordered input-xs w-20 text-right"></td>
+            <td class="text-right tabular-nums" data-acumulada>{{ f.acumulada|floatformat:"2u" }}</td>
+            <td class="text-right tabular-nums" data-total>{{ f.total|floatformat:"2u" }}</td>
+            {% if b.puede_estructura %}<td><button type="button" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" data-quitar-fila title="Quitar ítem" aria-label="Quitar ítem">{% include "components/icon.html" with name="trash" cls="size-5" %}</button></td>{% endif %}
+          </tr>
+        {% empty %}<tr data-vacio><td colspan="7" class="py-4 text-center text-sm text-base-content/50">No hay ítems definidos{% if b.puede_estructura %}: aplica una plantilla o agrega ítems{% endif %}.</td></tr>{% endfor %}
+      </tbody>
+      <tfoot><tr class="font-semibold">
+        <td>Avance total</td>
+        <td class="text-right tabular-nums {% if not b.incidencia_ok %}text-error{% endif %}" data-suma-incidencia title="Debe sumar 100">{{ b.suma_incidencia|floatformat:"2u" }}</td>
+        <td colspan="3"></td><td class="text-right tabular-nums" data-total-general>{{ b.total|floatformat:"2u" }}</td>{% if b.puede_estructura %}<td></td>{% endif %}
+      </tr></tfoot>
+    </table>
+  </div>
+  {% if not b.incidencia_ok %}<p class="text-xs text-error">Las incidencias suman {{ b.suma_incidencia|floatformat:"2u" }}%: deberían sumar 100%.</p>{% endif %}
+  {% if b.puede_estructura %}
+    <button type="button" class="btn btn-soft mt-2" data-agregar-fila>+ Agregar ítem</button>
+    <template data-fila-nueva>
+      <tr data-fila data-anterior="0">
+        <td><input type="hidden" name="{{ b.campo_id }}" value=""><input type="text" name="{{ b.campo_nombre }}" maxlength="120" class="input input-bordered input-xs w-full min-w-40"></td>
+        <td><input type="text" inputmode="decimal" name="{{ b.campo_incidencia }}" data-incidencia class="input input-bordered input-xs w-20 text-right"></td>
+        <td class="text-right tabular-nums">0.00</td>
+        <td><input type="text" inputmode="decimal" name="{{ b.campo_actual }}" data-actual {% if not b.puede_actual %}readonly{% endif %} class="input input-bordered input-xs w-20 text-right"></td>
+        <td class="text-right tabular-nums" data-acumulada>0.00</td><td class="text-right tabular-nums" data-total>0.00</td>
+        <td><button type="button" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" data-quitar-fila title="Quitar ítem" aria-label="Quitar ítem">{% include "components/icon.html" with name="trash" cls="size-5" %}</button></td>
+      </tr>
+    </template>
+  {% endif %}
+  {% if not b.puede_actual and b.puede_estructura %}<p class="mt-2 text-xs text-base-content/50">Tu rol define los ítems; el % de ejecución actual lo carga el ITO.</p>{% endif %}
+</div>

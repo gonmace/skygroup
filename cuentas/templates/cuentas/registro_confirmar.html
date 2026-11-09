@@ -1,0 +1,22 @@
+{% extends "cuentas/_auth_base.html" %}
+{% block title %}Crear acceso{% endblock %}
+{% block auth_titulo %}{% if invalido %}Enlace no válido{% else %}Elige tu contraseña{% endif %}{% endblock %}
+{% block auth_cuerpo %}
+{% if invalido %}
+<p class="text-sm">El enlace venció o ya no es válido.</p>
+<a href="{% url 'cuentas:registro' %}" class="btn btn-ghost">Pedir otro enlace</a>
+{% else %}
+<p class="text-sm text-base-content/70">{{ email }}</p>
+<form method="post" class="flex flex-col gap-4">
+  {% csrf_token %}
+  {% for campo in form %}
+  <label class="form-control w-full">
+    <span class="label-text mb-1">{{ campo.label }}</span>
+    {{ campo }}
+    {% for e in campo.errors %}<span class="text-error text-sm">{{ e }}</span>{% endfor %}
+  </label>
+  {% endfor %}
+  <button type="submit" class="btn btn-primary">Crear acceso</button>
+</form>
+{% endif %}
+{% endblock %}

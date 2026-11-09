@@ -1,0 +1,22 @@
+{% for col in columns %}
+  <div class="flex w-[85vw] shrink-0 snap-start flex-col sm:w-72 lg:w-auto lg:min-w-0 lg:flex-1">
+    <div class="mb-2 flex items-center justify-between px-1">
+      <div class="flex items-center gap-2">
+        <span class="h-2 w-2 rounded-full {% if col.value == 'BACKLOG' %}border border-base-100/25 bg-base-content{% elif col.value == 'TODO' %}bg-info{% elif col.value == 'IN_PROGRESS' %}bg-warning{% elif col.value == 'DONE' %}bg-success{% else %}bg-error{% endif %}"></span>
+        <h2 class="text-sm font-bold">{{ col.label }}</h2>
+      </div>
+      <span class="badge badge-ghost badge-sm">{{ col.count }}</span>
+    </div>
+    <div class="kanban-col min-h-16 flex-1 space-y-3 rounded-2xl p-1" data-status="{{ col.value }}">
+      {% for item in col.items %}
+        {% if item.type == 'merged' %}
+          {% include "tar_tickets/parciales/_tarjeta_fusionada.html" with ticket=item.ticket group=item.group link_color=item.link_color is_locked=item.is_locked my_assignment=item.my_assignment is_readonly=item.is_readonly others_view=item.others_view is_muted=item.is_muted pending_approval=item.pending_approval viewer_is_executor=item.viewer_is_executor %}
+        {% elif item.type == 'subticket' %}
+          {% include "tar_tickets/parciales/_tarjeta_subticket.html" with a=item.a %}
+        {% else %}
+          {% include "tar_tickets/parciales/_tarjeta_ticket.html" with t=item.t %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+{% endfor %}

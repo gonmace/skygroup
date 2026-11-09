@@ -1,0 +1,12 @@
+{# Pie común: vencimiento, mensajes y avatares. Espera: t (ticket) y asignaciones (con .user). #}
+<div class="mt-3 flex items-center justify-between gap-2">
+  <div class="flex min-w-0 items-center gap-3 text-xs text-base-content/40">
+    {% if t.vence %}
+      <span class="inline-flex shrink-0 items-center gap-1 {% if t.esta_vencido %}overdue-glow font-semibold text-error{% endif %}" title="{% if t.esta_vencido %}Venció{% else %}Vence{% endif %}">
+        {% include "components/icon.html" with name="clock" cls="size-3.5" %}{{ t.vence|date:"d/m" }}
+      </span>
+    {% endif %}
+    {% if t.num_comments %}<span class="inline-flex shrink-0 items-center gap-1" title="Mensajes">💬 {{ t.num_comments }}</span>{% endif %}
+  </div>
+  {% include "tar_tickets/parciales/_grupo_avatares.html" with asignaciones=asignaciones %}
+</div>

@@ -1,0 +1,138 @@
+{% extends "shell.html" %}
+{% block page_title %}Construcción{% endblock %}
+{% block content_main %}
+<div class="mb-4 flex flex-wrap items-end gap-2">
+  <form method="get" class="flex flex-1 flex-wrap items-end gap-2">
+    <input type="search" name="q" value="{{ q }}" placeholder="Buscar {{ termino_proyecto|lower }} por nombre o código…" class="input input-bordered input-sm w-full max-w-xs">
+    <button class="btn btn-sm">Buscar</button>
+  </form>
+  {% if puede_activar %}<a href="{% url 'reg_construccion:activar' %}" class="btn btn-primary btn-sm">{% include "components/icon.html" with name="plus" cls="size-4" %} Activar registro</a>{% endif %}
+</div>
+
+<div class="table-card mb-6 hidden max-h-72 overflow-y-auto sm:block">
+  <table class="table table-pin-rows">
+    <thead><tr><th>{{ termino_proyecto }}</th><th>Estado</th><th class="text-right">Reportes</th><th>Última</th><th class="text-right">Avance</th><th class="w-0"><span class="sr-only">Acciones</span></th></tr></thead>
+    <tbody>
+    {% for s in sitios %}
+      <tr data-href="?{% if q %}q={{ q|urlencode }}&{% endif %}proyecto={{ s.proyecto_id }}" class="hover cursor-pointer {% if s.proyecto_id == sel %}bg-primary/10 font-semibold{% endif %}">
+        <td><a class="link font-medium" href="?{% if q %}q={{ q|urlencode }}&{% endif %}proyecto={{ s.proyecto_id }}">{{ s.proyecto__codigo|default:"—" }}</a> <span class="text-sm text-base-content/60">{{ s.proyecto__nombre }}</span></td>
+        <td>{% include "reg_construccion/_badge_obra.html" with estado=s.estado_obra nombre=s.estado_obra_nombre %}</td>
+        <td class="text-right tabular-nums">{{ s.visitas }}</td>
+        <td class="whitespace-nowrap text-sm">{{ s.ultima|date:"d/m/Y" }}</td>
+        <td class="text-right"><div class="ml-auto flex items-center justify-end gap-2"><progress class="progress progress-primary w-20 sm:w-28" value="{{ s.avance|floatformat:"0u" }}" max="100" aria-hidden="true"></progress><span class="w-10 tabular-nums">{{ s.avance|floatformat:0 }}%</span></div></td>
+        <td class="whitespace-nowrap text-right">
+          <a href="{% url 'reg_construccion:detalle' s.ultimo_id %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Abrir el último reporte" aria-label="Abrir el último reporte">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+          {% if puede_nueva %}
+          <form method="post" action="{% url 'reg_construccion:nueva_visita' s.ultimo_id %}" data-confirmar="¿Crear un nuevo reporte con la fecha de hoy?" class="inline">{% csrf_token %}
+            <button class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Nuevo reporte (hoy)" aria-label="Nuevo reporte">{% include "components/icon.html" with name="calendar" cls="size-5" %}</button>
+          </form>
+          {% endif %}
+          {% if puede_editar_sitio %}
+          <a href="{% url 'proyectos:editar' s.proyecto_id %}" class="btn btn-ghost btn-square btn-sm text-warning hover:bg-warning/10" title="Editar {{ termino_proyecto|lower }}" aria-label="Editar {{ termino_proyecto|lower }}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}<tr><td colspan="6" class="py-8 text-center text-base-content/60">No hay registros{% if q %} con esa búsqueda{% endif %}.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<ul class="mb-6 space-y-2 sm:hidden">
+  {% for s in sitios %}
+  <li class="rounded-box bg-base-100 p-3 shadow-sm {% if s.proyecto_id == sel %}ring-2 ring-primary{% endif %}">
+    <a class="block" href="?{% if q %}q={{ q|urlencode }}&{% endif %}proyecto={{ s.proyecto_id }}">
+      <div class="font-medium">{{ s.proyecto__codigo|default:"—" }}</div>
+      <div class="text-sm text-base-content/60">{{ s.proyecto__nombre }}</div>
+      <div class="mt-2 flex items-center gap-2 text-sm">{% include "reg_construccion/_badge_obra.html" with estado=s.estado_obra nombre=s.estado_obra_nombre %}<span class="tabular-nums">{{ s.visitas }} reporte{{ s.visitas|pluralize }}</span><span class="text-base-content/40">·</span><span>{{ s.ultima|date:"d/m/Y" }}</span></div>
+      <div class="mt-2 flex items-center gap-2"><progress class="progress progress-primary min-w-0 flex-1" value="{{ s.avance|floatformat:"0u" }}" max="100" aria-hidden="true"></progress><span class="w-10 text-right text-sm tabular-nums">{{ s.avance|floatformat:0 }}%</span></div>
+    </a>
+    <div class="mt-2 flex justify-end gap-1 border-t border-base-content/10 pt-2">
+      <a href="{% url 'reg_construccion:detalle' s.ultimo_id %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Abrir el último reporte" aria-label="Abrir el último reporte">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+      {% if puede_nueva %}
+      <form method="post" action="{% url 'reg_construccion:nueva_visita' s.ultimo_id %}" data-confirmar="¿Crear un nuevo reporte con la fecha de hoy?" class="inline">{% csrf_token %}
+        <button class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Nuevo reporte (hoy)" aria-label="Nuevo reporte">{% include "components/icon.html" with name="calendar" cls="size-5" %}</button>
+      </form>
+      {% endif %}
+      {% if puede_editar_sitio %}
+      <a href="{% url 'proyectos:editar' s.proyecto_id %}" class="btn btn-ghost btn-square btn-sm text-warning hover:bg-warning/10" title="Editar {{ termino_proyecto|lower }}" aria-label="Editar {{ termino_proyecto|lower }}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+      {% endif %}
+    </div>
+  </li>
+  {% empty %}<li class="rounded-box bg-base-100 py-8 text-center text-base-content/60">No hay registros{% if q %} con esa búsqueda{% endif %}.</li>{% endfor %}
+</ul>
+
+<h2 class="mb-2 text-sm font-semibold text-base-content/70">Reportes</h2>
+{% if pagina is None %}
+  <p class="rounded-box bg-base-100 py-8 text-center text-sm text-base-content/60">Selecciona {{ termino_proyecto|lower }} para ver sus reportes.</p>
+{% else %}
+<form method="get" class="mb-3 flex flex-wrap items-end gap-2">
+  <input type="hidden" name="proyecto" value="{{ sel }}">{% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+  <select name="estado" class="select select-bordered select-sm">
+    <option value="">Todos los estados</option>
+    <option value="rojo" {% if estado == 'rojo' %}selected{% endif %}>Vacío</option>
+    <option value="amarillo" {% if estado == 'amarillo' %}selected{% endif %}>En proceso</option>
+    <option value="verde" {% if estado == 'verde' %}selected{% endif %}>Concluido</option>
+  </select>
+  <select name="obra" class="select select-bordered select-sm">
+    <option value="">Toda obra</option>
+    {% for v, l in estados_obra %}<option value="{{ v }}" {% if estado_obra == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+  </select>
+  <button class="btn btn-sm">Filtrar</button>
+</form>
+<div class="table-card hidden sm:block">
+  <table class="table">
+    <thead><tr><th>Visita</th><th>Fecha</th><th>Obra</th><th>Contratista</th><th>ITO</th><th class="text-right">Avance</th><th class="w-0"><span class="sr-only">Acciones</span></th></tr></thead>
+    <tbody>
+    {% for r in pagina %}
+      <tr data-href="{% url 'reg_construccion:detalle' r.pk %}" class="hover cursor-pointer row-{% if r.color == 'verde' or r.completo %}concluido{% elif r.color == 'amarillo' %}parcial{% else %}vacio{% endif %}">
+        <td class="tabular-nums"><span class="sr-only">{% if r.color == 'verde' or r.completo %}Concluido{% elif r.color == 'amarillo' %}En proceso{% else %}Vacío{% endif %}. </span><a class="link font-medium" href="{% url 'reg_construccion:detalle' r.pk %}">#{{ r.numero_visita }}</a></td>
+        <td class="whitespace-nowrap text-sm">{{ r.fecha|date:"d/m/Y" }}</td>
+        <td>{% include "reg_construccion/_badge_obra.html" with estado=r.estado_obra nombre=r.get_estado_obra_display %}</td>
+        <td class="text-sm">{{ r.contratista.nombre|default:"—" }}</td>
+        <td class="text-sm">{{ r.responsable_nombre }}</td>
+        <td class="text-right"><div class="ml-auto flex items-center justify-end gap-2"><progress class="progress progress-primary w-20 sm:w-28" value="{{ r.avance_pct|floatformat:"0u" }}" max="100" aria-hidden="true"></progress><span class="w-10 tabular-nums">{{ r.avance_pct|floatformat:0 }}%</span></div></td>
+        <td class="whitespace-nowrap text-right">
+          <a href="{% url 'reg_construccion:detalle' r.pk %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Ver" aria-label="Ver">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+          <a href="{% url 'reg_construccion:pdf' r.pk %}" target="_blank" rel="noopener" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="{% if r.concluido %}Generar PDF{% else %}Generar PDF (borrador){% endif %}" aria-label="Generar PDF">{% include "components/icon.html" with name="file-text" cls="size-5" %}</a>
+          {% if not r.concluido %}<a href="{% url 'reg_construccion:detalle' r.pk %}" class="btn btn-ghost btn-square btn-sm text-warning hover:bg-warning/10" title="Editar datos del reporte" aria-label="Editar datos del reporte">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>{% endif %}
+          {% if request.user.is_superuser and not r.concluido %}
+          <form method="post" action="{% url 'reg_construccion:eliminar' r.pk %}" data-confirmar="¿Eliminar esta visita?" class="inline">{% csrf_token %}
+            <button class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}<tr><td colspan="7" class="py-8 text-center text-base-content/60">No hay reportes{% if estado or estado_obra %} con esos filtros{% endif %}.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+<ul class="space-y-2 sm:hidden">
+  {% for r in pagina %}
+  <li class="rounded-box bg-base-100 p-3 shadow-sm row-{% if r.color == 'verde' or r.completo %}concluido{% elif r.color == 'amarillo' %}parcial{% else %}vacio{% endif %}">
+    <a class="block" href="{% url 'reg_construccion:detalle' r.pk %}">
+      <div class="flex items-baseline justify-between gap-2">
+        <span class="font-medium tabular-nums"><span class="sr-only">{% if r.color == 'verde' or r.completo %}Concluido{% elif r.color == 'amarillo' %}En proceso{% else %}Vacío{% endif %}. </span>Visita #{{ r.numero_visita }}</span>
+        <span class="text-sm tabular-nums">{{ r.fecha|date:"d/m/Y" }}</span>
+      </div>
+      <dl class="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-sm">
+        <dt class="text-base-content/60">Obra</dt><dd>{% include "reg_construccion/_badge_obra.html" with estado=r.estado_obra nombre=r.get_estado_obra_display %}</dd>
+        <dt class="text-base-content/60">Contratista</dt><dd>{{ r.contratista.nombre|default:"—" }}</dd>
+        <dt class="text-base-content/60">ITO</dt><dd>{{ r.responsable_nombre }}</dd>
+      </dl>
+      <div class="mt-2 flex items-center gap-2"><progress class="progress progress-primary min-w-0 flex-1" value="{{ r.avance_pct|floatformat:"0u" }}" max="100" aria-hidden="true"></progress><span class="w-10 text-right text-sm tabular-nums">{{ r.avance_pct|floatformat:0 }}%</span></div>
+    </a>
+    <div class="mt-2 flex justify-end gap-1 border-t border-base-content/10 pt-2">
+      <a href="{% url 'reg_construccion:detalle' r.pk %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Ver" aria-label="Ver">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+      {% if not r.concluido %}<a href="{% url 'reg_construccion:detalle' r.pk %}" class="btn btn-ghost btn-square btn-sm text-warning hover:bg-warning/10" title="Editar datos del reporte" aria-label="Editar datos del reporte">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>{% endif %}
+      {% if request.user.is_superuser and not r.concluido %}
+      <form method="post" action="{% url 'reg_construccion:eliminar' r.pk %}" data-confirmar="¿Eliminar esta visita?" class="inline">{% csrf_token %}
+        <button class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+      </form>
+      {% endif %}
+    </div>
+  </li>
+  {% empty %}<li class="rounded-box bg-base-100 py-8 text-center text-base-content/60">No hay reportes{% if estado or estado_obra %} con esos filtros{% endif %}.</li>{% endfor %}
+</ul>
+{% include "tar_tickets/parciales/_paginacion.html" %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,1 @@
+<textarea name="{{ b.campo }}" rows="3" {% if b.max_length %}maxlength="{{ b.max_length }}"{% endif %} {% if not puede_escribir %}disabled{% endif %} class="textarea textarea-bordered w-full" placeholder="Escribe aquí…">{{ b.valor }}</textarea>

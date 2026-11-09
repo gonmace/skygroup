@@ -1,0 +1,54 @@
+{% extends "shell.html" %}
+{% block page_title %}TX/TSS · {{ r.proyecto.codigo|default:"—" }}{% endblock %}
+{% block content_main %}
+<div class="mx-auto mb-4 flex max-w-2xl flex-wrap items-center gap-2">
+  <span class="inline-block size-3 rounded-full {% if r.color == 'verde' %}bg-success{% elif r.color == 'amarillo' %}bg-warning{% else %}bg-error{% endif %}"></span>
+  <span class="badge {% if r.concluido %}badge-success{% else %}badge-ghost{% endif %}">{% if r.concluido %}Concluido{% else %}Abierto{% endif %}</span>
+  <span class="badge badge-outline">{{ r.proyecto.tipo|default:termino_proyecto }}</span>
+  <a href="{% url 'reg_txtss:lista' %}" class="btn btn-ghost btn-sm ml-auto">← Registros</a>
+</div>
+<div class="mx-auto grid max-w-2xl gap-4">
+  <section class="card bg-base-100"><div class="card-body gap-3">
+    <h2 class="card-title text-base">{{ r.proyecto.nombre|default:"(proyecto eliminado)" }}</h2>
+    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+      <dt class="text-base-content/60">{{ termino_proyecto }}</dt><dd>{% if r.proyecto %}<a class="link" href="{% url 'proyectos:detalle' r.proyecto.pk %}">{{ r.proyecto }}</a>{% else %}—{% endif %}</dd>
+      <dt class="text-base-content/60">Fecha</dt><dd>{{ r.fecha|date:"d/m/Y" }}</dd>
+      <dt class="text-base-content/60">Alternativa</dt><dd class="font-mono">{{ r.alternativa|default:"—" }}</dd>
+      <dt class="text-base-content/60">Responsable</dt><dd>{{ r.responsable_nombre }}</dd>
+    </dl>
+    {% if puede_escribir %}
+      <form method="post" action="{% url 'reg_txtss:fecha' r.pk %}" class="flex items-end gap-2">{% csrf_token %}
+        <label class="text-sm"><span class="mb-1 block text-base-content/60">Cambiar fecha</span><input type="date" name="fecha" value="{{ r.fecha|date:'Y-m-d' }}" class="input input-bordered input-sm"></label>
+        <button class="btn btn-sm">Guardar fecha</button>
+      </form>
+    {% elif r.concluido %}<p class="text-sm text-base-content/60">El registro está concluido y es de solo lectura.</p>{% endif %}
+  </div></section>
+
+
+
+  <section class="order-first"><div>
+    {% include "reg_actividades/_linea_pasos.html" with acciones_template="reg_txtss/_acciones.html" %}
+  </div></section>
+  <section class="card bg-base-100"><div class="card-body gap-2">
+    <div class="flex items-center justify-between"><h2 class="card-title text-base">Fotos</h2>
+      <a href="{% url 'reg_fotos:galeria' 'txtss' r.pk 'general' %}" class="btn btn-lg">{% if puede_escribir %}Subir / ver{% else %}Ver{% endif %}</a></div>
+    {% if fotos_total %}
+      <p class="text-sm text-base-content/60">{{ fotos_total }} foto{{ fotos_total|pluralize }}</p>
+      <div class="grid grid-cols-3 gap-2 sm:grid-cols-6">
+        {% for f in fotos_recientes %}<a href="{% url 'reg_fotos:imagen' f.pk %}" target="_blank" rel="noopener"><img src="{% url 'reg_fotos:miniatura' f.pk %}" alt="{{ f.descripcion|default:'Foto' }}" loading="lazy" class="aspect-square w-full rounded-lg object-cover"></a>{% endfor %}
+      </div>
+    {% else %}<p class="text-sm text-base-content/60">Todavía no hay fotos.</p>{% endif %}
+  </div></section>
+
+  {% if puede_cambiar_responsable %}
+  <section class="card bg-base-100"><form method="post" action="{% url 'reg_txtss:responsable' r.pk %}" class="card-body gap-3">{% csrf_token %}
+    <h2 class="card-title text-base">Responsable y alternativa</h2>
+    <div class="grid gap-3 sm:grid-cols-3 sm:items-end">
+      <div><label class="mb-1 block text-sm">Responsable</label>{{ form_responsable.user }}</div>
+      <div><label class="mb-1 block text-sm">Alternativa</label>{{ form_responsable.alternativa }}</div>
+      <button class="btn btn-sm">Guardar</button>
+    </div>
+  </form></section>
+  {% endif %}
+</div>
+{% endblock %}

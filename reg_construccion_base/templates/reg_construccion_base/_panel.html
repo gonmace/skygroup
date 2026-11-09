@@ -1,0 +1,60 @@
+<h2 class="text-lg font-semibold">Panel de Supervisión Campo</h2>
+{% if not kpis.visitas_total %}
+<section class="card bg-base-100"><div class="card-body items-center p-8 text-center">
+  <h2 class="text-lg font-semibold">Aún no hay visitas de supervisión</h2>
+  <p class="max-w-md text-sm text-base-content/60">Cuando se cree la primera visita de un {{ termino_proyecto|lower }}, aquí verás las visitas de la semana, los hallazgos abiertos y su ubicación.</p>
+</div></section>
+{% else %}
+<div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="calendar" cls="size-4" %} Visitas esta semana</div>
+    <p class="text-3xl font-semibold tabular-nums">{{ kpis.visitas_semana }}</p>
+    <p class="text-xs text-base-content/60">{{ kpis.visitas_total }} en total · {{ kpis.proyectos }} {{ termino_proyectos|lower }} · {{ kpis.borradores }} en borrador</p>
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="eye" cls="size-4" %} Hallazgos abiertos</div>
+    <p class="text-3xl font-semibold tabular-nums">{{ kpis.abiertos }}</p>
+    <p class="text-xs text-base-content/60"><span class="text-error">{{ kpis.criticos }} críticos</span> · {{ kpis.mayores }} mayores · {{ kpis.menores }} menores</p>
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="clock" cls="size-4" %} Vencidos</div>
+    <p class="text-3xl font-semibold tabular-nums {% if kpis.vencidos %}text-error{% else %}text-success{% endif %}">{{ kpis.vencidos }}</p>
+    <p class="text-xs text-base-content/60">con el plazo de corrección cumplido</p>
+  </div></div>
+  <div class="card bg-base-100"><div class="card-body gap-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-base-content/60">{% include "components/icon.html" with name="check" cls="size-4" %} Días promedio de cierre</div>
+    <p class="text-3xl font-semibold tabular-nums">{% if kpis.dias_cierre is None %}—{% else %}{{ kpis.dias_cierre|floatformat:"-1" }}{% endif %}</p>
+    <p class="text-xs text-base-content/60">desde que se levanta hasta que se cierra</p>
+  </div></div>
+</div>
+
+{% if puntos %}
+<section class="card overflow-hidden bg-base-100">
+  <div class="card-body p-5 pb-3"><h3 class="text-sm font-semibold">Mapa de visitas</h3></div>
+  {{ puntos|json_script:"proyectos-puntos" }}
+  <div data-proyectos-mapa class="reg-mapa-lienzo h-80 w-full bg-base-200" role="region" aria-label="Mapa con {{ puntos|length }} ubicaciones"></div>
+</section>
+{% endif %}
+
+<div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+  <section class="card bg-base-100"><div class="card-body p-5">
+    <h3 class="mb-2 text-sm font-semibold">Últimas visitas</h3>
+    {% for v in ultimas %}
+    <a href="{{ v.url }}" class="-mx-1 flex items-center gap-3 rounded-md border-t border-base-300 px-1 py-2 first:border-0 hover:bg-base-200/60">
+      <span class="size-2 shrink-0 rounded-full {% if v.emitida %}bg-success{% else %}bg-warning{% endif %}"></span>
+      <div class="min-w-0 flex-1"><p class="truncate text-sm font-medium">{% if v.codigo %}{{ v.codigo }} · {% endif %}{{ v.proyecto }}</p><p class="truncate text-xs text-base-content/60">Visita {{ v.numero }} · {{ v.fecha|date:"d/m/Y" }} · {{ v.usuario }}</p></div>
+      {% if v.abiertos %}<span class="badge badge-soft badge-warning badge-sm shrink-0">{{ v.abiertos }} abierto{{ v.abiertos|pluralize }}</span>{% endif %}
+    </a>
+    {% empty %}<p class="py-4 text-sm text-base-content/50">Aún no hay visitas.</p>{% endfor %}
+  </div></section>
+  <section class="card bg-base-100"><div class="card-body p-5">
+    <h3 class="mb-2 text-sm font-semibold">Hallazgos críticos abiertos</h3>
+    {% for h in criticos %}
+    <a href="{{ h.url }}" class="-mx-1 flex items-center gap-3 rounded-md border-t border-base-300 px-1 py-2 first:border-0 hover:bg-base-200/60">
+      <div class="min-w-0 flex-1"><p class="truncate text-sm font-medium"><span class="tabular-nums">{{ h.codigo }}</span> · {{ h.proyecto }}</p><p class="truncate text-xs text-base-content/60">{{ h.descripcion }}</p></div>
+      {% if h.plazo %}<span class="badge badge-soft badge-sm shrink-0 {% if h.vencido %}badge-error{% else %}badge-ghost{% endif %}">{{ h.plazo|date:"d/m/Y" }}</span>{% endif %}
+    </a>
+    {% empty %}<p class="py-4 text-sm text-base-content/50">No hay hallazgos críticos abiertos.</p>{% endfor %}
+  </div></section>
+</div>
+{% endif %}

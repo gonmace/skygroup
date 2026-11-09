@@ -1,0 +1,16 @@
+<form method="get" data-board-filters class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-base-300 bg-base-100 p-3">
+  <input type="search" name="q" value="{{ filters.q }}" placeholder="Buscar (título, código, solicitante…)" autocomplete="off" class="input input-bordered input-sm w-full sm:w-72">
+  <select name="asignado" class="select select-bordered select-sm">
+    <option value="">Asignado: todos</option>
+    {% for u in filters.users %}<option value="{{ u.pk }}" {% if filters.assignee == u.pk|stringformat:'s' %}selected{% endif %}>{{ u.get_full_name|default:u.email }}</option>{% endfor %}
+  </select>
+  {% if filters.projects %}
+    <select name="proyecto" class="select select-bordered select-sm">
+      <option value="">{{ termino_proyecto }}: todos</option>
+      {% for p in filters.projects %}<option value="{{ p.pk }}" {% if filters.project == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.codigo }} · {{ p.nombre }}</option>{% endfor %}
+    </select>
+  {% endif %}
+  <button type="submit" class="btn btn-sm">Filtrar</button>
+  <a href="{{ request.path }}" class="btn btn-ghost btn-sm">Limpiar</a>
+  {% if show_status_legend %}<label for="status-legend-toggle" class="btn btn-info btn-outline btn-sm btn-circle ml-auto" title="¿Qué ve cada rol en el tablero?" aria-label="¿Qué ve cada rol en el tablero?">?</label>{% endif %}
+</form>

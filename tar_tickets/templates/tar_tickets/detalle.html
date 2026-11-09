@@ -1,0 +1,233 @@
+{% extends "shell.html" %}
+{% load static tareas_extras %}
+{% block title %}{{ t.clave }} · {{ t.titulo }}{% endblock %}
+{% block page_title %}{{ t.clave }}{% endblock %}
+
+{% block content_main %}
+<div id="live-ticket-marker" data-live-url="/ws/empresa/{{ empresa.slug }}/tareas/" data-ticket-id="{{ t.pk }}" data-thread-ids="{{ hilo|join:',' }}" hidden></div>
+<div class="mb-4"><a href="{% url 'tar_tickets:tablero' %}" class="text-sm text-base-content/50 hover:text-base-content">← Volver al tablero</a></div>
+
+<div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
+
+  <!-- Columna izquierda: datos -->
+  <div class="space-y-5 lg:col-span-1">
+    <div class="overflow-hidden rounded-2xl border border-base-300 bg-base-100">
+      <div class="flex items-center justify-between gap-2 border-b border-base-200 px-5 py-3">
+        <span class="font-mono text-xs font-semibold text-accent-text">{{ t.clave }}</span>
+        <span class="flex items-center gap-1.5">
+          {% if t.suspendido_en %}<span class="badge badge-ghost badge-sm" title="Solo quien dirige puede reactivarlo">Bloqueado por el coordinador</span>{% endif %}
+          {% if t.esta_dividido %}<span class="badge badge-accent badge-sm" title="Contenedor: ya no aparece en el tablero">Dividido ×{{ hijos|length }}</span>
+          {% elif hijos_divididos %}<span class="badge badge-accent badge-sm" title="Tiene partes idénticas">Dividido ×{{ hijos|length }}</span>
+          {% elif hijos %}<span class="badge badge-accent badge-sm" title="Derivado en subtickets">Derivados ×{{ hijos|length }}</span>{% endif %}
+          {% if pendiente_aprobacion %}<span class="badge badge-outline badge-success badge-sm font-medium" title="El ejecutor concluyó, falta la aprobación">Pendiente de aprobación</span>
+          {% else %}<span class="badge badge-outline badge-sm font-medium badge-{{ t.color_estado }}">{{ t.get_estado_display }}</span>{% endif %}
+        </span>
+      </div>
+      <div class="p-5">
+        <h1 class="text-lg font-bold leading-snug">{{ t.titulo }}</h1>
+        {% if t.padre %}<p class="mt-1 text-xs text-base-content/50">{% if padre_dividido %}Parte de{% else %}Deriva de{% endif %} <a href="{% url 'tar_tickets:detalle' t.padre.pk %}" class="font-mono text-accent-text hover:underline">{{ t.padre.clave }}</a></p>{% endif %}
+        {% if t.descripcion %}<p class="mt-2 whitespace-pre-wrap break-words text-sm text-base-content/70">{{ t.descripcion }}</p>{% endif %}
+        {% with etiquetas=t.etiquetas.all %}{% if etiquetas %}<div class="mt-3 flex flex-wrap gap-1.5">{% for l in etiquetas %}<span class="label-chip" data-color="{{ l.color }}">{{ l.nombre }}</span>{% endfor %}</div>{% endif %}{% endwith %}
+      </div>
+      <div class="divide-y divide-base-200 border-t border-base-200 text-sm">
+        <div class="flex px-5 py-2.5"><span class="w-28 shrink-0 text-base-content/40">Solicitante</span><span class="min-w-0 flex-1 break-words">{{ t.solicitante|default:"—" }}</span></div>
+        <div class="flex px-5 py-2.5"><span class="w-28 shrink-0 text-base-content/40">Modalidad</span><span>
+          {% if ejecutores|length == 1 %}<span class="badge badge-sm badge-neutral">Individual</span> <span class="text-base-content/40">un solo ejecutor</span>
+          {% elif t.tiene_subproductos %}<span class="badge badge-sm badge-info">Con subproductos</span> <span class="text-base-content/40">subticket por ejecutor</span>
+          {% else %}<span class="badge badge-sm badge-ghost">Colaborativa</span> <span class="text-base-content/40">estado compartido</span>{% endif %}</span></div>
+        {% if t.proyecto %}<div class="flex px-5 py-2.5"><span class="w-28 shrink-0 text-base-content/40">{{ termino_proyecto }}</span><span class="min-w-0 flex-1 break-words"><a class="link" href="{% url 'proyectos:detalle' t.proyecto.pk %}"><span class="font-mono text-xs font-semibold text-accent-text">{{ t.proyecto.codigo }}</span> · {{ t.proyecto.nombre }}</a>{% if t.proyecto.ciudad %} <span class="text-base-content/40">· {{ t.proyecto.ciudad }}</span>{% endif %}</span></div>{% endif %}
+        <div class="flex px-5 py-2.5"><span class="w-28 shrink-0 text-base-content/40">Prioridad</span><span class="badge badge-sm badge-{{ t.color_prioridad }}">{{ t.get_prioridad_display }}</span></div>
+        {% if t.vence %}<div class="flex px-5 py-2.5"><span class="w-28 shrink-0 text-base-content/40">Vence</span><span class="{% if t.esta_vencido %}font-semibold text-error{% endif %}">{{ t.vence|date:"d/m/Y" }}{% if t.esta_vencido %} · vencido{% endif %}</span></div>{% endif %}
+        <div class="flex px-5 py-2.5"><span class="w-28 shrink-0 text-base-content/40">Creado por</span><span class="min-w-0 flex-1 break-words">{{ t.creador.get_full_name|default:t.creador.email|default:"—" }}</span></div>
+        <div class="flex px-5 py-2.5"><span class="w-28 shrink-0 text-base-content/40">Creado</span><span>{{ t.creado|date:"d/m/Y H:i" }}</span></div>
+        {% if t.cerrado_en %}<div class="flex px-5 py-2.5"><span class="w-28 shrink-0 text-base-content/40">Cerrado</span><span>{{ t.cerrado_en|date:"d/m/Y H:i" }}</span></div>{% endif %}
+        {% if hijos %}<div class="flex px-5 py-2.5"><span class="w-28 shrink-0 text-base-content/40">{% if hijos_divididos %}Partes{% else %}Derivados{% endif %}</span><span class="flex flex-wrap gap-2">{% for h in hijos %}<a href="{% url 'tar_tickets:detalle' h.pk %}" class="font-mono text-xs text-accent-text hover:underline">{{ h.clave }}</a>{% endfor %}</span></div>{% endif %}
+      </div>
+
+      <div class="space-y-2 border-t border-base-200 px-5 py-3">
+        {% if puede_concluir %}
+        <form method="post" action="{% url 'tar_tickets:concluir_subticket' mi_asignacion.pk %}" class="space-y-2" data-confirmar="¿Concluir {% if t.tiene_subproductos %}tu subticket{% else %}la tarea{% endif %}?">{% csrf_token %}
+          <textarea name="conclusion" rows="2" class="textarea textarea-bordered w-full" placeholder="Conclusión o enlace (opcional)"></textarea>
+          <button class="btn btn-success btn-sm w-full">Concluir {% if t.tiene_subproductos %}mi subticket{% else %}la tarea{% endif %}</button>
+        </form>
+        {% endif %}
+        {% if not t.esta_dividido and puede_aprobar %}
+          <form method="post" action="{% url 'tar_tickets:aprobar' t.pk %}" class="tooltip block w-full" data-tip="Confirma el trabajo del ejecutor: el ticket pasa a Concluido definitivamente">{% csrf_token %}
+            <button class="btn btn-success btn-sm w-full">Aprobar conclusión</button>
+          </form>
+          <div class="tooltip block w-full" data-tip="Devuelve la tarea a «En progreso»; el ejecutor recibe tu motivo como comentario">
+            <label for="rechazar-modal" class="btn btn-outline btn-error btn-sm w-full">Rechazar conclusión</label>
+          </div>
+        {% endif %}
+        {% if puede_editar %}<a href="{% url 'tar_tickets:editar' t.pk %}" class="btn btn-sm w-full gap-1">{% include "components/icon.html" with name="pencil" cls="size-4" %} Editar ticket</a>{% endif %}
+        <div class="flex gap-2">
+          {% if puede_dividir %}
+            <form method="post" action="{% url 'tar_tickets:dividir' t.pk %}" class="tooltip flex-1" data-tip="Crea una copia idéntica (contenido, estado y asignados) para repartir el mismo trabajo en partes" data-confirmar="¿Dividir {{ t.clave }} en una parte idéntica?">{% csrf_token %}
+              <button class="btn btn-info btn-sm w-full">Dividir</button>
+            </form>
+          {% endif %}
+          {% if puede_derivar and not t.esta_dividido %}
+            <form method="post" action="{% url 'tar_tickets:derivar' t.pk %}" class="tooltip flex-1" data-tip="Desprende una subtarea distinta: crea un subticket vacío que cuelga de este">{% csrf_token %}
+              <button class="btn btn-outline btn-info btn-sm w-full">Derivar</button>
+            </form>
+          {% endif %}
+          {% if puede_suspender %}
+            <form method="post" action="{% url 'tar_tickets:suspender' t.pk %}" class="tooltip flex-1"
+                  data-tip="{% if t.estado == 'WAITING' %}Devuelve el ticket al estado en que estaba{% else %}Bloquea el ticket en «Suspendido/Cancelado»; solo quien dirige puede reactivarlo{% endif %}"
+                  data-confirmar="{% if t.estado == 'WAITING' %}¿Reactivar {{ t.clave }}?{% else %}¿Suspender/cancelar {{ t.clave }}?{% endif %}">{% csrf_token %}
+              <button class="btn btn-warning btn-sm w-full">{% if t.estado == 'WAITING' %}Reactivar{% else %}Suspender{% endif %}</button>
+            </form>
+          {% endif %}
+          {% if puede_archivar %}
+            <form method="post" action="{% url 'tar_tickets:archivar' t.pk %}" class="tooltip flex-1" data-tip="Lo saca del tablero y lo guarda en Archivados" data-confirmar="¿Archivar {{ t.clave }}?">{% csrf_token %}
+              <button class="btn btn-secondary btn-sm w-full">Archivar</button>
+            </form>
+          {% endif %}
+        </div>
+        {% if request.user.is_superuser %}
+          <form method="post" action="{% url 'tar_tickets:eliminar' t.pk %}" data-confirmar="¿Eliminar {{ t.clave }} definitivamente? Se borran sus mensajes y adjuntos. No se puede deshacer.">{% csrf_token %}
+            <button class="btn btn-ghost btn-xs w-full text-error">Eliminar definitivamente</button>
+          </form>
+        {% endif %}
+        {% if puede_dividir or puede_derivar %}<p class="text-[11px] leading-snug text-base-content/40"><span class="font-semibold">Dividir</span> crea una parte idéntica para repartir el mismo trabajo · <span class="font-semibold">Derivar</span> crea un subticket vacío para una subtarea distinta (se completa a mano).</p>{% endif %}
+      </div>
+    </div>
+
+    <!-- Ejecutores / Expertos -->
+    <div class="rounded-2xl border border-base-300 bg-base-100 p-5">
+      <h2 class="mb-3 text-sm font-bold">Ejecutores <span class="font-normal text-base-content/40">(R)</span></h2>
+      {% if not t.tiene_subproductos and ejecutores.0.conclusion %}<p class="mb-3 whitespace-pre-wrap break-words text-xs text-base-content/70">Conclusión: “{{ ejecutores.0.conclusion }}”</p>{% endif %}
+      <div class="space-y-3">
+        {% for a in ejecutores %}
+          <div class="flex items-start gap-2 text-sm">
+            {% include "tar_tickets/parciales/_avatar.html" with u=a.user size='w-7 h-7' %}
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="truncate font-medium">{{ a.user.get_full_name|default:a.user.email }}</span>
+                <span class="badge badge-xs {% if a.estado == 'TODO' %}badge-info{% elif a.estado == 'IN_PROGRESS' %}badge-warning{% elif a.estado == 'DONE' %}badge-success{% elif a.estado == 'WAITING' %}badge-error{% else %}badge-ghost{% endif %}">{{ a.get_estado_display }}</span>
+                {% if a.estado == 'DONE' and not a.aprobado_en %}<span class="badge badge-xs badge-warning">sin aprobar</span>{% endif %}
+                {% if a.aprobado_en %}<span class="badge badge-xs badge-success">aprobado</span>{% endif %}
+              </div>
+              {% if a.transcurrido %}<p class="text-xs text-base-content/40">Tiempo total: {{ a.transcurrido }}</p>{% endif %}
+              {% if a.t_por_hacer or a.t_en_progreso %}<p class="text-xs text-base-content/40">{% if a.t_por_hacer %}Por hacer: {{ a.t_por_hacer }}{% endif %}{% if a.t_por_hacer and a.t_en_progreso %} · {% endif %}{% if a.t_en_progreso %}En progreso: {{ a.t_en_progreso }}{% endif %}</p>{% endif %}
+              {% if t.tiene_subproductos and a.conclusion %}<p class="mt-0.5 whitespace-pre-wrap break-words text-xs text-base-content/70">“{{ a.conclusion }}”</p>{% endif %}
+            </div>
+          </div>
+        {% empty %}<p class="text-xs text-base-content/40">Sin ejecutores asignados (Entrada).</p>{% endfor %}
+      </div>
+      {% if expertos %}
+        <h2 class="mb-2 mt-4 text-sm font-bold">Expertos <span class="font-normal text-base-content/40">(C)</span></h2>
+        <div class="flex flex-wrap gap-2">
+          {% for a in expertos %}<span class="badge badge-ghost badge-sm gap-1.5 pl-1">{% include "tar_tickets/parciales/_avatar.html" with u=a.user size='w-5 h-5' muted=True %}{{ a.user.get_full_name|default:a.user.email }}</span>{% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Historial -->
+    <div class="rounded-2xl border border-base-300 bg-base-100 p-5">
+      <h2 class="mb-3 text-sm font-bold">Historial</h2>
+      <div class="space-y-2">
+        {% for e in eventos %}
+          <div class="flex gap-2 text-xs">
+            <span class="w-16 shrink-0 text-base-content/40">{{ e.creado|date:"d/m H:i" }}</span>
+            <span class="min-w-0 flex-1 break-words">{% if e.heredado %}<span class="badge badge-ghost badge-xs align-middle font-mono" title="Evento heredado del ticket de origen">{{ e.ticket.clave }}</span> {% endif %}<span class="font-medium">{{ e.actor.email|default:"—" }}</span> {{ e.detalle }}</span>
+          </div>
+        {% empty %}<p class="text-xs text-base-content/40">Sin actividad.</p>{% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Columna derecha: seguimiento -->
+  <div class="order-first lg:order-none lg:col-span-2">
+    <div class="flex min-h-[28rem] flex-col rounded-2xl border border-base-300 bg-base-100">
+      <div class="border-b border-base-200 px-5 py-3">
+        <h2 class="text-sm font-bold">Seguimiento{% if claves_padres %} <span class="text-xs font-normal text-base-content/40">· incluye {{ claves_padres|join:", " }}</span>{% endif %}</h2>
+      </div>
+      <div class="max-h-[26rem] flex-1 space-y-4 overflow-y-auto p-5" data-chat-messages data-since-url="{% url 'tar_tickets:comentarios_desde' t.pk %}">
+        {% if hay_anteriores %}
+          <div class="pb-1 text-center" data-load-older-wrap>
+            <button type="button" class="btn btn-ghost btn-xs" data-load-older data-url="{% url 'tar_tickets:historial_chat' t.pk %}" data-before="{{ mas_antiguo }}">Cargar mensajes anteriores</button>
+          </div>
+        {% endif %}
+        {% for c in comentarios %}{% include "tar_tickets/parciales/_mensaje.html" with es_ultimo=forloop.last %}
+        {% empty %}<p class="py-8 text-center text-sm text-base-content/40" data-chat-empty>Todavía no hay mensajes de seguimiento.</p>{% endfor %}
+      </div>
+      {% if puede_escribir_chat %}
+        <form method="post" action="{% url 'tar_tickets:comentar' t.pk %}" enctype="multipart/form-data" data-chat-submit class="space-y-2 border-t border-base-200 p-4">
+          {% csrf_token %}
+          <div class="flex items-stretch gap-2">
+            <div class="min-w-0 flex-1">{{ form_comentario.texto }}</div>
+            <button type="submit" class="btn btn-success btn-square h-auto min-h-0 shrink-0" title="Enviar" aria-label="Enviar">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            </button>
+          </div>
+          <span data-chat-uploading class="hidden items-center gap-1.5 text-xs text-base-content/60"><span class="loading loading-spinner loading-xs"></span> Subiendo adjuntos…</span>
+          <div data-dropzone-stage data-dropzone-mobile class="lg:hidden">
+            <input type="file" name="files" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt" class="file-input file-input-bordered file-input-sm w-full" data-dropzone-input>
+            <div data-dropzone-preview class="mt-1.5 flex flex-wrap gap-1.5"></div>
+          </div>
+          <label data-dropzone-stage data-dropzone-desktop class="hidden cursor-pointer flex-col items-center justify-center gap-0.5 rounded-xl border-2 border-dashed border-base-300 p-3 text-center transition-colors hover:bg-base-200/50 lg:flex">
+            <span data-dropzone-hint class="flex flex-col items-center gap-0.5">
+              <svg class="size-5 text-base-content/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+              <span class="text-xs text-base-content/60">Arrastra archivos aquí o <span class="font-medium text-primary-text">elígelos</span></span>
+            </span>
+            <div data-dropzone-preview class="flex w-full flex-wrap justify-center gap-1.5"></div>
+            <input type="file" name="files" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt" class="hidden" data-dropzone-input>
+          </label>
+        </form>
+      {% else %}
+        <div class="border-t border-base-200 p-4 text-center text-xs text-base-content/40">No tienes permiso para escribir en este seguimiento.</div>
+      {% endif %}
+    </div>
+
+    {% if adj_miniaturas or adj_archivos %}
+      <div class="mt-5 rounded-2xl border border-base-300 bg-base-100 p-5">
+        <h2 class="mb-3 text-sm font-bold">Adjuntos del seguimiento</h2>
+        {% if adj_miniaturas %}
+          <div class="grid grid-cols-4 gap-4 sm:grid-cols-6" data-gallery-grid>
+            {% for a in adj_miniaturas %}{% include "tar_tickets/parciales/_adjunto.html" with en_chat=True galeria=True %}{% endfor %}
+          </div>
+          {% if hay_mas_miniaturas %}<div class="mt-3 text-center" data-load-more-attachments-wrap><button type="button" class="btn btn-ghost btn-xs" data-load-more-attachments data-url="{% url 'tar_tickets:mas_adjuntos' t.pk %}" data-kind="thumbs" data-target="gallery-grid" data-before="{{ pk_min }}">Cargar más imágenes/PDF</button></div>{% endif %}
+        {% endif %}
+        {% if adj_archivos %}
+          <div class="flex flex-col gap-1.5{% if adj_miniaturas %} mt-4{% endif %}" data-gallery-files>
+            {% for a in adj_archivos %}{% include "tar_tickets/parciales/_adjunto.html" with en_chat=True galeria=True %}{% endfor %}
+          </div>
+          {% if hay_mas_archivos %}<div class="mt-3 text-center" data-load-more-attachments-wrap><button type="button" class="btn btn-ghost btn-xs" data-load-more-attachments data-url="{% url 'tar_tickets:mas_adjuntos' t.pk %}" data-kind="files" data-target="gallery-files" data-before="{{ pk_arch }}">Cargar más documentos</button></div>{% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if adj_ticket %}
+      <div class="mt-5 rounded-2xl border border-base-300 bg-base-100 p-5">
+        <h2 class="mb-3 text-sm font-bold">Adjuntos</h2>
+        <div class="flex flex-wrap gap-2">{% for a in adj_ticket %}{% include "tar_tickets/parciales/_adjunto.html" %}{% endfor %}</div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if not t.esta_dividido and puede_aprobar %}
+  <input type="checkbox" id="rechazar-modal" class="modal-toggle">
+  <div class="modal" role="dialog">
+    <div class="modal-box">
+      <h3 class="text-lg font-bold">Rechazar conclusión</h3>
+      <p class="mt-1 text-sm text-base-content/60">La tarea vuelve a «En progreso» y el ejecutor recibe tu motivo como comentario y notificación.</p>
+      <form method="post" action="{% url 'tar_tickets:rechazar' t.pk %}" class="mt-3 space-y-3">{% csrf_token %}
+        <textarea name="feedback" rows="4" required class="textarea textarea-bordered w-full" placeholder="Qué falta o qué hay que corregir…"></textarea>
+        <div class="flex justify-end gap-2"><label for="rechazar-modal" class="btn btn-ghost btn-sm">Cancelar</label><button class="btn btn-error btn-sm">Rechazar</button></div>
+      </form>
+    </div>
+    <label class="modal-backdrop" for="rechazar-modal">Cerrar</label>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'js/tareas-toast.js' %}" defer></script>
+  <script src="{% static 'js/tareas-dropzone.js' %}" defer></script>
+  <script src="{% static 'js/tareas-chat-submit.js' %}" defer></script>
+  <script src="{% static 'js/tareas-image-annotate.js' %}" defer></script>
+  <script src="{% static 'js/tareas-chat-history.js' %}" defer></script>
+  <script src="{% static 'js/tareas-live.js' %}" defer></script>
+{% endblock %}

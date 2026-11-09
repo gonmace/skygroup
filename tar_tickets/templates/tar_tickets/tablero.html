@@ -1,0 +1,54 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block title %}Tablero{% endblock %}
+{% block page_title %}Tablero{% endblock %}
+
+{% block content_main %}
+<div class="mb-3 flex justify-end">
+  {% if can_create %}<a href="{% url 'tar_tickets:nuevo' %}" class="btn btn-primary btn-sm">{% include "components/icon.html" with name="plus" cls="size-4" %} Nuevo ticket</a>{% endif %}
+</div>
+{% include "tar_tickets/parciales/_filtros.html" %}
+
+{% if show_status_legend %}
+<input type="checkbox" id="status-legend-toggle" class="modal-toggle">
+<div class="modal" role="dialog">
+  <div class="modal-box max-w-2xl">
+    <h3 class="mb-1 text-base font-bold">Qué ve cada rol en el tablero</h3>
+    <div class="overflow-x-auto"><div class="min-w-[520px]">
+      <div class="mb-2 flex items-center gap-3">
+        <div class="grid flex-1 grid-cols-5 gap-1 text-center text-[11px] font-semibold">
+          {% for val, label in status_legend.statuses %}<div class="truncate {% if forloop.counter0 == 0 %}text-base-content/50{% elif forloop.counter0 == 1 %}text-info{% elif forloop.counter0 == 2 %}text-warning{% elif forloop.counter0 == 3 %}text-success{% else %}text-error{% endif %}">{{ label }}</div>{% endfor %}
+        </div>
+        <div class="w-40 shrink-0"></div>
+      </div>
+      {% for row in status_legend.rows %}
+        <div class="mb-3 flex items-center gap-3">
+          <div class="grid flex-1 grid-cols-5 gap-1">
+            {% for val, label in status_legend.statuses %}
+              <div class="h-2 {% if forloop.counter0 >= row.start and forloop.counter0 <= row.end %}border-t-2 {% if forloop.counter0 == 0 %}border-base-content/60{% elif forloop.counter0 == 1 %}border-info{% elif forloop.counter0 == 2 %}border-warning{% elif forloop.counter0 == 3 %}border-success{% else %}border-error{% endif %}{% if forloop.counter0 == row.start %} rounded-tl border-l-2{% endif %}{% if forloop.counter0 == row.end %} rounded-tr border-r-2{% endif %}{% endif %}"></div>
+            {% endfor %}
+          </div>
+          <span class="w-40 shrink-0 text-xs font-medium text-base-content/70">{{ row.label }}</span>
+        </div>
+      {% endfor %}
+    </div></div>
+    <div class="modal-action"><label for="status-legend-toggle" class="btn btn-ghost btn-sm">Cerrar</label></div>
+  </div>
+  <label class="modal-backdrop" for="status-legend-toggle">Cerrar</label>
+</div>
+{% endif %}
+
+<div class="-mx-3 flex snap-x snap-mandatory scroll-px-3 gap-4 overflow-x-auto px-3 pb-4 sm:mx-0 sm:snap-none sm:px-0 lg:overflow-x-visible"
+     data-kanban data-live-url="/ws/empresa/{{ empresa.slug }}/tareas/" data-mode="{{ board_mode }}" data-fragment-url="{% url 'tar_tickets:fragmento' %}"
+     data-move-url="{% url 'tar_tickets:mover' %}" data-assignment-move-url="{% url 'tar_tickets:mover_subticket' %}"
+     data-can-move="{{ can_move|yesno:'1,0' }}">
+  {% include "tar_tickets/parciales/_columnas.html" %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'js/vendor/sortable.min.js' %}" defer></script>
+  <script src="{% static 'js/tareas-kanban.js' %}" defer></script>
+  <script src="{% static 'js/tareas-busqueda.js' %}" defer></script>
+  <script src="{% static 'js/tareas-live.js' %}" defer></script>
+{% endblock %}

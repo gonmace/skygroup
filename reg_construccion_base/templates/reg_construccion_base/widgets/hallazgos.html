@@ -1,0 +1,19 @@
+{% if b.hallazgos %}
+<ul class="divide-y divide-base-300">
+  {% for h in b.hallazgos %}
+  <li class="flex items-start gap-3 py-2">
+    <a href="{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}" class="min-w-0 flex-1">
+      <p class="text-sm"><span class="font-semibold tabular-nums">{{ h.codigo }}</span> · {{ h.get_tipo_display }}</p>
+      <p class="line-clamp-2 text-sm text-base-content/70">{{ h.descripcion }}</p>
+    </a>
+    <div class="flex shrink-0 flex-col items-end gap-1">{% include "reg_construccion_base/_severidad.html" %}{% if h.plazo %}<span class="text-xs text-base-content/60">Plazo {{ h.plazo|date:"d/m/Y" }}</span>{% endif %}</div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}<p class="text-sm text-base-content/60">Todavía no hay hallazgos en esta visita.</p>{% endif %}
+{% if puede_escribir %}
+<div class="flex flex-wrap items-center justify-between gap-3">
+  <a href="{% url 'reg_construccion_base:hallazgo_nuevo' r.pk %}" class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar hallazgo</a>
+  {% if not b.hallazgos %}<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="{{ b.campo }}" class="toggle toggle-success toggle-sm" {% if b.sin_hallazgos %}checked{% endif %}> Sin hallazgos en esta visita</label>{% endif %}
+</div>
+{% elif b.sin_hallazgos and not b.hallazgos %}<p class="text-sm text-base-content/60">Se declaró «sin hallazgos» en esta visita.</p>{% endif %}

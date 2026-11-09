@@ -1,0 +1,2 @@
+{# Estado del proyecto/obra con color: pasar `estado` (código) y `nombre` (texto). #}
+<span class="badge badge-sm {% if estado == 'CONSTRUCCION' %}badge-azul{% elif estado == 'INGENIERIA' %}badge-violeta{% elif estado == 'PARALIZADO' %}badge-warning{% elif estado == 'CANCELADO' %}badge-error{% elif estado == 'CONCLUIDO' %}badge-success{% else %}badge-ghost{% endif %}">{{ nombre }}</span>

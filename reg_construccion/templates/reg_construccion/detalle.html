@@ -1,0 +1,59 @@
+{% extends "shell.html" %}
+{% block page_title %}Construcción · {{ r.proyecto.codigo|default:"—" }} · visita #{{ r.numero_visita }}{% endblock %}
+{% block content_main %}
+<div class="mb-4 flex items-center gap-2">
+  <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+  {% include "reg_construccion/_badge_obra.html" with estado=r.estado_obra nombre=r.get_estado_obra_display %}
+  <span class="badge badge-primary badge-outline" title="Avance total acumulado hasta esta visita">Avance {{ r.avance_pct|floatformat:"1u" }}%</span>
+  {% if r.completo %}<span class="badge badge-success">Pasos completos</span>{% endif %}
+  </div>
+  <a href="{% url 'reg_construccion:lista' %}" class="btn btn-ghost btn-sm ml-auto shrink-0">← Registros</a>
+</div>
+{% if aviso_bloqueo %}<div class="alert alert-warning mb-4 text-sm" role="status"><span>{{ aviso_bloqueo }}</span></div>{% endif %}
+<div class="mx-auto grid max-w-2xl gap-4">
+  <section class="card bg-base-100"><div class="card-body gap-3">
+    <h2 class="card-title text-base">{{ r.nombre_obra|default:r.proyecto.nombre }}</h2>
+    {% if puede_escribir %}
+      <form method="post" action="{% url 'reg_construccion:datos' r.pk %}" class="space-y-3">{% csrf_token %}
+        {% include "components/campos.html" %}
+        <div class="text-right"><button class="btn btn-primary btn-sm">Guardar datos</button></div>
+      </form>
+    {% else %}
+      <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+        <dt class="text-base-content/60">{{ termino_proyecto }}</dt><dd>{% if r.proyecto %}<a class="link" href="{% url 'proyectos:detalle' r.proyecto.pk %}">{{ r.proyecto }}</a>{% else %}—{% endif %}</dd>
+        <dt class="text-base-content/60">Fecha</dt><dd>{{ r.fecha|date:"d/m/Y" }}</dd>
+        <dt class="text-base-content/60">Descripción</dt><dd>{{ r.descripcion|default:"—" }}</dd>
+        <dt class="text-base-content/60">Revisión</dt><dd>{{ r.revision }}</dd>
+        <dt class="text-base-content/60">Estado de la obra</dt><dd>{% include "reg_construccion/_badge_obra.html" with estado=r.estado_obra nombre=r.get_estado_obra_display %}</dd>
+        <dt class="text-base-content/60">Contratista</dt><dd>{{ r.contratista.nombre|default:"—" }}</dd>
+        <dt class="text-base-content/60">ITO</dt><dd>{{ r.responsable_nombre }}</dd>
+      </dl>
+      {% if r.concluido %}<p class="text-sm text-base-content/60">La visita está concluida y es de solo lectura.</p>{% endif %}
+    {% endif %}
+    {% if lat is not None %}<p class="text-xs text-base-content/60">Coordenadas de la obra: {{ lat }}, {{ lon }}</p>{% endif %}
+  </div></section>
+
+
+  <section class="order-first"><div>
+    {% include "reg_actividades/_linea_pasos.html" with acciones_template="reg_construccion/_acciones.html" %}
+  </div></section>
+  <section class="card bg-base-100"><div class="card-body gap-2">
+    <h2 class="card-title text-base"><a class="link link-hover" href="{% url 'reg_fotos:galeria' 'construccion' r.pk 'general' %}">Imágenes</a></h2>
+    {% if fotos_total %}
+      <p class="text-sm text-base-content/60">{{ fotos_total }} {% if fotos_total == 1 %}imagen{% else %}imágenes{% endif %}</p>
+      <div class="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        {% for f in fotos_recientes %}<a href="{% url 'reg_fotos:imagen' f.pk %}" target="_blank" rel="noopener"><img src="{% url 'reg_fotos:miniatura' f.pk %}" alt="{{ f.descripcion|default:'Imagen' }}" loading="lazy" class="aspect-square w-full rounded-lg object-cover"></a>{% endfor %}
+      </div>
+    {% else %}<p class="text-sm text-base-content/60">Todavía no hay imágenes.</p>{% endif %}
+  </div></section>
+
+  <div class="space-y-4">
+    <section class="card bg-base-100"><div class="card-body gap-2">
+      <h2 class="card-title text-base">Registros del {{ termino_proyecto|lower }}</h2>
+      <ul class="space-y-1 text-sm">
+        {% for v in visitas %}<li><a class="link {% if v.pk == r.pk %}font-bold{% endif %}" href="{% url 'reg_construccion:detalle' v.pk %}">{{ v.fecha|date:"d/m/Y" }}</a>{% if v.concluido %} <span class="badge badge-success badge-xs">concluida</span>{% endif %}</li>{% endfor %}
+      </ul>
+    </div></section>
+  </div>
+</div>
+{% endblock %}

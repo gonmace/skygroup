@@ -8,9 +8,8 @@ COPY theme/static_src/package.json theme/static_src/package-lock.json ./
 RUN npm ci
 
 # Tailwind escanea templates y apps al compilar (ver @source en styles.css)
-COPY theme/static_src/src ./src
-COPY templates /app/templates
-COPY home /app/home
+# Se copia todo el repo (menos lo de .dockerignore) para que Tailwind vea todas las apps y static/js
+COPY . /app
 RUN npm run build
 
 # ── Stage 2: imagen Python de producción (sin Node ni módulos npm) ─────────────
@@ -21,6 +20,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_SETTINGS_MODULE=core.settings
 
 WORKDIR /app
+
+# WeasyPrint (PDF del reporte de Construcción) necesita pango y una fuente
+RUN apt-get update && apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
 
 # psycopg2-binary trae libpq: no hacen falta gcc ni libpq-dev
 COPY requirements.txt ./
@@ -38,7 +41,7 @@ COPY --from=css-builder --chown=app:app /app/static/css/dist/ ./static/css/dist/
 
 USER app
 
-HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=15s --timeout=5s --start-period=300s --retries=3 \
     CMD python -c "import os, urllib.request as u; \
 h=(os.environ.get('ALLOWED_HOSTS') or 'localhost').split(',')[0].strip(); \
 r=u.Request('http://127.0.0.1:8000/healthz', headers={'Host': h, 'X-Forwarded-Proto': 'https'}); \

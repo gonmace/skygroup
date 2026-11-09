@@ -95,9 +95,14 @@ superuser:
 collect:
 	$(MANAGE) collectstatic --noinput
 
-# Copia los archivos de media locales al bucket configurado en el admin (tras cambiar a S3)
+# Copia solo los archivos PÚBLICOS al bucket (no toca media/privado). Para todo: make media-cdn
 sync-media:
 	$(MANAGE) sync_media
+
+# Sube la media local al bucket y (opcional) libera el disco. Ej.: make media-cdn ARGS="--dry-run"
+#   ARGS="--borrar-local --antiguedad 7d" | --prefijo photos/   (solo borra lo verificado en el bucket)
+media-cdn:
+	$(MANAGE) media_a_cdn $(ARGS)
 
 # Desbloquea todos los accesos bloqueados por django-axes (si el bloqueado es el propio admin)
 axes-reset:
@@ -154,5 +159,5 @@ down:
 	docker compose --profile postgres --profile n8n --profile n8n-mcp down
 
 .PHONY: setup dev-up dev-down dev-logs dev-check n8n-export n8n-import n8n-update install dev tailwind \
-        migrate migrations shell superuser collect sync-media axes-reset db-shell db-reset \
+        migrate migrations shell superuser collect sync-media media-cdn axes-reset db-shell db-reset \
         deploy nginx check-ports backup restore rollback ps restart logs down

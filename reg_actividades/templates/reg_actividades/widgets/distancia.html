@@ -1,0 +1,4 @@
+<div class="grid gap-3 sm:grid-cols-4">
+  {% for c in b.campos %}<label class="text-sm"><span class="mb-1 block text-base-content/60">{{ c.etiqueta }}</span><input type="text" inputmode="decimal" name="{{ c.nombre }}" value="{{ c.valor }}" {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full"></label>{% endfor %}
+</div>
+<p class="text-sm">Distancia: <strong>{{ b.distancia }}</strong>{% if not b.calculada %} <span class="text-base-content/50">(se calcula al guardar los cuatro valores)</span>{% endif %}</p>

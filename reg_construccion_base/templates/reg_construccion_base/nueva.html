@@ -1,0 +1,10 @@
+{% extends "shell.html" %}
+{% block page_title %}Nueva visita{% endblock %}
+{% block content_main %}
+<form method="post" class="card max-w-2xl bg-base-100"><div class="card-body gap-4">
+  {% csrf_token %}
+  <p class="text-sm text-base-content/70">Crea el reporte de una visita de supervisión a un {{ termino_proyecto|lower }}. Después se completan sus pasos: actividades, recursos, hallazgos, seguridad y cierre.</p>
+  {% include "components/campos.html" %}
+  <div class="card-actions justify-end"><a href="{% url 'reg_construccion_base:lista' %}" class="btn btn-ghost">Cancelar</a><button type="submit" class="btn btn-primary">Crear visita</button></div>
+</div></form>
+{% endblock %}

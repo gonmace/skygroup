@@ -1,0 +1,81 @@
+{% extends "shell.html" %}
+{% load static tareas_extras %}
+{% block title %}{% if creando %}Nuevo ticket{% else %}Editar {{ t.clave }}{% endif %}{% endblock %}
+{% block page_title %}{% if creando %}Nuevo ticket{% else %}Editar {{ t.clave }}{% endif %}{% endblock %}
+
+{% block content_main %}
+<div class="mx-auto max-w-3xl">
+  <form method="post" class="space-y-5">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-error py-2 text-sm"><span>{{ form.non_field_errors.0 }}</span></div>{% endif %}
+
+    <div class="space-y-4 rounded-2xl border border-base-300 bg-base-100 p-6">
+      <div><label class="mb-1 block text-sm font-medium" for="{{ form.titulo.id_for_label }}">Título</label>{{ form.titulo }}{% for e in form.titulo.errors %}<p class="mt-1 text-xs text-error">{{ e }}</p>{% endfor %}</div>
+      <div><label class="mb-1 block text-sm font-medium" for="{{ form.solicitante.id_for_label }}">Solicitante</label>{{ form.solicitante }}{% for e in form.solicitante.errors %}<p class="mt-1 text-xs text-error">{{ e }}</p>{% endfor %}</div>
+      <div><label class="mb-1 block text-sm font-medium" for="{{ form.descripcion.id_for_label }}">Descripción</label>{{ form.descripcion }}</div>
+      <div><label class="mb-1 block text-sm font-medium" for="{{ form.proyecto.id_for_label }}">{{ termino_proyecto }}</label>{{ form.proyecto }}{% for e in form.proyecto.errors %}<p class="mt-1 text-xs text-error">{{ e }}</p>{% endfor %}</div>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div><label class="mb-1 block text-sm font-medium" for="{{ form.prioridad.id_for_label }}">Prioridad</label>{{ form.prioridad }}</div>
+        <div><label class="mb-1 block text-sm font-medium" for="{{ form.vence.id_for_label }}">Vence</label>{{ form.vence }}</div>
+      </div>
+      {% if form.etiquetas.field.queryset or puede_gestionar_etiquetas %}
+        <div>
+          <label class="mb-1 block text-sm font-medium">Tipos de actividad</label>
+          <div class="flex flex-wrap gap-2" data-label-options>
+            {% for l in form.etiquetas.field.queryset %}
+              <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-base-300 px-2.5 py-1.5 transition-colors hover:bg-base-200">
+                <input type="checkbox" name="etiquetas" value="{{ l.pk }}" class="checkbox checkbox-xs checkbox-primary" {% if l.pk|seleccionado:form.etiquetas.value %}checked{% endif %}>
+                <span class="label-chip" data-color="{{ l.color }}">{{ l.nombre }}</span>
+              </label>
+            {% endfor %}
+          </div>
+          {% for e in form.etiquetas.errors %}<p class="mt-1 text-xs text-error">{{ e }}</p>{% endfor %}
+          {% if puede_gestionar_etiquetas %}
+            <div class="mt-2.5 flex flex-wrap items-center gap-2" data-label-add data-url="{% url 'tar_tickets:etiqueta_rapida' %}">
+              <input type="text" maxlength="50" class="input input-bordered input-sm w-48" placeholder="Nuevo tipo de actividad…" data-label-add-name>
+              <select class="select select-bordered select-sm w-32" title="Color" data-label-add-color>{% for value, name in colores_etiqueta %}<option value="{{ value }}">{{ name }}</option>{% endfor %}</select>
+              <button type="button" class="btn btn-accent btn-sm" data-label-add-btn>Agregar</button>
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+
+    {% if form.ejecutores %}
+      <div class="space-y-4 rounded-2xl border border-base-300 bg-base-100 p-6">
+        <div class="flex items-center justify-between gap-4">
+          <h2 class="text-sm font-bold">Asignación</h2>
+          <label class="flex cursor-pointer items-center gap-2"><span class="text-sm">Tiene subproductos</span>{{ form.tiene_subproductos }}</label>
+        </div>
+        <p class="-mt-2 text-xs text-base-content/50">{{ form.tiene_subproductos.help_text }}</p>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {% for campo, etiqueta, vacio in multiselects %}
+            <div data-multiselect>
+              <div class="flex items-baseline justify-between"><label class="mb-1 text-sm font-medium">{{ etiqueta }}</label><span class="text-xs text-base-content/40" data-multiselect-count>ninguno</span></div>
+              <input type="search" data-multiselect-search placeholder="Buscar…" autocomplete="off" class="input input-bordered input-sm mb-2 w-full">
+              <div class="max-h-52 overflow-y-auto rounded-xl border border-base-300 p-1.5">
+                {% for opt in campo %}
+                  <label data-multiselect-item data-label="{{ opt.choice_label }}" class="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-base-200">{{ opt.tag }}<span class="truncate text-sm">{{ opt.choice_label }}</span></label>
+                {% empty %}<p class="p-2 text-xs text-base-content/40">{{ vacio }}</p>{% endfor %}
+              </div>
+              <p class="mt-1 text-xs text-base-content/40">{{ campo.field.help_text }}</p>
+              {% for e in campo.errors %}<p class="mt-1 text-xs text-error">{{ e }}</p>{% endfor %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="flex justify-end gap-2">
+      <a href="{% if creando %}{% url 'tar_tickets:tablero' %}{% else %}{% url 'tar_tickets:detalle' t.pk %}{% endif %}" class="btn btn-ghost btn-sm">Cancelar</a>
+      <button class="btn btn-success btn-sm">Guardar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'js/tareas-toast.js' %}" defer></script>
+  <script src="{% static 'js/tareas-multiselect-filter.js' %}" defer></script>
+  <script src="{% static 'js/tareas-label-add.js' %}" defer></script>
+{% endblock %}

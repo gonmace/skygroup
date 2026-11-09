@@ -1,0 +1,5 @@
+{# Estado de la jornada del día de una fila del equipo (`f.estado`). #}
+{% if f.estado == 'en_curso' %}<span class="badge badge-warning badge-sm shrink-0 whitespace-nowrap">Activa</span>
+{% elif f.estado == 'termino' %}<span class="badge badge-success badge-sm shrink-0 whitespace-nowrap">Completada</span>
+{% elif f.estado == 'ausente' %}<span class="badge badge-info badge-sm shrink-0 whitespace-nowrap">Ausente</span>
+{% else %}<span class="badge badge-error badge-outline badge-sm shrink-0 whitespace-nowrap">Sin jornada</span>{% endif %}

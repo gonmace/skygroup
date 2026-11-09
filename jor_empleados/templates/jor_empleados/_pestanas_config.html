@@ -1,0 +1,5 @@
+{% if pestanas|length > 1 %}
+<div role="tablist" class="tabs tabs-box mb-4 w-fit">
+  {% for p in pestanas %}<a role="tab" class="tab {% if p.activa %}tab-active{% endif %}" href="{{ p.url }}">{{ p.nombre }}</a>{% endfor %}
+</div>
+{% endif %}

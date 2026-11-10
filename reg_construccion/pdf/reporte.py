@@ -92,6 +92,24 @@ def _data_uri(campo):
     return uri, 'portrait' if img.height > img.width else 'landscape'
 
 
+def _logo_data_uri(campo):
+    """Data URI PNG del logo de la empresa, o None si no se lee. A diferencia de `_data_uri` (JPEG para fotos) conserva
+    la transparencia: pasar un PNG con alfa a RGB/JPEG convertía el fondo transparente en negro."""
+    from PIL import Image
+    try:
+        with campo.open('rb') as f:
+            img = Image.open(io.BytesIO(f.read()))
+            img.load()
+        img.thumbnail((800, 800))
+        if img.mode not in ('RGB', 'RGBA'):
+            img = img.convert('RGBA')
+        salida = io.BytesIO()
+        img.save(salida, 'PNG', optimize=True)
+    except Exception:
+        return None
+    return 'data:image/png;base64,' + base64.b64encode(salida.getvalue()).decode()
+
+
 def _fotos(registro, ct, etapa, desde=1):
     """Fotos de una etapa; la numeración («Imagen n») continúa entre secciones."""
     salida = []
@@ -152,7 +170,7 @@ def contexto(registro, columnas):
     empresa = registro.empresa
     logo = None
     if getattr(empresa, 'logo_claro', None):
-        logo = _data_uri(empresa.logo_claro)[0]
+        logo = _logo_data_uri(empresa.logo_claro)
     cols = lambda k: columnas.get(k, 2)   # noqa: E731
     return {
         'registro': registro, 'empresa': empresa, 'logo_empresa': logo, 'proyecto': proyecto,

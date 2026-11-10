@@ -117,6 +117,17 @@ p {
     height: 28px;
 }
 
+/* Logo de la empresa (imagen): acotado a la cabecera, conservando proporción y transparencia */
+.header-logo.left img {
+    display: block;
+    margin: 0 auto;
+    max-height: 40px;
+    max-width: 100%;
+    height: auto;
+    width: auto;
+    border: none;
+}
+
 .header-logo.right img {
     height: 42px;
     max-width: 100%;

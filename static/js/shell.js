@@ -85,14 +85,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Mensajes (toasts): se cierran solos a los 6 s (los de error, a los 12 s); el puntero o el
   // foco encima los mantiene, y siempre se pueden cerrar a mano.
-  document.querySelectorAll('[data-autocerrar]').forEach(function (el) {
+  function armarAviso(el) {
     var ms = el.getAttribute('role') === 'alert' ? 12000 : 6000, t;
     function armar() { clearTimeout(t); t = setTimeout(function () { el.remove(); }, ms); }
     function parar() { clearTimeout(t); }
     el.addEventListener('mouseenter', parar); el.addEventListener('mouseleave', armar);
     el.addEventListener('focusin', parar); el.addEventListener('focusout', armar);
     armar();
-  });
+  }
+  document.querySelectorAll('[data-autocerrar]').forEach(armarAviso);
+
+  // Aviso creado por código (acciones AJAX): mismo aspecto que los mensajes que pinta el servidor.
+  // tipo: «success», «error», «warning» o «info» (la etiqueta del mensaje de Django).
+  window.avisar = function (texto, tipo) {
+    var region = document.querySelector('.toast[aria-label="Avisos"]');
+    if (!region) {
+      region = document.createElement('div');
+      region.className = 'toast toast-top toast-end z-50';
+      region.setAttribute('role', 'region'); region.setAttribute('aria-label', 'Avisos');
+      document.body.appendChild(region);
+    }
+    var el = document.createElement('div');
+    var clase = tipo === 'error' ? 'alert-error' : tipo === 'success' ? 'alert-success' : tipo === 'warning' ? 'alert-warning' : 'alert-info';
+    el.className = 'alert ' + clase;
+    el.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
+    var span = document.createElement('span'); span.textContent = texto;
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn btn-ghost btn-xs btn-square'; b.setAttribute('data-accion', 'cerrar-aviso');
+    b.setAttribute('aria-label', 'Cerrar aviso'); b.textContent = '✕';
+    el.appendChild(span); el.appendChild(b); region.appendChild(el);
+    armarAviso(el);
+  };
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-accion="cerrar-aviso"]');
     if (b) b.closest('.alert').remove();
@@ -109,6 +132,32 @@ document.addEventListener('DOMContentLoaded', function () {
     else window.location.href = destino;
   });
 
+
+  // Formularios AJAX: <form data-ajax> se envía con fetch y la página NO se recarga (se conserva el desplazamiento).
+  // El servidor responde JSON {ok, mensajes:[{texto,tipo}]}; después se vuelven a pedir las zonas marcadas con
+  // [data-refrescar="<id>"] y se sustituye su contenido, restaurando su scroll. Si algo falla, se avisa y se
+  // refresca igual, para que los campos vuelvan al valor real.
+  function enviarForm(form) {
+    if (form.hasAttribute('data-ajax') && form.requestSubmit) form.requestSubmit(); else form.submit();
+  }
+
+  function refrescarZonas() {
+    var zonas = document.querySelectorAll('[data-refrescar]');
+    if (!zonas.length) return Promise.resolve();
+    return fetch(window.location.href, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) { if (!r.ok) throw new Error('refresco'); return r.text(); })
+      .then(function (html) {
+        var nuevo = new DOMParser().parseFromString(html, 'text/html');
+        zonas.forEach(function (z) {
+          var otra = nuevo.querySelector('[data-refrescar="' + z.getAttribute('data-refrescar') + '"]');
+          if (!otra) return;
+          var arriba = z.scrollTop, izquierda = z.scrollLeft;
+          z.innerHTML = otra.innerHTML;
+          z.scrollTop = arriba; z.scrollLeft = izquierda;
+        });
+      });
+  }
+
   // Selectores que envían su formulario al cambiar: <select data-autoenviar-select>.
   document.addEventListener('change', function (e) {
     var sel = e.target;
@@ -119,7 +168,7 @@ document.addEventListener('DOMContentLoaded', function () {
         for (var i = 0; i < sel.options.length; i++) sel.options[i].selected = sel.options[i].defaultSelected;
         return;
       }
-      sel.form.submit();
+      enviarForm(sel.form);
     }
   });
 
@@ -132,8 +181,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var form = cb.form;
     Promise.resolve(msg ? window.confirmarUI(msg) : true).then(function (ok) {
       if (!ok) { cb.checked = !cb.checked; return; }
-      cb.disabled = true;
-      form.submit();
+      if (!form.hasAttribute('data-ajax')) cb.disabled = true;
+      enviarForm(form);
     });
   });
 
@@ -150,6 +199,37 @@ document.addEventListener('DOMContentLoaded', function () {
       if (f.requestSubmit) f.requestSubmit(boton || undefined); else f.submit();
       delete f.dataset.confirmado;
     });
+  });
+
+  // (El envío AJAX va DESPUÉS de las confirmaciones: así una confirmación cancelada no envía nada.)
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (e.defaultPrevented || !form || !form.matches || !form.matches('form[data-ajax]')) return;
+    e.preventDefault();
+    if (form.dataset.enviando) return;
+    form.dataset.enviando = '1';
+    var datos = new FormData(form);   // ANTES de deshabilitar: un campo deshabilitado no se envía (ni el token CSRF)
+    var controles = form.querySelectorAll('select, input, button');
+    controles.forEach(function (c) { c.disabled = true; });
+    fetch(form.action, {
+      method: 'POST', body: datos, credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('Error ' + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        (d.mensajes || []).forEach(function (m) { window.avisar(m.texto, m.tipo); });
+        if (!d.ok && !(d.mensajes || []).length) window.avisar('No se pudo guardar el cambio.', 'error');
+      })
+      .catch(function () { window.avisar('No se pudo guardar el cambio. Revisa tu conexión.', 'error'); })
+      .then(function () { return refrescarZonas(); })
+      .catch(function () { /* sin refresco: la persona puede recargar a mano */ })
+      .then(function () {
+        delete form.dataset.enviando;
+        controles.forEach(function (c) { if (c.isConnected) c.disabled = false; });
+      });
   });
 
   // Edición en modal: <button data-editar-registro data-action="…" data-user="…" data-alternativa="…"> rellena y abre

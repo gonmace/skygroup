@@ -168,6 +168,7 @@ def registro_confirmar(request, token):
 # ── Inicio de sesión con Nextcloud ────────────────────────────────────────────
 
 NC_SESION = 'nextcloud_oauth'
+NC_PRUEBA = 'nextcloud_prueba'      # resultado de «Probar inicio de sesión» (lo muestra Panel → Nextcloud, una vez)
 
 
 def _destino_seguro(request, nxt):
@@ -188,6 +189,57 @@ def nextcloud_iniciar(request):
         'slug': empresa.slug,
     }
     return redirect(nextcloud.url_autorizar(config, request, state))
+
+
+@require_POST
+@login_required
+def nextcloud_probar_inicio(request):
+    """Prueba de la configuración: recorre el inicio de sesión de Nextcloud de verdad (valida Client ID, secret y URI de
+    redirección) pero NO inicia sesión, NO vincula y NO crea nada: solo muestra lo que Nextcloud devolvió y qué pasaría.
+    Solo el superusuario, con la configuración ya guardada."""
+    empresa = getattr(request, 'empresa', None)
+    if empresa is None or not request.user.is_superuser or getattr(request, 'impersonador', None):
+        raise Http404
+    config = NextcloudConfig.de(empresa)
+    if not config.completo:
+        messages.error(request, 'Guarda el servidor, el Client ID y el Client secret antes de probar el inicio de sesión.')
+        return redirect('panel:nextcloud')
+    state = secrets.token_urlsafe(32)
+    request.session[NC_SESION] = {'state': state, 'next': '', 'slug': empresa.slug, 'prueba': request.user.pk}
+    return redirect(nextcloud.url_autorizar(config, request, state))
+
+
+def _callback_prueba(request, datos):
+    """Fin de «Probar inicio de sesión»: guarda un resumen en la sesión y vuelve a la pantalla de configuración."""
+    slug = datos.get('slug', '')
+    empresa = Empresa.objects.filter(slug=slug).first() if slug else None
+    config = NextcloudConfig.de(empresa)
+    if (config is None or not config.completo or not request.user.is_authenticated or not request.user.is_superuser
+            or request.user.pk != datos.get('prueba')):
+        raise Http404
+
+    def terminar(resultado):
+        request.session[NC_PRUEBA] = resultado
+        return redirect(f'/{slug}/config/nextcloud/')
+
+    if request.GET.get('error'):
+        return terminar({'ok': False, 'titulo': 'Nextcloud no autorizó el acceso',
+                         'detalle': (request.GET.get('error_description') or request.GET.get('error'))[:200]})
+    code, state = request.GET.get('code', ''), request.GET.get('state', '')
+    if not code or not datos.get('state') or not secrets.compare_digest(state, datos['state']):
+        return terminar({'ok': False, 'titulo': 'La solicitud no es válida o expiró', 'detalle': 'Vuelve a pulsar «Probar inicio de sesión».'})
+    try:
+        token, uid = nextcloud.canjear_codigo(config, request, code)
+    except nextcloud.NextcloudError:
+        return terminar({'ok': False, 'titulo': 'Nextcloud rechazó el intercambio del código',
+                         'detalle': 'Revisa que el Client ID, el Client secret y la URI de redirección coincidan exactamente '
+                                    'con el cliente OAuth registrado en Nextcloud.'})
+    datos_nc = nextcloud.perfil(config, uid, token)
+    return terminar({
+        'ok': True, 'uid': uid, 'nombre': datos_nc['nombre'], 'email': datos_nc['email'], 'grupos': list(datos_nc['grupos']),
+        'perfil_leido': bool(datos_nc['nombre'] or datos_nc['email'] or datos_nc['grupos']),
+        'simulacion': nextcloud.simular_ingreso(config, uid, datos_nc),
+    })
 
 
 @require_POST
@@ -217,6 +269,8 @@ def nextcloud_desvincular(request):
 
 def nextcloud_callback(request):
     datos = request.session.pop(NC_SESION, None) or {}
+    if datos.get('prueba'):
+        return _callback_prueba(request, datos)
     slug = datos.get('slug', '')
     inicio = f'/{slug}/' if slug else '/'
     vincular_id = datos.get('vincular')

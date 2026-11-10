@@ -712,3 +712,226 @@ class VincularNextcloudComandoTests(TestCase):
         self.assertEqual(uid_nc(jefe, emp), '')                                     # privilegiada: se omite
         self.assertEqual(User.objects.count(), n)
 
+
+
+def _resp(status=200, datos=None, texto=''):
+    """Respuesta HTTP simulada de requests."""
+    r = mock.Mock(status_code=status, text=texto, raise_for_status=lambda: None)
+    if datos is None:
+        r.json = mock.Mock(side_effect=ValueError('no es JSON'))
+    else:
+        r.json = lambda: datos
+    return r
+
+
+ESTADO_OK = {'installed': True, 'maintenance': False, 'versionstring': '33.0.0', 'productname': 'Nextcloud'}
+
+
+@override_settings(CACHES=CACHE_LOCAL, SITE_URL='https://app.example.com', STORAGES=STORAGES_TEST)
+class NextcloudProbarServidorTests(TestCase):
+    """«Probar conexión»: comprueba el servidor sin credenciales."""
+
+    def setUp(self):
+        p = mock.patch('cuentas.nextcloud._ips', return_value={'93.184.216.34'})
+        p.start()
+        self.addCleanup(p.stop)
+
+    def probar(self, get, post=None, url='https://nc.example.com'):
+        from cuentas import nextcloud
+        with mock.patch('cuentas.nextcloud.requests.get', side_effect=get), \
+                mock.patch('cuentas.nextcloud.requests.post', side_effect=post or (lambda *a, **k: _resp(400, {'error': 'invalid_request'}))):
+            return nextcloud.probar_servidor(url)
+
+    def estados(self, resultados):
+        return [r['estado'] for r in resultados]
+
+    def test_servidor_correcto(self):
+        r = self.probar(lambda *a, **k: _resp(200, ESTADO_OK))
+        self.assertEqual(self.estados(r), ['ok', 'ok', 'ok', 'info'])
+        self.assertIn('Nextcloud 33.0.0', r[1]['detalle'])
+
+    def test_no_es_un_nextcloud(self):
+        r = self.probar(lambda *a, **k: _resp(200, texto='<html>hola</html>'))
+        self.assertEqual(self.estados(r), ['ok', 'error'])
+        self.assertIn('No responde como un Nextcloud', r[1]['titulo'])
+
+    def test_modo_mantenimiento(self):
+        r = self.probar(lambda *a, **k: _resp(200, {**ESTADO_OK, 'maintenance': True}))
+        self.assertEqual(self.estados(r), ['ok', 'error'])
+        self.assertIn('mantenimiento', r[1]['titulo'])
+
+    def test_la_app_oauth_no_activa(self):
+        r = self.probar(lambda *a, **k: _resp(200, ESTADO_OK), post=lambda *a, **k: _resp(404, texto='no existe'))
+        self.assertEqual(self.estados(r), ['ok', 'ok', 'error', 'info'])
+        self.assertIn('OAuth 2.0', r[2]['titulo'])
+
+    def test_sin_conexion(self):
+        import requests
+        def falla(*a, **k):
+            raise requests.ConnectionError('sin red')
+        self.assertEqual(self.estados(self.probar(falla)), ['ok', 'error'])
+
+    def test_url_vacia_o_insegura_no_hace_ninguna_peticion(self):
+        from cuentas import nextcloud
+        with mock.patch('cuentas.nextcloud.requests.get') as g, mock.patch('cuentas.nextcloud.requests.post') as p:
+            self.assertEqual(self.estados(nextcloud.probar_servidor('')), ['error'])
+            self.assertEqual(self.estados(nextcloud.probar_servidor('http://nc.example.com')), ['error'])
+            with mock.patch('cuentas.nextcloud._ips', return_value={'10.0.0.5'}):      # red privada (SSRF)
+                self.assertEqual(self.estados(nextcloud.probar_servidor('https://interno.example.com')), ['error'])
+            g.assert_not_called()
+            p.assert_not_called()
+
+    def test_no_envia_credenciales_reales(self):
+        enviados = []
+        def post(url, data=None, **k):
+            enviados.append(data)
+            return _resp(400, {'error': 'invalid_request'})
+        self.probar(lambda *a, **k: _resp(200, ESTADO_OK), post=post)
+        self.assertEqual(enviados[0]['client_id'], 'prueba')
+
+
+@override_settings(CACHES=CACHE_LOCAL, SITE_URL='https://app.example.com', STORAGES=STORAGES_TEST)
+class NextcloudProbarInicioTests(_NextcloudBase):
+    """«Probar inicio de sesión»: recorre el flujo real sin iniciar sesión, vincular ni crear nada."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.emp = crear_empresa(nombre='Empresa PNC', slug='emp-prueba')
+        cls.su = User.objects.create_superuser('su@example.com', 'x')
+        cls.ana = User.objects.create_user('ana@example.com', 'x')
+        agregar_miembro(cls.ana, cls.emp, rol_por_base(cls.emp, RolBase.MIEMBRO))
+        cls.cfg = NextcloudConfig.objects.create(empresa=cls.emp, activo=False, servidor_url='https://nc.example.com',
+                                                 client_id='cid', client_secret='sec')
+
+    def iniciar(self, user=None):
+        self.client.force_login(user or self.su)
+        r = self.client.post('/emp-prueba/acceso/nextcloud/probar/')
+        return r
+
+    def callback(self, uid='ana@example.com', **kw):
+        state = self.client.session['nextcloud_oauth']['state']
+        return self._callback(state, uid, **kw)
+
+    def test_solo_el_superusuario(self):
+        admin = User.objects.create_user('coord@example.com', 'x')
+        agregar_miembro(admin, self.emp, rol_por_base(self.emp, RolBase.COORDINADOR))
+        self.assertEqual(self.iniciar(admin).status_code, 404)
+        self.assertEqual(self.iniciar(self.ana).status_code, 404)
+        self.client.logout()
+        self.assertEqual(self.client.post('/emp-prueba/acceso/nextcloud/probar/').status_code, 302)   # al login
+        self.assertEqual(self.client.get('/emp-prueba/acceso/nextcloud/probar/').status_code, 405)
+
+    def test_funciona_aunque_el_inicio_de_sesion_no_este_activo(self):
+        r = self.iniciar()
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('nc.example.com/apps/oauth2/authorize', r['Location'])
+        self.assertTrue(self.client.session['nextcloud_oauth']['prueba'])
+
+    def test_con_la_configuracion_incompleta_pide_guardar(self):
+        NextcloudConfig.objects.update(client_secret='')
+        r = self.iniciar()
+        self.assertRedirects(r, '/emp-prueba/config/nextcloud/', fetch_redirect_response=False)
+        self.assertNotIn('nextcloud_oauth', self.client.session)
+
+    def test_resultado_correcto_sin_iniciar_sesion_ni_vincular(self):
+        self.iniciar()
+        r = self.callback(uid='ana@example.com', email='ana@example.com', nombre='Ana Pérez', grupos=['ventas'])
+        self.assertRedirects(r, '/emp-prueba/config/nextcloud/', fetch_redirect_response=False)
+        self.assertEqual(int(self.client.session['_auth_user_id']), self.su.pk)    # sigue siendo el superusuario
+        self.assertEqual(NextcloudVinculo.objects.count(), 0)                      # no vinculó nada
+        pagina = self.client.get('/emp-prueba/config/nextcloud/').content.decode()
+        self.assertIn('Inicio de sesión correcto', pagina)
+        self.assertIn('Ana Pérez', pagina)
+        self.assertIn('Se vincularía a ana@example.com', pagina)
+        self.assertIn('no se inició sesión', pagina)
+        self.assertNotIn('Inicio de sesión correcto', self.client.get('/emp-prueba/config/nextcloud/').content.decode())  # se muestra una vez
+
+    def test_cuenta_ya_vinculada(self):
+        vincular_nc(self.ana, self.emp, 'ana')
+        self.iniciar()
+        self.callback(uid='ana')
+        self.assertIn('Ya está vinculado a ana@example.com', self.client.get('/emp-prueba/config/nextcloud/').content.decode())
+
+    def test_cuenta_que_no_entraria(self):
+        self.iniciar()
+        self.callback(uid='desconocido@example.com')
+        self.assertIn('No entraría', self.client.get('/emp-prueba/config/nextcloud/').content.decode())
+        self.assertEqual(User.objects.filter(email='desconocido@example.com').count(), 0)
+
+    def test_no_crea_cuentas_ni_con_crear_cuentas_activo(self):
+        from .models import DominioPermitido
+        NextcloudConfig.objects.update(crear_cuentas=True)
+        DominioPermitido.objects.create(empresa=self.emp, dominio='example.com', rol=rol_por_base(self.emp, RolBase.MIEMBRO))
+        self.iniciar()
+        self.callback(uid='nueva@example.com')
+        self.assertIn('Se crearía una cuenta nueva', self.client.get('/emp-prueba/config/nextcloud/').content.decode())
+        self.assertEqual(User.objects.filter(email='nueva@example.com').count(), 0)
+        self.assertEqual(NextcloudVinculo.objects.count(), 0)
+
+    def test_credenciales_rechazadas_por_nextcloud(self):
+        self.iniciar()
+        state = self.client.session['nextcloud_oauth']['state']
+        import requests
+        with mock.patch('cuentas.nextcloud.requests.post', side_effect=requests.HTTPError('401')):
+            self.client.get('/acceso/nextcloud/callback/', {'code': 'c', 'state': state})
+        pagina = self.client.get('/emp-prueba/config/nextcloud/').content.decode()
+        self.assertIn('Nextcloud rechazó el intercambio del código', pagina)
+        self.assertIn('Client ID', pagina)
+
+    def test_state_invalido_y_nextcloud_que_no_autoriza(self):
+        self.iniciar()
+        self.client.get('/acceso/nextcloud/callback/', {'code': 'c', 'state': 'otro'})
+        self.assertIn('no es válida o expiró', self.client.get('/emp-prueba/config/nextcloud/').content.decode())
+        self.iniciar()
+        self.client.get('/acceso/nextcloud/callback/', {'error': 'access_denied'})
+        self.assertIn('Nextcloud no autorizó el acceso', self.client.get('/emp-prueba/config/nextcloud/').content.decode())
+
+    def test_otra_persona_no_puede_usar_la_prueba(self):
+        """Si quien vuelve del callback no es el superusuario que la inició, no se muestra nada."""
+        self.iniciar()
+        estado = self.client.session['nextcloud_oauth']['state']
+        self.client.force_login(self.ana)
+        sesion = self.client.session
+        sesion['nextcloud_oauth'] = {'state': estado, 'next': '', 'slug': 'emp-prueba', 'prueba': self.su.pk}
+        sesion.save()
+        r = self._callback(estado, 'ana@example.com')
+        self.assertEqual(r.status_code, 404)
+        self.assertNotIn('nextcloud_prueba', self.client.session)
+
+
+@override_settings(CACHES=CACHE_LOCAL, SITE_URL='https://app.example.com', STORAGES=STORAGES_TEST)
+class NextcloudPantallaPruebasTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.emp = crear_empresa(nombre='Empresa Pantalla', slug='emp-pant')
+        cls.su = User.objects.create_superuser('su@example.com', 'x')
+        cls.ana = User.objects.create_user('ana@example.com', 'x')
+        agregar_miembro(cls.ana, cls.emp, rol_por_base(cls.emp, RolBase.COORDINADOR))
+
+    def setUp(self):
+        p = mock.patch('cuentas.nextcloud._ips', return_value={'93.184.216.34'})
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_la_pantalla_muestra_los_dos_botones(self):
+        self.client.force_login(self.su)
+        pagina = self.client.get('/emp-pant/config/nextcloud/').content.decode()
+        self.assertIn('Probar conexión', pagina)
+        self.assertIn('Probar inicio de sesión', pagina)
+        self.assertIn('Guarda primero', pagina)      # sin configuración guardada, la prueba de inicio está deshabilitada
+        NextcloudConfig.objects.create(empresa=self.emp, servidor_url='https://nc.example.com', client_id='a', client_secret='b')
+        self.assertNotIn('Guarda primero', self.client.get('/emp-pant/config/nextcloud/').content.decode())
+
+    def test_probar_conexion_responde_json_con_la_url_del_formulario(self):
+        self.client.force_login(self.su)
+        with mock.patch('cuentas.nextcloud.requests.get', return_value=_resp(200, ESTADO_OK)), \
+                mock.patch('cuentas.nextcloud.requests.post', return_value=_resp(400, {'error': 'invalid_request'})):
+            r = self.client.post('/emp-pant/config/nextcloud/probar/', {'servidor_url': 'https://nc.example.com/'})
+        self.assertEqual((r.status_code, r['Content-Type']), (200, 'application/json'))
+        self.assertEqual([x['estado'] for x in r.json()['resultados']], ['ok', 'ok', 'ok', 'info'])
+
+    def test_probar_conexion_solo_superusuario_y_solo_post(self):
+        self.client.force_login(self.ana)
+        self.assertEqual(self.client.post('/emp-pant/config/nextcloud/probar/', {'servidor_url': 'https://nc.example.com'}).status_code, 403)
+        self.client.force_login(self.su)
+        self.assertEqual(self.client.get('/emp-pant/config/nextcloud/probar/').status_code, 405)

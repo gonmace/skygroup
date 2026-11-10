@@ -102,13 +102,9 @@ def _solo_de(user, empresa):
     return empresas == {empresa.pk} and Membresia.objects.filter(user=user, empresa=empresa, activa=True).exists()
 
 
-def enlazar_existente(empresa, uid):
-    """Vincula, en el primer ingreso, la cuenta que un administrador YA dio de alta en la empresa. No crea nada.
-
-    Solo si el uid de Nextcloud tiene forma de correo (lo fija el administrador del servidor y la persona no puede
-    cambiarlo) y es el de una cuenta común con membresía activa en la empresa y sin otro vínculo ahí. Las cuentas con
-    privilegios (staff/superusuario) nunca se enlazan solas. Devuelve el usuario o None."""
-    from .models import Membresia, NextcloudVinculo, User
+def candidato_a_enlazar(empresa, uid):
+    """Cuenta que `enlazar_existente` vincularía en el primer ingreso (o None). No crea ni cambia nada."""
+    from .models import NextcloudVinculo, User
     email = (uid or '').strip().lower()
     if '@' not in email:
         return None
@@ -117,6 +113,19 @@ def enlazar_existente(empresa, uid):
     if (user is None or not _solo_de(user, empresa)
             or NextcloudVinculo.objects.filter(empresa=empresa, user=user).exists()
             or NextcloudVinculo.objects.filter(empresa=empresa, uid=uid).exists()):
+        return None
+    return user
+
+
+def enlazar_existente(empresa, uid):
+    """Vincula, en el primer ingreso, la cuenta que un administrador YA dio de alta en la empresa. No crea nada.
+
+    Solo si el uid de Nextcloud tiene forma de correo (lo fija el administrador del servidor y la persona no puede
+    cambiarlo) y es el de una cuenta común con membresía activa en la empresa y sin otro vínculo ahí. Las cuentas con
+    privilegios (staff/superusuario) nunca se enlazan solas. Devuelve el usuario o None."""
+    from .models import NextcloudVinculo
+    user = candidato_a_enlazar(empresa, uid)
+    if user is None:
         return None
     NextcloudVinculo.objects.create(empresa=empresa, user=user, uid=uid)
     return user
@@ -136,21 +145,10 @@ def perfil(config, uid, token):
             'grupos': datos.get('groups') or []}
 
 
-def alta_automatica(config, uid, datos):
-    """Crea la cuenta de quien entra por primera vez a la empresa de `config`. Devuelve (user, None) o (None, motivo).
-
-    Solo se crea si el uid tiene forma de correo (lo fija el administrador de Nextcloud y la persona no puede
-    cambiarlo); el correo del perfil nunca se usa. El cargo sale de la regla de dominio de la empresa (`DominioPermitido`); los
-    miembros del grupo administrador de Nextcloud entran como Coordinador. Nunca se toma una cuenta existente con
-    privilegios ni una ya vinculada a otro usuario de Nextcloud."""
-    from django.db import transaction
-
-    from .models import CorreoBloqueado, DominioPermitido, Membresia, NextcloudVinculo, RolEmpresa, User
+def regla_de_alta(empresa, uid):
+    """(regla de dominio, None) si ese uid puede darse de alta solo en la empresa; si no, (None, motivo). No crea nada."""
+    from .models import CorreoBloqueado, DominioPermitido
     from .registro import DOMINIOS_PUBLICOS, dominio_de
-    from .roles import RolBase
-    from .services import agregar_miembro
-
-    empresa = config.empresa
     if '@' not in uid:     # el correo del perfil lo edita cada persona sin verificarlo: no sirve para decidir cargo ni cuenta
         return None, ('Tu usuario de Nextcloud no es un correo, así que no se puede crear tu cuenta automáticamente. '
                       'Pide a un administrador que te dé acceso.')
@@ -161,6 +159,27 @@ def alta_automatica(config, uid, datos):
     regla = DominioPermitido.objects.filter(empresa=empresa, activo=True, dominio__iexact=dominio).select_related('rol').first()
     if regla is None or CorreoBloqueado.objects.filter(empresa=empresa, email__iexact=email).exists():
         return None, 'Tu correo no está autorizado para el acceso automático. Pide a un administrador que te dé acceso.'
+    return regla, None
+
+
+def alta_automatica(config, uid, datos):
+    """Crea la cuenta de quien entra por primera vez a la empresa de `config`. Devuelve (user, None) o (None, motivo).
+
+    Solo se crea si el uid tiene forma de correo (lo fija el administrador de Nextcloud y la persona no puede
+    cambiarlo); el correo del perfil nunca se usa. El cargo sale de la regla de dominio de la empresa (`DominioPermitido`); los
+    miembros del grupo administrador de Nextcloud entran como Coordinador. Nunca se toma una cuenta existente con
+    privilegios ni una ya vinculada a otro usuario de Nextcloud."""
+    from django.db import transaction
+
+    from .models import Membresia, NextcloudVinculo, RolEmpresa, User
+    from .roles import RolBase
+    from .services import agregar_miembro
+
+    empresa = config.empresa
+    regla, motivo = regla_de_alta(empresa, uid)
+    if regla is None:
+        return None, motivo
+    email = uid.strip().lower()
     admin = bool(config.grupo_admin and config.grupo_admin in datos['grupos'])
     with transaction.atomic():
         user = User.objects.filter(email__iexact=email).first()
@@ -182,3 +201,90 @@ def alta_automatica(config, uid, datos):
                        .order_by('orden', 'id').first() or rol)
             agregar_miembro(user, empresa, rol)
     return user, None
+
+
+# ── Pruebas de la configuración (Panel → Nextcloud, solo superusuario) ───────────────────────────────
+
+def _resultado(estado, titulo, detalle=''):
+    return {'estado': estado, 'titulo': titulo, 'detalle': detalle}
+
+
+def probar_servidor(url):
+    """Comprobaciones de un servidor Nextcloud SIN iniciar sesión. Devuelve una lista de
+    {'estado': 'ok'|'error'|'info', 'titulo', 'detalle'}. Nunca envía credenciales.
+
+    No puede validar el Client ID ni el secret: Nextcloud revisa primero el código de autorización, así que eso solo
+    se comprueba de verdad con «Probar inicio de sesión»."""
+    url = (url or '').strip().rstrip('/')
+    if not url:
+        return [_resultado('error', 'Falta la URL de Nextcloud')]
+    try:
+        validar_servidor(url)
+    except NextcloudError as e:
+        return [_resultado('error', 'URL no válida', str(e))]
+    resultados = [_resultado('ok', 'URL válida', url)]
+    try:
+        r = requests.get(f'{url}/status.php', timeout=10, allow_redirects=False)
+        estado = r.json() if r.status_code == 200 else None
+    except (requests.RequestException, ValueError):
+        estado = None
+    if not isinstance(estado, dict) or 'installed' not in estado:
+        resultados.append(_resultado('error', 'No responde como un Nextcloud',
+                                     'No se pudo leer /status.php. Revisa la URL (¿falta una subcarpeta?) y que el '
+                                     'servidor sea accesible desde internet.'))
+        return resultados
+    version = estado.get('versionstring') or estado.get('version') or ''
+    if not estado.get('installed'):
+        resultados.append(_resultado('error', 'Nextcloud no está instalado', 'El servidor responde pero indica que no está instalado.'))
+        return resultados
+    if estado.get('maintenance'):
+        resultados.append(_resultado('error', 'Nextcloud está en modo mantenimiento', 'Nadie podrá iniciar sesión hasta que termine.'))
+        return resultados
+    resultados.append(_resultado('ok', 'Servidor Nextcloud accesible', f'{estado.get("productname") or "Nextcloud"} {version}'.strip()))
+    # La app «OAuth 2.0»: con un código falso responde 400 con un JSON de error; si no está activa, 404.
+    try:
+        r = requests.post(f'{url}/apps/oauth2/api/v1/token', data={
+            'grant_type': 'authorization_code', 'code': 'prueba-skygroup', 'redirect_uri': 'https://prueba.invalid/',
+            'client_id': 'prueba', 'client_secret': 'prueba'}, timeout=10, allow_redirects=False)
+        activa = r.status_code in (400, 401) and 'error' in (r.json() or {})
+    except (requests.RequestException, ValueError, AttributeError):
+        activa = False
+    if activa:
+        resultados.append(_resultado('ok', 'La app «OAuth 2.0» está activa'))
+    else:
+        resultados.append(_resultado('error', 'La app «OAuth 2.0» no responde',
+                                     'En Nextcloud actívala en Aplicaciones → Seguridad → «OAuth 2.0».'))
+    resultados.append(_resultado('info', 'Client ID y secret sin comprobar',
+                                 'Solo se validan al iniciar sesión: guarda y usa «Probar inicio de sesión».'))
+    return resultados
+
+
+def simular_ingreso(config, uid, datos):
+    """Qué pasaría en skygroup si `uid` entrara con Nextcloud, SIN vincular, crear ni cambiar nada.
+    `datos` es lo que devolvió `perfil()`. Devuelve {'accion', 'texto', 'cargo'}."""
+    from .models import Membresia
+    empresa = config.empresa
+    grupos = datos.get('grupos') or []
+    admin = bool(config.grupo_admin and config.grupo_admin in grupos)
+    user = buscar_usuario(empresa, uid)
+    if user is not None:
+        activa = Membresia.objects.filter(user=user, empresa=empresa, activa=True).exists()
+        return {'accion': 'entra' if activa else 'sin_acceso', 'cargo': '',
+                'texto': (f'Ya está vinculado a {user.email} y entraría directamente.' if activa else
+                          f'Está vinculado a {user.email}, pero esa cuenta no tiene acceso activo a esta empresa.')}
+    candidato = candidato_a_enlazar(empresa, uid)
+    if candidato is not None:
+        return {'accion': 'enlaza', 'cargo': '',
+                'texto': f'Se vincularía a {candidato.email} al primer ingreso (su usuario de Nextcloud es su correo).'}
+    if config.crear_cuentas:
+        regla, motivo = regla_de_alta(empresa, uid)
+        if regla is not None:
+            cargo = regla.rol.nombre
+            if admin:
+                cargo = 'Coordinador (grupo administrador de Nextcloud)'
+            return {'accion': 'crea', 'cargo': cargo,
+                    'texto': f'Se crearía una cuenta nueva con el cargo «{cargo}».'}
+        return {'accion': 'rechaza', 'cargo': '', 'texto': f'No entraría: {motivo}'}
+    return {'accion': 'rechaza', 'cargo': '',
+            'texto': 'No entraría: no hay una cuenta vinculada ni con ese correo, y «Crear cuentas al primer ingreso» '
+                     'está apagado. Dala de alta en Usuarios (su usuario de Nextcloud debe ser su correo).'}

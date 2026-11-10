@@ -1,22 +1,23 @@
 {% extends "shell.html" %}
 {% block page_title %}Usuarios{% endblock %}
 {# Página de altura fija: el botón queda quieto y solo la tabla (o la lista de tarjetas en móvil) hace scroll. #}
-{% block main_class %}flex flex-col overflow-hidden{% endblock %}
-{% block wrap_class %}flex min-h-0 w-full flex-1 flex-col{% endblock %}
+{% block main_class %}flex flex-col overflow-y-auto xl:overflow-hidden{% endblock %}
+{% block wrap_max %}max-w-none{% endblock %}
+{% block wrap_class %}flex w-full flex-col xl:min-h-0 xl:flex-1{% endblock %}
 {% block content_main %}
 <div class="mb-3 flex shrink-0 items-center justify-end gap-2">
   {% include "panel/_ayuda_raci.html" with id="raci-usuarios" %}
   <a href="{% url 'panel:miembro_nuevo' %}" class="btn btn-primary btn-md px-3 sm:btn-sm" title="Agregar usuario" aria-label="Agregar usuario">{% include "components/icon.html" with name="plus" cls="size-5 sm:size-4" %}<span class="hidden sm:inline">Agregar usuario</span></a>
 </div>
 
-<div class="mb-3 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+<div id="miembros-resumen" data-refrescar="miembros-resumen" class="mb-3 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
   <span><strong class="text-lg">{{ resumen.total }}</strong> usuario{{ resumen.total|pluralize }} · {{ resumen.activos }} activo{{ resumen.activos|pluralize }}</span>
   <span class="flex flex-wrap items-center gap-1"><span class="text-xs text-base-content/60">Cargo</span>{% for n, c in resumen.por_cargo %}<span class="badge badge-ghost">{{ n }} <strong class="ml-1">{{ c }}</strong></span>{% endfor %}</span>
   <span class="flex flex-wrap items-center gap-1"><span class="text-xs text-base-content/60">Sede</span>{% for n, c in resumen.por_sede %}<span class="badge badge-ghost">{{ n }} <strong class="ml-1">{{ c }}</strong></span>{% endfor %}</span>
 </div>
 
 {# Móvil: tarjetas con la edición rápida (rol, contratista, activo); la tabla de 7 columnas obliga a desplazarse de lado #}
-<div class="flex min-h-0 flex-1 flex-col md:hidden">
+<div class="flex shrink-0 flex-col xl:hidden">
   <div class="mb-2 flex shrink-0 items-center justify-between text-sm text-base-content/70">
     <span>{{ lista|length }} usuario{{ lista|length|pluralize }}</span>
     <details class="dropdown dropdown-end">
@@ -26,7 +27,7 @@
       </ul>
     </details>
   </div>
-  <ul class="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
+  <ul id="miembros-lista" data-refrescar="miembros-lista" class="space-y-2 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
     {% for m in lista %}
     <li class="rounded-box bg-base-100 p-3 shadow-sm {% if not m.activa %}opacity-60{% endif %}">
       <div class="flex items-start justify-between gap-3">
@@ -38,7 +39,7 @@
             {% if m.user.telefono %}<div class="text-xs text-base-content/60">{{ m.user.telefono }}</div>{% endif %}
           </div>
         </div>
-        <form method="post" action="{% url 'panel:miembro_rapido' m.pk %}" class="shrink-0">{% csrf_token %}
+        <form method="post" data-ajax action="{% url 'panel:miembro_rapido' m.pk %}" class="shrink-0">{% csrf_token %}
           <input type="hidden" name="alternar_activa" value="1">
           <input type="checkbox" class="toggle toggle-success" {% if m.activa %}checked{% endif %}
                  {% if m.user_id == request.user.pk %}disabled title="No puedes desactivarte a ti mismo"{% else %}title="{% if m.activa %}Desactivar{% else %}Activar{% endif %}"{% endif %}
@@ -47,7 +48,7 @@
         </form>
       </div>
       <div class="mt-2 space-y-2">
-        <form method="post" action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
+        <form method="post" data-ajax action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
           <label class="mb-0.5 flex items-center gap-2 text-xs text-base-content/60">Cargo {% if m.rol.nombre != m.rol.get_rol_base_display %}{% include "panel/_badge_rol_base.html" with rol=m.rol %}{% endif %}</label>
           <select name="rol" class="select select-bordered select-md badge-rol-{{ m.rol.jerarquia }} w-full" data-autoenviar-select aria-label="Cargo de {{ m.user.email }}">
             {% if request.user.is_superuser and m.user_id != request.user.pk %}<option value="" data-confirmar="¿Convertir a {{ m.user.email|escapejs }} en administrador de sistema? Dejará de ser miembro de esta empresa.">— Administrador —</option>{% endif %}
@@ -55,11 +56,11 @@
             {% if not m.rol.activo %}<option value="{{ m.rol_id }}" selected disabled>{{ m.rol.nombre }} (inactivo)</option>{% endif %}
           </select>
         </form>
-        {% if con_puesto %}<form method="post" action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
+        {% if con_puesto %}<form method="post" data-ajax action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
           <label class="mb-0.5 block text-xs text-base-content/60">Puesto</label>
           <input type="text" name="puesto" list="puestos" maxlength="150" value="{{ m.perfil_jor.cargo }}" class="input input-bordered input-md w-full" data-autoenviar-select aria-label="Puesto de {{ m.user.email }}" placeholder="Ej. Supervisor Civil">
         </form>{% endif %}
-        <form method="post" action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
+        <form method="post" data-ajax action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
           <label class="mb-0.5 block text-xs text-base-content/60">Contratista</label>
           <select name="contratista" class="select select-bordered select-md w-full" data-autoenviar-select aria-label="Contratista de {{ m.user.email }}">
             <option value=""></option>
@@ -67,7 +68,7 @@
             {% if m.contratista and not m.contratista.activo %}<option value="{{ m.contratista_id }}" selected disabled>{{ m.contratista.nombre }} (inactivo)</option>{% endif %}
           </select>
         </form>
-        {% if sedes %}<form method="post" action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
+        {% if sedes %}<form method="post" data-ajax action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
           <label class="mb-0.5 block text-xs text-base-content/60">Sede</label>
           <select name="sede" class="select select-bordered select-md w-full" data-autoenviar-select aria-label="Sede de {{ m.user.email }}">
             <option value=""></option>
@@ -78,12 +79,12 @@
       </div>
       <div class="mt-2 flex justify-end gap-1 border-t border-base-content/10 pt-2">
         {% if not m.user.has_usable_password and m.user.is_active %}
-          <form method="post" action="{% url 'panel:miembro_reinvitar' m.pk %}" class="inline">{% csrf_token %}
+          <form method="post" data-ajax action="{% url 'panel:miembro_reinvitar' m.pk %}" class="inline">{% csrf_token %}
             <button type="submit" class="btn btn-ghost btn-square text-warning hover:bg-warning/10" title="Reenviar invitación a {{ m.user.email }}" aria-label="Reenviar invitación a {{ m.user.email }}">{% include "components/icon.html" with name="mail" cls="size-5" %}</button>
           </form>
           {% endif %}
           {% if request.user.is_superuser and not request.impersonador and m.user_id != request.user.pk and not m.user.is_superuser %}
-          <form method="post" action="{% url 'panel:miembro_bloquear' m.pk %}" class="inline" onsubmit="return confirm('{% if m.user.is_active %}¿Bloquear la cuenta de {{ m.user.email|escapejs }} en TODAS las empresas?{% else %}¿Desbloquear la cuenta?{% endif %}')">{% csrf_token %}
+          <form method="post" data-ajax action="{% url 'panel:miembro_bloquear' m.pk %}" class="inline" onsubmit="return confirm('{% if m.user.is_active %}¿Bloquear la cuenta de {{ m.user.email|escapejs }} en TODAS las empresas?{% else %}¿Desbloquear la cuenta?{% endif %}')">{% csrf_token %}
             <button type="submit" class="btn btn-ghost btn-square {% if m.user.is_active %}text-warning hover:bg-warning/10{% else %}text-success hover:bg-success/10{% endif %}" title="{% if m.user.is_active %}Bloquear cuenta{% else %}Desbloquear cuenta{% endif %}" aria-label="{% if m.user.is_active %}Bloquear{% else %}Desbloquear{% endif %} la cuenta de {{ m.user.email }}">{% if m.user.is_active %}{% include "components/icon.html" with name="ban" cls="size-5" %}{% else %}{% include "components/icon.html" with name="unlock" cls="size-5" %}{% endif %}</button>
           </form>
           <a class="btn btn-ghost btn-square text-error hover:bg-error/10" href="{% url 'panel:miembro_eliminar' m.pk %}" title="Eliminar cuenta" aria-label="Eliminar la cuenta de {{ m.user.email }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</a>
@@ -101,11 +102,11 @@
 </div>
 
 {% if con_puesto %}<datalist id="puestos">{% for p in puestos %}<option value="{{ p }}">{% endfor %}</datalist>{% endif %}
-<div class="table-card hidden min-h-0 overflow-auto md:block">
-  <table class="table tabla-fija">
+<div id="miembros-tabla" data-refrescar="miembros-tabla" class="table-card hidden min-h-0 w-full overflow-auto xl:block">
+  <table class="table tabla-fija [&_td]:px-2 [&_th]:px-2 min-[1850px]:[&_td]:px-4 min-[1850px]:[&_th]:px-4">
     <thead><tr>
       {% for c in columnas %}
-      <th class="{% if c.titulo == 'Activo' or c.titulo == 'Cargo' or c.titulo == 'Contratista' or c.titulo == 'Sede' %}text-center{% endif %}" {% if c.activa %}aria-sort="{% if c.desc %}descending{% else %}ascending{% endif %}"{% endif %}>
+      <th class="{% if c.titulo == 'Teléfono' %}hidden min-[1850px]:table-cell{% endif %} {% if c.titulo == 'Activo' or c.titulo == 'Cargo' or c.titulo == 'Contratista' or c.titulo == 'Sede' %}text-center{% endif %}" {% if c.activa %}aria-sort="{% if c.desc %}descending{% else %}ascending{% endif %}"{% endif %}>
         <a href="{{ c.url }}" class="inline-flex items-center gap-1 hover:text-base-content {% if c.activa %}text-base-content{% endif %}" title="Ordenar por {{ c.titulo|lower }}">{{ c.titulo }}<span aria-hidden="true" class="text-[0.7em] {% if not c.activa %}opacity-30{% endif %}">{% if c.desc %}▼{% elif c.activa %}▲{% else %}↕{% endif %}</span></a>
       </th>
       {% endfor %}
@@ -114,11 +115,11 @@
     <tbody>
     {% for m in lista %}
       <tr class="hover {% if not m.activa %}opacity-60{% endif %}">
-        <td><div class="flex items-center gap-3"><span class="avatar-iniciales badge-rol-{{ m.rol.jerarquia }} tono-{{ m.rol.tono }}" aria-hidden="true">{{ m.user.iniciales }}</span><div class="min-w-0 max-w-[13rem]"><div class="truncate font-medium" title="{{ m.user.get_full_name|default:m.user.email }}">{{ m.user.get_full_name|default:m.user.email }}{% if not m.user.is_active %} <span class="badge badge-error badge-sm">Bloqueado</span>{% endif %}</div><div class="truncate text-xs text-base-content/60" title="{{ m.user.email }}">{{ m.user.email }}</div></div></div></td>
-        <td class="whitespace-nowrap text-sm text-base-content/70">{{ m.user.telefono|default:"—" }}</td>
+        <td><div class="flex items-center gap-3"><span class="avatar-iniciales badge-rol-{{ m.rol.jerarquia }} tono-{{ m.rol.tono }}" aria-hidden="true">{{ m.user.iniciales }}</span><div class="min-w-0 max-w-[11rem] min-[1850px]:max-w-[16rem]"><div class="truncate font-medium" title="{{ m.user.get_full_name|default:m.user.email }}">{{ m.user.get_full_name|default:m.user.email }}{% if not m.user.is_active %} <span class="badge badge-error badge-sm">Bloqueado</span>{% endif %}</div><div class="truncate text-xs text-base-content/60" title="{{ m.user.email }}">{{ m.user.email }}</div>{% if m.user.telefono %}<div class="truncate text-xs text-base-content/60 min-[1850px]:hidden">{{ m.user.telefono }}</div>{% endif %}</div></div></td>
+        <td class="hidden whitespace-nowrap text-sm text-base-content/70 min-[1850px]:table-cell">{{ m.user.telefono|default:"—" }}</td>
         <td class="text-center">
-          <form method="post" class="indicator" action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
-            <select name="rol" class="select select-sm badge-rol-{{ m.rol.jerarquia }} mx-auto w-24 max-w-full rounded-full font-medium [text-align-last:center]" title="{{ m.rol.nombre }}" data-autoenviar-select aria-label="Cargo de {{ m.user.email }}">
+          <form method="post" data-ajax class="indicator" action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
+            <select name="rol" class="select select-sm badge-rol-{{ m.rol.jerarquia }} mx-auto w-28 rounded-full font-medium min-[1850px]:w-40 [text-align-last:center]" title="{{ m.rol.nombre }}" data-autoenviar-select aria-label="Cargo de {{ m.user.email }}">
               {% if request.user.is_superuser and m.user_id != request.user.pk %}<option value="" data-confirmar="¿Convertir a {{ m.user.email|escapejs }} en administrador de sistema? Dejará de ser miembro de esta empresa.">— Administrador —</option>{% endif %}
 {% for r in roles %}<option value="{{ r.pk }}" {% if r.pk == m.rol_id %}selected{% endif %}>{{ r.nombre }}</option>{% endfor %}
               {% if not m.rol.activo %}<option value="{{ m.rol_id }}" selected disabled>{{ m.rol.nombre }} (inactivo)</option>{% endif %}
@@ -128,13 +129,13 @@
           </form>
         </td>
         {% if con_puesto %}<td>
-          <form method="post" action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
-            <input type="text" name="puesto" list="puestos" maxlength="150" value="{{ m.perfil_jor.cargo }}" class="input input-sm w-44 max-w-full" data-autoenviar-select aria-label="Puesto de {{ m.user.email }}" title="{{ m.perfil_jor.cargo }}">
+          <form method="post" data-ajax action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
+            <input type="text" name="puesto" list="puestos" maxlength="150" value="{{ m.perfil_jor.cargo }}" class="input input-sm w-28 min-[1850px]:w-56" data-autoenviar-select aria-label="Puesto de {{ m.user.email }}" title="{{ m.perfil_jor.cargo }}">
           </form>
         </td>{% endif %}
         <td class="text-center">
-          <form method="post" action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
-            <select name="contratista" class="select select-sm mx-auto w-28 max-w-full rounded-full [text-align-last:center]" title="{% if m.contratista %}{{ m.contratista.nombre }}{% else %}Sin contratista{% endif %}" data-autoenviar-select aria-label="Contratista de {{ m.user.email }}">
+          <form method="post" data-ajax action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
+            <select name="contratista" class="select select-sm mx-auto w-24 rounded-full min-[1850px]:w-36 [text-align-last:center]" title="{% if m.contratista %}{{ m.contratista.nombre }}{% else %}Sin contratista{% endif %}" data-autoenviar-select aria-label="Contratista de {{ m.user.email }}">
               <option value=""></option>
               {% for c in contratistas %}<option value="{{ c.pk }}" {% if c.pk == m.contratista_id %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
               {% if m.contratista and not m.contratista.activo %}<option value="{{ m.contratista_id }}" selected disabled>{{ m.contratista.nombre }} (inactivo)</option>{% endif %}
@@ -142,8 +143,8 @@
           </form>
         </td>
         <td class="text-center">
-          <form method="post" action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
-            <select name="sede" class="select select-sm mx-auto w-28 max-w-full rounded-full [text-align-last:center]" title="{% if m.sede %}{{ m.sede.nombre }}{% else %}Sin sede{% endif %}" data-autoenviar-select aria-label="Sede de {{ m.user.email }}">
+          <form method="post" data-ajax action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
+            <select name="sede" class="select select-sm mx-auto w-24 rounded-full min-[1850px]:w-36 [text-align-last:center]" title="{% if m.sede %}{{ m.sede.nombre }}{% else %}Sin sede{% endif %}" data-autoenviar-select aria-label="Sede de {{ m.user.email }}">
               <option value=""></option>
               {% for x in sedes %}<option value="{{ x.pk }}" {% if x.pk == m.sede_id %}selected{% endif %}>{{ x.nombre }}</option>{% endfor %}
               {% if m.sede and not m.sede.activo %}<option value="{{ m.sede_id }}" selected disabled>{{ m.sede.nombre }} (inactiva)</option>{% endif %}
@@ -151,7 +152,7 @@
           </form>
         </td>
         <td class="text-center">
-          <form method="post" action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
+          <form method="post" data-ajax action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
             <input type="hidden" name="alternar_activa" value="1">
             <input type="checkbox" class="toggle toggle-success toggle-sm" {% if m.activa %}checked{% endif %}
                    {% if m.user_id == request.user.pk %}disabled title="No puedes desactivarte a ti mismo"{% else %}title="{% if m.activa %}Desactivar{% else %}Activar{% endif %}"{% endif %}
@@ -161,22 +162,22 @@
         </td>
         <td class="text-right whitespace-nowrap">
           {% if not m.user.has_usable_password and m.user.is_active %}
-          <form method="post" action="{% url 'panel:miembro_reinvitar' m.pk %}" class="inline">{% csrf_token %}
-            <button type="submit" class="btn btn-ghost btn-square btn-sm text-warning hover:bg-warning/10" title="Reenviar invitación a {{ m.user.email }}" aria-label="Reenviar invitación a {{ m.user.email }}">{% include "components/icon.html" with name="mail" cls="size-5" %}</button>
+          <form method="post" data-ajax action="{% url 'panel:miembro_reinvitar' m.pk %}" class="inline">{% csrf_token %}
+            <button type="submit" class="btn btn-ghost btn-square btn-xs min-[1850px]:btn-sm text-warning hover:bg-warning/10" title="Reenviar invitación a {{ m.user.email }}" aria-label="Reenviar invitación a {{ m.user.email }}">{% include "components/icon.html" with name="mail" cls="size-4 min-[1850px]:size-5" %}</button>
           </form>
           {% endif %}
           {% if request.user.is_superuser and not request.impersonador and m.user_id != request.user.pk and not m.user.is_superuser %}
-          <form method="post" action="{% url 'panel:miembro_bloquear' m.pk %}" class="inline" onsubmit="return confirm('{% if m.user.is_active %}¿Bloquear la cuenta de {{ m.user.email|escapejs }} en TODAS las empresas?{% else %}¿Desbloquear la cuenta?{% endif %}')">{% csrf_token %}
-            <button type="submit" class="btn btn-ghost btn-square btn-sm {% if m.user.is_active %}text-warning hover:bg-warning/10{% else %}text-success hover:bg-success/10{% endif %}" title="{% if m.user.is_active %}Bloquear cuenta{% else %}Desbloquear cuenta{% endif %}" aria-label="{% if m.user.is_active %}Bloquear{% else %}Desbloquear{% endif %} la cuenta de {{ m.user.email }}">{% if m.user.is_active %}{% include "components/icon.html" with name="ban" cls="size-5" %}{% else %}{% include "components/icon.html" with name="unlock" cls="size-5" %}{% endif %}</button>
+          <form method="post" data-ajax action="{% url 'panel:miembro_bloquear' m.pk %}" class="inline" onsubmit="return confirm('{% if m.user.is_active %}¿Bloquear la cuenta de {{ m.user.email|escapejs }} en TODAS las empresas?{% else %}¿Desbloquear la cuenta?{% endif %}')">{% csrf_token %}
+            <button type="submit" class="btn btn-ghost btn-square btn-xs min-[1850px]:btn-sm {% if m.user.is_active %}text-warning hover:bg-warning/10{% else %}text-success hover:bg-success/10{% endif %}" title="{% if m.user.is_active %}Bloquear cuenta{% else %}Desbloquear cuenta{% endif %}" aria-label="{% if m.user.is_active %}Bloquear{% else %}Desbloquear{% endif %} la cuenta de {{ m.user.email }}">{% if m.user.is_active %}{% include "components/icon.html" with name="ban" cls="size-4 min-[1850px]:size-5" %}{% else %}{% include "components/icon.html" with name="unlock" cls="size-4 min-[1850px]:size-5" %}{% endif %}</button>
           </form>
-          <a class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" href="{% url 'panel:miembro_eliminar' m.pk %}" title="Eliminar cuenta" aria-label="Eliminar la cuenta de {{ m.user.email }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</a>
+          <a class="btn btn-ghost btn-square btn-xs min-[1850px]:btn-sm text-error hover:bg-error/10" href="{% url 'panel:miembro_eliminar' m.pk %}" title="Eliminar cuenta" aria-label="Eliminar la cuenta de {{ m.user.email }}">{% include "components/icon.html" with name="trash" cls="size-4 min-[1850px]:size-5" %}</a>
           {% endif %}
           {% if request.user.is_superuser and not request.impersonador and m.user.is_active and not m.user.is_superuser %}
           <form method="post" action="{% url 'cuentas:impersonar' m.user.pk %}" class="inline">{% csrf_token %}
-            <button type="submit" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Ver como {{ m.user.email }}" aria-label="Ver la aplicación como {{ m.user.email }}">{% include "components/icon.html" with name="user-switch" cls="size-5" %}</button>
+            <button type="submit" class="btn btn-ghost btn-square btn-xs min-[1850px]:btn-sm text-info hover:bg-info/10" title="Ver como {{ m.user.email }}" aria-label="Ver la aplicación como {{ m.user.email }}">{% include "components/icon.html" with name="user-switch" cls="size-4 min-[1850px]:size-5" %}</button>
           </form>
           {% endif %}
-          <a class="btn btn-ghost btn-square btn-sm text-primary-text hover:bg-primary/10" href="{% url 'panel:miembro_editar' m.pk %}" title="Editar" aria-label="Editar a {{ m.user.email }}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+          <a class="btn btn-ghost btn-square btn-xs min-[1850px]:btn-sm text-primary-text hover:bg-primary/10" href="{% url 'panel:miembro_editar' m.pk %}" title="Editar" aria-label="Editar a {{ m.user.email }}">{% include "components/icon.html" with name="pencil" cls="size-4 min-[1850px]:size-5" %}</a>
         </td>
       </tr>
     {% endfor %}
@@ -184,7 +185,7 @@
   </table>
 </div>
 {% if eliminados is not None %}
-<section class="mt-4 shrink-0" aria-labelledby="papelera">
+<section class="mt-4 shrink-0 pb-4" aria-labelledby="papelera">
   <h2 id="papelera" class="mb-2 text-sm font-semibold text-base-content/70">Eliminados <span class="font-normal">(solo visible para el superusuario)</span></h2>
   <div class="table-card max-h-48 overflow-auto">
     <table class="table">

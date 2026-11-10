@@ -40,7 +40,7 @@ y rellenan `page_title` y `content_main`. El menú viene de panel.menu (context 
     </nav>
     {% if logo_proveedor_url %}
     <div class="flex items-center gap-2 border-t border-base-content/10 px-4 py-3 text-xs text-base-content/50">
-      <span>Servicio por</span><img src="{{ logo_proveedor_url }}" alt="{{ nombre_proveedor|default:'Proveedor' }}" class="max-h-6 w-auto rounded bg-white px-1">
+      <span>Powered by</span><img src="{{ logo_proveedor_url }}" alt="{{ nombre_proveedor|default:'Proveedor' }}" class="max-h-6 w-auto rounded bg-white px-1">
     </div>
     {% endif %}
   </aside>
@@ -114,7 +114,7 @@ y rellenan `page_title` y `content_main`. El menú viene de panel.menu (context 
           <span data-tema-icono="moon" class="hidden dark:inline">{% include "components/icon.html" with name="sun" %}</span>
         </button>
         <details class="dropdown dropdown-end">
-          <summary class="btn btn-ghost btn-sm max-w-40 sm:max-w-56"><span class="truncate">{{ request.user.get_short_name|default:request.user.email }}</span></summary>
+          <summary class="btn btn-ghost btn-sm max-w-24 sm:max-w-56"><span class="truncate">{{ request.user.get_short_name|default:request.user.email }}</span></summary>
           <ul class="menu dropdown-content z-10 bg-base-100 shadow-xl border border-base-content/10 mt-2 w-56 rounded-2xl p-2 max-sm:fixed max-sm:inset-x-2 max-sm:top-14 max-sm:mt-1 max-sm:w-auto">
             <li class="menu-title">{{ request.user.email }}</li>
             {% if request.user.is_superuser %}<li><a href="{% url 'panel:empresas' %}">Plataforma</a></li>{% endif %}
@@ -144,7 +144,7 @@ y rellenan `page_title` y `content_main`. El menú viene de panel.menu (context 
     {% endif %}
 
     <main id="contenido" tabindex="-1" class="flex-1 bg-base-200 p-4 md:p-8 {% block main_class %}overflow-y-auto{% endblock %} print:overflow-visible print:p-0">
-      <div class="mx-auto max-w-6xl {% block wrap_class %}{% endblock %}">{% block content_main %}{% endblock %}</div>
+      <div class="mx-auto {% block wrap_max %}max-w-6xl{% endblock %} {% block wrap_class %}{% endblock %}">{% block content_main %}{% endblock %}</div>
     </main>
   </div>
   {% if msj_activo %}{% include "components/mensajeria_drawer.html" %}{% endif %}

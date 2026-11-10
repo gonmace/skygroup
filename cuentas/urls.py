@@ -7,6 +7,7 @@ app_name = 'cuentas'
 urlpatterns = [
     path('acceso/login/', views.LoginView.as_view(), name='login'),
     path('acceso/nextcloud/', views.nextcloud_iniciar, name='nextcloud_iniciar'),
+    path('acceso/nextcloud/probar/', views.nextcloud_probar_inicio, name='nextcloud_probar_inicio'),
     path('acceso/nextcloud/vincular/', views.nextcloud_vincular, name='nextcloud_vincular'),
     path('acceso/nextcloud/desvincular/', views.nextcloud_desvincular, name='nextcloud_desvincular'),
     path('acceso/nextcloud/callback/', views.nextcloud_callback, name='nextcloud_callback'),

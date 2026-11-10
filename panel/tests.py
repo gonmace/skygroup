@@ -728,7 +728,7 @@ class ProveedorDelServicioTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.a.refresh_from_db()
         self.assertFalse(self.a.logo_proveedor)
-        self.assertNotContains(self.client.get('/tekon/'), 'Servicio por')
+        self.assertNotContains(self.client.get('/tekon/'), 'Powered by')
 
     def test_el_superusuario_lo_define_y_aparece_en_el_pie(self):
         self.client.force_login(self.root)
@@ -738,7 +738,7 @@ class ProveedorDelServicioTests(TestCase):
         self.assertEqual(self.a.nombre_proveedor, 'Redline')
         self.assertEqual(self.a.logo_proveedor.name, 'branding/tekon/proveedor.png')
         pagina = self.client.get('/tekon/').content.decode()
-        self.assertIn('Servicio por', pagina)
+        self.assertIn('Powered by', pagina)
         self.assertIn('/media/branding/tekon/proveedor.png', pagina)
 
     def test_el_formulario_de_marca_del_coordinador_no_lo_incluye(self):
@@ -753,4 +753,83 @@ class ProveedorDelServicioTests(TestCase):
 
     def test_el_login_muestra_al_proveedor(self):
         self.a.logo_proveedor.save('p.png', self._logo(), save=True)
-        self.assertContains(self.client.get('/tekon/acceso/login/'), 'Servicio por')
+        self.assertContains(self.client.get('/tekon/acceso/login/'), 'Powered by')
+
+
+@override_settings(**AJUSTES)
+class MiembrosAjaxTests(TestCase):
+    """La tabla de usuarios se actualiza sin recargar la página: las acciones responden JSON si piden AJAX."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.a = crear_empresa(nombre='Tekon', slug='tekon', modulos=['tar'])
+        cls.pmo = User.objects.create_user('pmo@example.com', 'x')
+        cls.m_pmo = agregar_miembro(cls.pmo, cls.a, rol_por_base(cls.a, RolBase.COORDINADOR))
+        cls.otro = User.objects.create_user('otro@example.com', 'x')
+        cls.m_otro = agregar_miembro(cls.otro, cls.a, rol_por_base(cls.a, RolBase.MIEMBRO))
+
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self.client.force_login(self.pmo)
+
+    def post(self, accion, datos=None, ajax=True):
+        extra = {'HTTP_X_REQUESTED_WITH': 'XMLHttpRequest'} if ajax else {}
+        return self.client.post(f'/tekon/config/miembros/{self.m_otro.pk}/{accion}/', datos or {}, **extra)
+
+    def test_cambia_el_cargo_y_responde_json_sin_redirigir(self):
+        coord = rol_por_base(self.a, RolBase.COORDINADOR)
+        r = self.post('rapido', {'rol': coord.pk})
+        self.assertEqual((r.status_code, r['Content-Type']), (200, 'application/json'))
+        d = r.json()
+        self.assertTrue(d['ok'])
+        self.assertEqual(d['mensajes'][0]['tipo'], 'success')
+        self.assertIn('otro@example.com', d['mensajes'][0]['texto'])
+        self.m_otro.refresh_from_db()
+        self.assertEqual(self.m_otro.rol, coord)
+
+    def test_los_mensajes_no_se_acumulan_para_la_siguiente_pagina(self):
+        self.post('rapido', {'alternar_activa': '1'})
+        self.assertNotContains(self.client.get('/tekon/config/miembros/'), 'activado')
+
+    def test_un_error_responde_ok_falso(self):
+        d = self.post('rapido', {'rol': '99999'}).json()
+        self.assertFalse(d['ok'])
+        self.assertEqual(d['mensajes'][0]['tipo'], 'error')
+
+    def test_sin_ajax_sigue_redirigiendo(self):
+        r = self.post('rapido', {'alternar_activa': '1'}, ajax=False)
+        self.assertRedirects(r, '/tekon/config/miembros/', fetch_redirect_response=False)
+
+    def test_reinvitar_tambien_responde_json(self):
+        d = self.post('reinvitar').json()   # ya tiene contraseña → aviso, no error
+        self.assertTrue(d['ok'])
+        self.assertEqual(d['mensajes'][0]['tipo'], 'warning')
+
+    def test_sin_permiso_no_cambia_nada(self):
+        self.client.force_login(self.otro)
+        self.assertEqual(self.post('rapido', {'alternar_activa': '1'}).status_code, 403)
+
+    def test_la_pagina_usa_ajax_y_todo_el_ancho(self):
+        h = self.client.get('/tekon/config/miembros/').content.decode()
+        self.assertIn('data-ajax', h)
+        for zona in ('miembros-resumen', 'miembros-tabla', 'miembros-lista'):
+            self.assertIn(f'data-refrescar="{zona}"', h)
+        self.assertIn('max-w-none', h)
+        self.assertNotIn('max-w-6xl flex min-h-0', h)       # el ancho máximo ya no limita esta página
+
+
+    def test_el_resumen_por_cargo_y_sede_cuenta_solo_activos(self):
+        from empresas.models import Sede
+        sede = Sede.objects.create(empresa=self.a, nombre='Central')
+        self.m_otro.sede = sede
+        self.m_otro.activa = False
+        self.m_otro.save()
+        r = self.client.get('/tekon/config/miembros/').context['resumen']
+        self.assertEqual((r['total'], r['activos']), (2, 1))
+        self.assertEqual(r['por_cargo'], [('Coordinador', 1)])          # el inactivo (Ejecutor) no se cuenta
+        self.assertEqual(r['por_sede'], [('Sin sede', 1)])              # ni su sede
+        self.m_otro.activa = True
+        self.m_otro.save()
+        r = self.client.get('/tekon/config/miembros/').context['resumen']
+        self.assertEqual(dict(r['por_sede']), {'Central': 1, 'Sin sede': 1})

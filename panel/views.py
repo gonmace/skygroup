@@ -12,7 +12,7 @@ from django.db import models, transaction
 from django.db.models import ProtectedError
 from django.db.models import Count, F, Q
 from django.db.models.functions import Concat, Lower
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.shortcuts import get_object_or_404, redirect, render
@@ -220,10 +220,11 @@ def miembros(request):
     if con_puesto:   # los ya usados, para sugerirlos y evitar variantes del mismo puesto
         puestos = sorted({m.perfil_jor.cargo for m in lista if getattr(m, 'perfil_jor', None) and m.perfil_jor.cargo})
     lista = list(lista)
+    activos = [m for m in lista if m.activa]   # los desgloses por cargo y por sede cuentan solo a quienes están activos
     resumen = {
-        'total': len(lista), 'activos': sum(m.activa for m in lista),
-        'por_cargo': sorted(Counter(m.rol.nombre for m in lista).items()),
-        'por_sede': sorted(Counter(m.sede.nombre if m.sede else 'Sin sede' for m in lista).items(),
+        'total': len(lista), 'activos': len(activos),
+        'por_cargo': sorted(Counter(m.rol.nombre for m in activos).items()),
+        'por_sede': sorted(Counter(m.sede.nombre if m.sede else 'Sin sede' for m in activos).items(),
                            key=lambda x: (x[0] == 'Sin sede', x[0])),
     }
     eliminados = None
@@ -244,6 +245,15 @@ def _destino(request, defecto):
                                                    require_https=request.is_secure()):
         return destino
     return defecto
+
+
+def _volver_o_json(request, defecto):
+    """Fin de una acción de la tabla de usuarios. Con AJAX (`X-Requested-With`) responde JSON con los mensajes y la
+    página NO se recarga (así la tabla conserva el desplazamiento); sin AJAX, redirige como siempre."""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        avisos = [{'texto': str(m), 'tipo': m.tags} for m in messages.get_messages(request)]
+        return JsonResponse({'ok': not any(a['tipo'] == 'error' for a in avisos), 'mensajes': avisos})
+    return redirect(_destino(request, defecto))
 
 
 def _puede_desactivar(request, membresia):
@@ -383,7 +393,7 @@ def miembro_rapido(request, pk):
             membresia.activa = not membresia.activa
             membresia.save(update_fields=['activa'])
             messages.success(request, f'{membresia.user.email} {"activado" if membresia.activa else "desactivado"}.')
-    return redirect(_destino(request, 'panel:miembros'))
+    return _volver_o_json(request, 'panel:miembros')
 
 
 @require_POST
@@ -399,7 +409,7 @@ def miembro_reinvitar(request, pk):
     else:
         correos.preparar_invitacion(request, membresia.user, membresia)()
         messages.success(request, f'Invitación reenviada a {membresia.user.email}.')
-    return redirect(_destino(request, 'panel:miembros'))
+    return _volver_o_json(request, 'panel:miembros')
 
 
 def _protegido(request, user):
@@ -420,7 +430,7 @@ def miembro_bloquear(request, pk):
         user.is_active = not user.is_active
         user.save(update_fields=['is_active'])
         messages.success(request, f'Cuenta de {user.email} {"desbloqueada" if user.is_active else "bloqueada en todas las empresas"}.')
-    return redirect(_destino(request, 'panel:miembros'))
+    return _volver_o_json(request, 'panel:miembros')
 
 
 @empresa_requerida
@@ -529,7 +539,23 @@ def nextcloud(request):
         form.save()
         messages.success(request, 'Configuración de Nextcloud guardada.')
         return redirect('panel:nextcloud')
-    return render(request, 'panel/nextcloud.html', {'form': form, 'redirect_uri': redirect_uri(request)})
+    from cuentas.views import NC_PRUEBA
+    return render(request, 'panel/nextcloud.html', {
+        'form': form, 'redirect_uri': redirect_uri(request),
+        'prueba': request.session.pop(NC_PRUEBA, None),                    # resultado de «Probar inicio de sesión» (una vez)
+        'config_completa': NextcloudConfig.de(request.empresa).completo,   # lo GUARDADO: el flujo OAuth usa lo guardado
+    })
+
+
+@require_POST
+@superusuario_requerido
+@empresa_requerida
+def nextcloud_probar(request):
+    """«Probar conexión»: comprueba el servidor (URL, Nextcloud accesible, app OAuth 2.0) con lo que hay en el formulario,
+    sin guardar y sin enviar credenciales."""
+    from cuentas import nextcloud as nc
+    url = request.POST.get('servidor_url') or NextcloudConfig.de(request.empresa).servidor_url
+    return JsonResponse({'resultados': nc.probar_servidor(url)})
 
 
 @empresa_requerida

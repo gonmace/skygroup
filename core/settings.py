@@ -210,9 +210,11 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Email: consola en dev, SMTP en prod si se configura EMAIL_HOST
+# Email: el backend de la plataforma usa el SMTP configurado en Plataforma → Correo (BD) y, si no hay, el de abajo:
+# consola en dev, SMTP en prod si se configura EMAIL_HOST en el .env.
+EMAIL_BACKEND = 'cuentas.correo_backend.EmailBackend'
 if config('EMAIL_HOST', default=''):
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_BACKEND_BASE = 'django.core.mail.backends.smtp.EmailBackend'
     EMAIL_HOST = config('EMAIL_HOST')
     EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
     EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
@@ -220,7 +222,7 @@ if config('EMAIL_HOST', default=''):
     EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
     DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@example.com')
 else:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    EMAIL_BACKEND_BASE = 'django.core.mail.backends.console.EmailBackend'
 
 # ── Seguridad ──────────────────────────────────────────────────────────────────
 CSRF_COOKIE_SECURE = not DEBUG

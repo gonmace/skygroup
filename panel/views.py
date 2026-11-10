@@ -25,7 +25,8 @@ from archivos.storage import s3_activo
 from cuentas import capacidades
 from cuentas.capacidades import requiere_capacidad
 from cuentas import correos
-from cuentas.models import CorreoBloqueado, DominioPermitido, Membresia, NextcloudConfig, RolEmpresa, RolPermiso, User
+from cuentas.models import (CorreoBloqueado, CorreoConfig, DominioPermitido, Membresia, NextcloudConfig, RolEmpresa,
+                            RolPermiso, User)
 from cuentas.services import agregar_miembro, sembrar_roles
 from empresas.models import Contratista, Empresa, Sede
 
@@ -164,6 +165,56 @@ def almacenamiento_migrar(request):
                      start_new_session=True)
     messages.success(request, 'Migración iniciada. Actualiza esta página para ver el progreso.')
     return redirect('panel:almacenamiento')
+
+
+@superusuario_requerido
+def correo(request):
+    """Servidor SMTP de la plataforma (todas las empresas). Solo el superusuario."""
+    from .forms import CorreoForm
+    form = CorreoForm(request.POST or None, instance=CorreoConfig.de())
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Configuración de correo guardada.')
+        return redirect('panel:correo')
+    return render(request, 'panel/correo.html', {
+        'form': form, 'destino_prueba': request.user.email,
+        # Servidor de respaldo (.env): solo si el servidor define uno; si no, el correo va a la consola.
+        'env_host': settings.EMAIL_HOST if 'smtp' in getattr(settings, 'EMAIL_BACKEND_BASE', '') else '',
+    })
+
+
+@require_POST
+@superusuario_requerido
+def correo_probar(request):
+    """«Probar conexión» y «Enviar correo de prueba» con lo que hay en el formulario (aunque no esté guardado)."""
+    from django.core.exceptions import ValidationError
+    from django.core.validators import validate_email
+
+    from cuentas import correo_backend as cb
+    guardada = CorreoConfig.de()
+    post = request.POST
+    try:
+        puerto = int(post.get('puerto') or 0)
+    except ValueError:
+        puerto = 0
+    seguridad = post.get('seguridad') if post.get('seguridad') in dict(CorreoConfig.Seguridad.choices) else 'starttls'
+    cfg = {'host': (post.get('host') or '').strip(), 'puerto': puerto, 'seguridad': seguridad,
+           'usuario': (post.get('usuario') or '').strip(), 'password': post.get('password') or guardada.password,
+           'remitente': (post.get('remitente') or '').strip(), 'remitente_nombre': (post.get('remitente_nombre') or '').strip()}
+    if not cfg['host']:
+        return JsonResponse({'ok': False, 'mensaje': 'Indica el servidor SMTP.'})
+    if not 1 <= puerto <= 65535:
+        return JsonResponse({'ok': False, 'mensaje': 'El puerto debe estar entre 1 y 65535.'})
+    if post.get('accion') == 'envio':
+        destino = (post.get('destino') or '').strip()
+        try:
+            validate_email(destino)
+        except ValidationError:
+            return JsonResponse({'ok': False, 'mensaje': 'Escribe un correo de destino válido.'})
+        ok, mensaje = cb.enviar_prueba(cfg, destino)
+    else:
+        ok, mensaje = cb.probar_conexion(cfg)
+    return JsonResponse({'ok': ok, 'mensaje': mensaje})
 
 
 # ── Configuración de la empresa ───────────────────────────────────────────────

@@ -172,7 +172,7 @@ class PanelTests(TestCase):
         self.assertNotIn('plataforma', [a['codigo'] for a in m['apps']])        # no está en la empresa
         m = self._menu(root, '/tekon/panel/', self.a)
         self.assertEqual(m['app_activa']['codigo'], 'plataforma')              # sí mientras se usa
-        self.assertEqual([i['nombre'] for i in m['items']], ['Empresas', 'Administradores', 'Almacenamiento'])
+        self.assertEqual([i['nombre'] for i in m['items']], ['Empresas', 'Administradores', 'Almacenamiento', 'Correo'])
         self.assertNotIn('plataforma', [a['codigo'] for a in self._menu(self.pmo, '/tekon/panel/', self.a)['apps']])
 
     def test_entradas_registradas_hacen_disponible_la_app(self):
@@ -219,7 +219,7 @@ class PanelTests(TestCase):
     def test_superusuario_ve_plataforma(self):
         m = self._menu(self.root, '/panel/')
         self.assertEqual(m['app_activa']['codigo'], 'plataforma')
-        self.assertEqual([i['nombre'] for i in m['items']], ['Empresas', 'Administradores', 'Almacenamiento'])
+        self.assertEqual([i['nombre'] for i in m['items']], ['Empresas', 'Administradores', 'Almacenamiento', 'Correo'])
 
     def test_lanzador_de_inicio_muestra_las_apps(self):
         self.vaciar_modulo('jor')

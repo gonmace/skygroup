@@ -3,7 +3,7 @@ import re
 from django import forms
 from django.db import models
 
-from cuentas.models import CorreoBloqueado, DominioPermitido, NextcloudConfig, RolEmpresa
+from cuentas.models import CorreoBloqueado, CorreoConfig, DominioPermitido, NextcloudConfig, RolEmpresa
 from cuentas.roles import RolBase
 from empresas.models import Contratista, Empresa, Modulo, Sede
 
@@ -342,4 +342,32 @@ class NextcloudForm(EstiloMixin, forms.ModelForm):
         d = super().clean()
         if d.get('activo') and not (d.get('servidor_url') and d.get('client_id') and d.get('client_secret')):
             raise forms.ValidationError('Para activarlo indica la URL, el Client ID y el Client secret.')
+        return d
+
+
+class CorreoForm(EstiloMixin, forms.ModelForm):
+    """Servidor SMTP de la plataforma. La contraseña no se muestra: vacía conserva la guardada."""
+
+    password = forms.CharField(
+        label='Contraseña', required=False,
+        widget=forms.PasswordInput(render_value=False, attrs={'autocomplete': 'new-password'}),
+        help_text='Se guarda en la base de datos. Déjala vacía para conservar la actual.')
+
+    class Meta:
+        model = CorreoConfig
+        fields = ('activo', 'host', 'puerto', 'seguridad', 'usuario', 'password', 'remitente', 'remitente_nombre')
+
+    def clean_password(self):
+        return self.cleaned_data['password'] or self.instance.password
+
+    def clean_puerto(self):
+        puerto = self.cleaned_data['puerto']
+        if not 1 <= puerto <= 65535:
+            raise forms.ValidationError('El puerto debe estar entre 1 y 65535.')
+        return puerto
+
+    def clean(self):
+        d = super().clean()
+        if d.get('activo') and not (d.get('host') and d.get('remitente')):
+            raise forms.ValidationError('Para activarlo indica el servidor SMTP y el correo del remitente.')
         return d

@@ -340,3 +340,57 @@ class NextcloudVinculo(models.Model):
 
     def __str__(self):
         return f'{self.uid} → {self.user} ({self.empresa})'
+
+
+class CorreoConfig(models.Model):
+    """Servidor SMTP de la plataforma (UNA sola configuración, para todas las empresas). La edita el superusuario en
+    Plataforma → Correo. Apagada, el correo sale como lo define el servidor (variables EMAIL_* del .env, o la consola)."""
+
+    class Seguridad(models.TextChoices):
+        STARTTLS = 'starttls', 'STARTTLS (puerto 587, lo más común)'
+        SSL = 'ssl', 'SSL/TLS directo (puerto 465)'
+        NINGUNA = 'ninguna', 'Sin cifrado (puerto 25 o 1025; solo redes de confianza)'
+
+    activo = models.BooleanField('Enviar correos por este servidor', default=False)
+    host = models.CharField('Servidor SMTP', max_length=255, blank=True, help_text='Ej. smtp.gmail.com')
+    puerto = models.PositiveIntegerField('Puerto', default=587)
+    seguridad = models.CharField('Cifrado', max_length=10, choices=Seguridad.choices, default=Seguridad.STARTTLS)
+    usuario = models.CharField('Usuario', max_length=255, blank=True)
+    password = models.CharField(
+        'Contraseña', max_length=255, blank=True,
+        help_text='Se guarda en la base de datos. Usa una contraseña de aplicación o de un usuario SMTP dedicado.')
+    remitente = models.EmailField(
+        'Correo del remitente', blank=True,
+        help_text='Desde dónde salen los correos (si la empresa no define uno propio en su Marca). Muchos proveedores '
+                  'solo aceptan remitentes de su dominio.')
+    remitente_nombre = models.CharField('Nombre del remitente', max_length=100, blank=True)
+    actualizada = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'configuración de correo (SMTP)'
+        verbose_name_plural = 'configuración de correo (SMTP)'
+
+    def __str__(self):
+        return 'Configuración de correo (SMTP)'
+
+    @property
+    def completa(self):
+        return bool(self.host and self.puerto and self.remitente)
+
+    def save(self, *args, **kwargs):
+        self.pk = 1      # singleton
+        self.host = self.host.strip()
+        super().save(*args, **kwargs)
+        from .correo_backend import invalidar_config
+        invalidar_config()
+
+    def delete(self, *args, **kwargs):
+        resultado = super().delete(*args, **kwargs)
+        from .correo_backend import invalidar_config
+        invalidar_config()
+        return resultado
+
+    @classmethod
+    def de(cls):
+        """La configuración guardada o una vacía (sin guardar)."""
+        return cls.objects.first() or cls()

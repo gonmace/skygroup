@@ -13,7 +13,8 @@ def _remitente(empresa):
     if empresa is not None and empresa.email_remitente:
         nombre = (empresa.email_remitente_nombre or '').replace('<', '').replace('>', '').replace('\n', ' ').strip()
         return f'{nombre} <{empresa.email_remitente}>' if nombre else empresa.email_remitente
-    return settings.DEFAULT_FROM_EMAIL
+    from .correo_backend import remitente_por_defecto
+    return remitente_por_defecto()
 
 
 def _enviar(request, plantilla, destino, empresa, extra):

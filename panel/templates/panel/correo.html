@@ -1,0 +1,39 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block page_title %}Correo{% endblock %}
+{% block content_main %}
+<div class="grid gap-6 lg:grid-cols-3">
+  <form method="post" class="card bg-base-100 lg:col-span-2" id="correo-form"><div class="card-body gap-4">
+    {% csrf_token %}
+    <h2 class="card-title text-base">Servidor de correo (SMTP)</h2>
+    <p class="text-sm text-base-content/70">Con esto la plataforma envía las invitaciones, los avisos de alta y las recuperaciones de contraseña. Es una sola configuración para todas las empresas. Si la dejas apagada, se usa lo que defina el servidor{% if env_host %} ({{ env_host }}){% else %} (sin servidor: los correos solo aparecen en el registro, no se envían){% endif %}.</p>
+    {% if form.non_field_errors %}<div class="alert alert-error text-sm">{{ form.non_field_errors.0 }}</div>{% endif %}
+    <label class="flex items-center gap-2"><span class="label-text">{{ form.activo }} Enviar los correos por este servidor</span></label>
+    {% for f in form.visible_fields %}{% if f.name != "activo" %}
+      <label class="form-control w-full">
+        <span class="label-text mb-1">{{ f.label }}</span>
+        {{ f }}
+        {% if f.help_text %}<span class="mt-1 text-xs text-base-content/60">{{ f.help_text }}</span>{% endif %}
+        {% for e in f.errors %}<span class="text-error text-sm">{{ e }}</span>{% endfor %}
+      </label>
+    {% endif %}{% endfor %}
+    <div class="card-actions justify-end"><button type="submit" class="btn btn-primary">Guardar</button></div>
+  </div></form>
+
+  <aside class="card bg-base-100 self-start"><div class="card-body gap-3 text-sm">
+    <h2 class="card-title text-base">Probar</h2>
+    <p class="text-base-content/70">Las pruebas usan lo que está escrito en el formulario, aunque no lo hayas guardado. Si dejas la contraseña vacía se usa la guardada.</p>
+    <div class="space-y-1">
+      <button type="button" class="btn btn-outline btn-sm w-full" id="correo-probar-conexion" data-url="{% url 'panel:correo_probar' %}">Probar conexión</button>
+      <p class="text-xs text-base-content/60">Abre la conexión con el servidor, el cifrado y el usuario/contraseña, sin enviar nada.</p>
+    </div>
+    <div class="space-y-2 border-t border-base-content/10 pt-3">
+      <label class="form-control w-full"><span class="label-text mb-1">Enviar un correo de prueba a</span>
+        <input type="email" id="correo-destino" value="{{ destino_prueba }}" class="input input-bordered input-sm w-full" autocomplete="off"></label>
+      <button type="button" class="btn btn-outline btn-sm w-full" id="correo-probar-envio" data-url="{% url 'panel:correo_probar' %}">Enviar correo de prueba</button>
+    </div>
+    <div id="correo-resultado" class="min-h-6 text-sm" role="status" aria-live="polite"></div>
+  </div></aside>
+</div>
+{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/panel-correo.js' %}" defer></script>{% endblock %}

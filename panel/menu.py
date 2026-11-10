@@ -160,7 +160,8 @@ def _items_plataforma(request):
     empresas = _item(request, 'Empresas', 'panel:empresas', 'building', exacto=True)
     if empresas and request.path.startswith(empresas['url'] + 'empresas/'):
         empresas['activo'] = True
-    candidatos = [('Administradores', 'panel:administradores', 'shield'), ('Almacenamiento', 'panel:almacenamiento', 'database')]
+    candidatos = [('Administradores', 'panel:administradores', 'shield'), ('Almacenamiento', 'panel:almacenamiento', 'database'),
+                  ('Correo', 'panel:correo', 'mail')]
     return [x for x in [empresas, *(_item(request, *c) for c in candidatos)] if x]
 
 

@@ -327,3 +327,51 @@ class DetalleTests(TestCase):
         r = self.client.get('/embol/tareas/')
         self.assertEqual(r.context['app_activa']['codigo'], 'tar')
         self.assertIn('Tablero', [i['nombre'] for i in r.context['menu_lateral']])
+
+
+@override_settings(**AJUSTES)
+class AdministradorSoloLecturaTests(TestCase):
+    """El administrador de sistema que no es miembro ve el tablero, los tickets y el resumen de la empresa, pero no
+    crea, mueve, edita, comenta, archiva ni elimina nada."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.a = crear_empresa(nombre='Embol', slug='embol', modulos=['tar'])
+        cls.b = crear_empresa(nombre='Otra', slug='otra', modulos=['tar'])
+        cls.ejec = usuario('ejec@example.com', cls.a, RolBase.MIEMBRO)
+        cls.adm = User.objects.create_user('adm@example.com', 'x')
+        cls.adm.empresas_administradas.add(cls.a)
+        cls.t = Ticket.objects.create(empresa=cls.a, titulo='Montar tablero', solicitante='Cliente')
+        Asignacion.objects.create(ticket=cls.t, user=cls.ejec, tipo='EJECUTOR', estado=E.POR_HACER)
+
+    def get(self, ruta, user=None):
+        self.client.force_login(user or self.adm)
+        return self.client.get(f'/embol/tareas/{ruta}')
+
+    def post(self, ruta, **datos):
+        self.client.force_login(self.adm)
+        return self.client.post(f'/embol/tareas/{ruta}', datos)
+
+    def test_ve_tablero_ticket_y_resumen(self):
+        for ruta in ('', 'fragmento/', f'{self.t.pk}/', 'mis-tickets/', 'archivados/', 'seguimiento/', 'dashboard/'):
+            self.assertEqual(self.get(ruta).status_code, 200, ruta)
+        self.assertContains(self.get(''), 'Montar tablero')
+
+    def test_no_crea_mueve_edita_comenta_archiva_ni_elimina(self):
+        for ruta in ('nuevo/', 'mover/', f'{self.t.pk}/editar/', f'{self.t.pk}/comentar/', f'{self.t.pk}/archivar/',
+                     f'{self.t.pk}/eliminar/', f'{self.t.pk}/aprobar/', f'{self.t.pk}/derivar/', 'etiquetas/'):
+            self.assertEqual(self.post(ruta, texto='hola').status_code, 403, ruta)
+        self.t.refresh_from_db()
+        self.assertEqual((self.t.titulo, self.t.archivado_en), ('Montar tablero', None))
+        self.assertEqual(self.t.comentarios.count(), 0)
+
+    def test_el_administrador_de_otra_empresa_no_entra(self):
+        otro = User.objects.create_user('otro@example.com', 'x')
+        otro.empresas_administradas.add(self.b)
+        self.assertEqual(self.get('', otro).status_code, 403)
+        self.assertEqual(self.get(f'{self.t.pk}/', otro).status_code, 403)
+
+    def test_los_cargos_no_cambian(self):
+        lector = usuario('lector@example.com', self.a, RolBase.OBSERVADOR)
+        self.client.force_login(lector)
+        self.assertEqual(self.client.post(f'/embol/tareas/{self.t.pk}/editar/').status_code, 403)

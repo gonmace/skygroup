@@ -11,6 +11,12 @@ def grupo(empresa_id, user_id):
     return f'notif.{empresa_id}.{user_id}'
 
 
+def _puede_recibir(user, empresa):
+    """Miembro, o administrador de sistema de la empresa (puede entrar a sus pantallas aunque no sea miembro)."""
+    from cuentas.capacidades import administra
+    return es_miembro(user, empresa) or administra(user, empresa.pk)
+
+
 class NotificacionesConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         user = self.scope.get('user')
@@ -18,7 +24,7 @@ class NotificacionesConsumer(AsyncJsonWebsocketConsumer):
             return await self.close(code=4401)
         empresa = await database_sync_to_async(empresa_por_slug)(self.scope['url_route']['kwargs']['slug'])
         permitido = empresa is not None and empresa.activa and (
-            user.is_superuser or await database_sync_to_async(es_miembro)(user, empresa)
+            user.is_superuser or await database_sync_to_async(_puede_recibir)(user, empresa)
         )
         if not permitido:
             return await self.close(code=4403)

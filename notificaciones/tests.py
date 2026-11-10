@@ -162,6 +162,17 @@ class NotificacionesWebSocketTests(TransactionTestCase):
         self.assertFalse(conectado)
         self.assertEqual(codigo, 4403)
 
+    async def test_el_administrador_de_sistema_sin_membresia_conecta_pero_no_el_de_otra_empresa(self):
+        def crear():
+            adm = User.objects.create_user('adm@example.com', 'x')
+            adm.empresas_administradas.add(self.a)
+            return adm
+        adm = await database_sync_to_async(crear)()
+        conectado, _ = await self.com('emp-a', adm).connect()
+        self.assertTrue(conectado)
+        conectado, codigo = await self.com('emp-b', adm).connect()   # administra A, no B
+        self.assertEqual((conectado, codigo), (False, 4403))
+
     async def test_empresa_inactiva_o_inexistente_es_rechazada(self):
         await database_sync_to_async(lambda: self.a.__class__.objects.filter(pk=self.a.pk).update(activa=False))()
         from django.core.cache import cache

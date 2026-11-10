@@ -5,7 +5,7 @@
   {% endif %}
   <div class="min-w-0 flex-1">
     <div class="flex items-center gap-2">
-      <span class="text-sm font-semibold">{{ c.autor.get_full_name|default:c.autor.email|default:"—" }}</span>
+      <span class="text-sm font-semibold">{% firstof c.autor.get_full_name c.autor.email "—" %}</span>
       <span class="text-xs text-base-content/40">{{ c.creado|date:"d/m/Y H:i" }}</span>
       {% if c.heredado %}<span class="badge badge-ghost badge-xs font-mono" title="Mensaje heredado del ticket de origen">{{ c.ticket.clave }}</span>{% endif %}
     </div>

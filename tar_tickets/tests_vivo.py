@@ -67,6 +67,18 @@ class TableroEnVivoTests(TransactionTestCase):
         root = await database_sync_to_async(User.objects.create_superuser)('root@example.com', 'x')
         await (await self.conectar('embol', root)).disconnect()
 
+    async def test_acepta_al_administrador_de_sistema_sin_ser_miembro_pero_no_al_de_otra_empresa(self):
+        def crear():
+            adm = User.objects.create_user('adm@example.com', 'x')
+            adm.empresas_administradas.add(self.a)
+            otro = User.objects.create_user('otroadm@example.com', 'x')
+            otro.empresas_administradas.add(self.b)
+            return adm, otro
+        adm, otro = await database_sync_to_async(crear)()
+        await (await self.conectar('embol', adm)).disconnect()
+        ok, cod = await self.com('embol', otro).connect()
+        self.assertEqual((ok, cod), (False, 4403))
+
     async def test_rechaza_anonimos_no_miembros_modulo_inactivo_e_inexistentes(self):
         casos = [('embol', AnonymousUser(), 4401), ('embol', self.director_b, 4403),
                  ('sintar', self.director, 4403), ('nada', self.director, 4403)]

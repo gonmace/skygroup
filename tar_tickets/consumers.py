@@ -27,7 +27,9 @@ class TableroConsumer(AsyncJsonWebsocketConsumer):
         empresa = empresa_por_slug(slug)
         if empresa is None or not empresa.activa or not empresa.tiene_modulo('tar'):
             return None
-        return empresa if (user.is_superuser or es_miembro(user, empresa)) else None
+        from cuentas.capacidades import lee_modulo_como_admin   # el administrador de sistema ve el tablero en vivo
+        permitido = user.is_superuser or es_miembro(user, empresa) or lee_modulo_como_admin(user, empresa, 'tar')
+        return empresa if permitido else None
 
     async def disconnect(self, code):
         for grupo in getattr(self, 'grupos', ()):

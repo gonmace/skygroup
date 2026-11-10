@@ -15,23 +15,23 @@ class TarTicketsConfig(AppConfig):
         # Seguimiento y Administrador (observador)→Observador.
         todo = {R.COORDINADOR}
         registrar('tar', {
-            'tar.tickets.view_all': ('Ver todos los tickets', todo | {R.OBSERVADOR}, {'empresa': True}),
+            'tar.tickets.view_all': ('Ver todos los tickets', todo | {R.OBSERVADOR}, {'empresa': True, 'admin_lectura': True}),
             'tar.tickets.create': ('Crear tickets', todo),
             'tar.tickets.edit_any': ('Editar cualquier ticket', todo),
             'tar.tickets.assign': ('Asignar tickets', todo),
             'tar.tickets.close': ('Cerrar y aprobar tickets', todo),
             'tar.tickets.move': ('Mover tickets (arrastrar)', todo | {R.MIEMBRO}),
             'tar.tickets.unarchive': ('Desarchivar tickets', todo),
-            'tar.tickets.view_waiting': ('Ver la columna Suspendido/Cancelado', todo | {R.OBSERVADOR}),
-            'tar.tickets.view_backlog': ('Ver la columna Entrada', todo),
+            'tar.tickets.view_waiting': ('Ver la columna Suspendido/Cancelado', todo | {R.OBSERVADOR}, {'admin_lectura': True}),
+            'tar.tickets.view_backlog': ('Ver la columna Entrada', todo, {'admin_lectura': True}),
             'tar.tickets.board_by_ticket': (
                 'Tablero por ticket completo (no por subticket propio)',
-                todo | {R.ESPECIALISTA, R.OBSERVADOR},
+                todo | {R.ESPECIALISTA, R.OBSERVADOR}, {'admin_lectura': True},
             ),
-            'tar.chat.view_all': ('Ver el chat de cualquier tarea', todo | {R.OBSERVADOR}),
+            'tar.chat.view_all': ('Ver el chat de cualquier tarea', todo | {R.OBSERVADOR}, {'admin_lectura': True}),
             'tar.chat.write': ('Escribir en el chat de seguimiento', todo | {R.ESPECIALISTA, R.MIEMBRO}),
             'tar.dashboard.view': (
-                'Ver el dashboard de métricas', todo | {R.ESPECIALISTA, R.OBSERVADOR},
+                'Ver el dashboard de métricas', todo | {R.ESPECIALISTA, R.OBSERVADOR}, {'admin_lectura': True},
             ),
             'tar.etiquetas.manage': ('Gestionar tipos de actividad', todo),
         })

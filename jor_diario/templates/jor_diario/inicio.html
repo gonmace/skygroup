@@ -32,7 +32,11 @@
        data-url-desafio="{% url 'jor_diario:desafio' %}" data-url-opciones="{% url 'jor_diario:vincular_opciones' %}" data-url-vincular="{% url 'jor_diario:vincular' %}">
     <div class="alert alert-error hidden text-sm" role="alert" data-marcar-error></div>
     {% if not dispositivo %}
-      <div class="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
+      <div class="hidden rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm md:block">
+        <p class="font-medium">Para marcar tu jornada ingresa desde tu celular.</p>
+        <p class="text-base-content/70">Desde una computadora no se puede marcar. Abre esta página en tu celular y vincúlalo allí.</p>
+      </div>
+      <div class="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm md:hidden">
         <p class="font-medium">Vincula este celular para marcar tu jornada.</p>
         <p class="mb-3 text-base-content/70">Se confirma con tu huella o el PIN del teléfono; no se envía ningún dato biométrico. Solo puedes tener un celular vinculado.</p>
         <button type="button" class="btn btn-primary btn-sm" data-vincular>Vincular este celular</button>

@@ -646,12 +646,21 @@ class NextcloudAltaAutomaticaTests(_NextcloudBase):
 
     def test_cuenta_existente_solo_se_vincula_si_el_uid_es_su_correo(self):
         u = User.objects.create_user('ana@nuevo.com', 'x')
+        agregar_miembro(u, self.emp, rol_por_base(self.emp, RolBase.MIEMBRO))
         self._entrar('ana', email='ana@nuevo.com')              # uid sin forma de correo: no se toma la cuenta
         self.assertEqual(uid_nc(u, self.emp), '')
         self.assertNotIn('_auth_user_id', self.client.session)
         self._entrar('ana@nuevo.com')
         self.assertEqual(uid_nc(u, self.emp), 'ana@nuevo.com')
         self.assertEqual(int(self.client.session['_auth_user_id']), u.pk)
+
+    def test_cuenta_existente_sin_membresia_en_la_empresa_no_se_toma(self):
+        """Quien controla el uid de un Nextcloud no puede reclamar una cuenta que aún no es miembro de su empresa."""
+        u = User.objects.create_user('suelta@nuevo.com', 'x')
+        self._entrar('suelta@nuevo.com')
+        self.assertEqual(uid_nc(u, self.emp), '')
+        self.assertFalse(Membresia.objects.filter(user=u).exists())
+        self.assertNotIn('_auth_user_id', self.client.session)
 
     def test_cuenta_con_acceso_a_otra_empresa_no_se_vincula_sola_en_el_alta(self):
         comp = User.objects.create_user('comp@nuevo.com', 'x')

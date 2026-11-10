@@ -30,10 +30,15 @@ class JorDiarioConfig(AppConfig):
         })
 
         from panel.menu import registrar_item
+
+        def lleva(request):     # superusuarios y administradores no llevan jornada propia
+            from .servicios import lleva_jornada
+            return lleva_jornada(request.user, request.empresa)
+
         registrar_item('jor', 'Resumen', 'jor_diario:resumen', 'chart', capacidad='jor.dashboard.view', orden=5)
-        registrar_item('jor', 'Mi jornada', 'jor_diario:inicio', 'clock', capacidad='jor.fichar', orden=10, exacto=True, seccion='Mi trabajo')
-        registrar_item('jor', 'Mis reportes', 'jor_diario:historial', 'file-text', capacidad='jor.fichar', orden=20, seccion='Mi trabajo')
-        registrar_item('jor', 'Ausencias', 'jor_diario:ausencias', 'calendar-off', capacidad='jor.fichar', orden=30, seccion='Mi trabajo')
+        registrar_item('jor', 'Mi jornada', 'jor_diario:inicio', 'clock', capacidad='jor.fichar', orden=10, exacto=True, seccion='Mi trabajo', condicion=lleva)
+        registrar_item('jor', 'Mis reportes', 'jor_diario:historial', 'file-text', capacidad='jor.fichar', orden=20, seccion='Mi trabajo', condicion=lleva)
+        registrar_item('jor', 'Ausencias', 'jor_diario:ausencias', 'calendar-off', capacidad='jor.fichar', orden=30, seccion='Mi trabajo', condicion=lleva)
         # El calendario es del equipo (feriados y eventos de la empresa): lo ve todo miembro, en la sección Equipo.
         registrar_item('jor', 'Calendario', 'jor_diario:calendario', 'calendar', orden=45, seccion='Equipo')
         registrar_item('jor', 'Equipo', 'jor_diario:equipo', 'users', capacidad='jor.equipo.ver', orden=40, seccion='Equipo')

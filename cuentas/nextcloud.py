@@ -63,6 +63,7 @@ def url_autorizar(config, request, state):
 def canjear_codigo(config, request, code):
     """Devuelve (access_token, uid de Nextcloud)."""
     try:
+        validar_servidor(config.servidor_url)      # se revalida en cada petición: el DNS pudo cambiar tras guardarla
         r = requests.post(f'{config.servidor_url}/apps/oauth2/api/v1/token', data={
             'grant_type': 'authorization_code', 'code': code, 'redirect_uri': redirect_uri(request),
             'client_id': config.client_id, 'client_secret': config.client_secret}, timeout=TIMEOUT,
@@ -124,11 +125,12 @@ def enlazar_existente(empresa, uid):
 def perfil(config, uid, token):
     """{'nombre', 'email', 'grupos'} del usuario según la API OCS de Nextcloud (vacíos si no responde)."""
     try:
+        validar_servidor(config.servidor_url)
         r = requests.get(f'{config.servidor_url}/ocs/v1.php/cloud/users/{quote(uid, safe="")}?format=json',
                          headers={'OCS-APIREQUEST': 'true', 'Authorization': f'Bearer {token}'}, timeout=10,
                          allow_redirects=False)
         datos = (r.json().get('ocs', {}).get('data', {}) or {}) if r.status_code == 200 else {}
-    except (requests.RequestException, ValueError):
+    except (requests.RequestException, ValueError, NextcloudError):
         datos = {}
     return {'nombre': datos.get('displayname') or '', 'email': (datos.get('email') or '').strip(),
             'grupos': datos.get('groups') or []}
@@ -168,7 +170,7 @@ def alta_automatica(config, uid, datos):
             user.set_unusable_password()
             user.save()
         elif (not user.is_active or user.is_deleted or user.is_superuser or user.is_staff or uid.lower() != email
-              or (Membresia.objects.filter(user=user).exclude(empresa=empresa).exists())
+              or not _solo_de(user, empresa)
               or NextcloudVinculo.objects.filter(empresa=empresa, user=user).exclude(uid=uid).exists()):
             return None, ('Ya existe una cuenta con tu correo. Entra con tu correo y contraseña y pulsa '
                           '«Vincular Nextcloud» en el menú de tu usuario.')

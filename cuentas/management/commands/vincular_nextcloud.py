@@ -5,12 +5,14 @@
     python manage.py vincular_nextcloud <slug-empresa> --archivo uids.csv --aplicar   # «uid,correo» por línea
 
 Sin archivo se asume que el usuario de Nextcloud es el correo de la cuenta (como en skylog: `gmartinez@redlinegs.com`).
-Solo vincula miembros activos de esa empresa; omite cuentas con privilegios (staff/superusuario) y nunca pisa un vínculo existente ni repite un uid ya tomado por otra persona."""
+Solo vincula miembros activos de esa empresa y de ninguna otra (una cuenta compartida la vincula la propia persona);
+omite cuentas con privilegios (staff/superusuario) y nunca pisa un vínculo existente ni repite un uid ya tomado por otra persona."""
 import csv
 
 from django.core.management.base import BaseCommand, CommandError
 
 from cuentas.models import Membresia, NextcloudVinculo
+from cuentas.nextcloud import _solo_de
 from empresas.models import Empresa
 
 
@@ -47,6 +49,8 @@ class Command(BaseCommand):
                 motivo = 'ya vinculado'
             elif u.is_superuser or u.is_staff:
                 motivo = 'cuenta con privilegios'
+            elif not _solo_de(u, empresa):
+                motivo = 'tiene acceso a otras empresas: debe vincularla ella misma'
             elif NextcloudVinculo.objects.filter(empresa=empresa, uid=uid).exists():
                 motivo = 'uid ya usado por otra cuenta'
             if motivo:

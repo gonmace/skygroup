@@ -31,7 +31,10 @@ def _membresia(request):
 
 
 def _perfil_propio(request):
-    """Perfil de jornadas de quien navega (None si es un superusuario sin membresía en la empresa)."""
+    """Perfil de jornadas de quien navega. None si no lleva jornada: superusuario o administrador de la empresa
+    (aunque tenga membresía) o quien no es miembro de ella."""
+    if not servicios.lleva_jornada(request.user, request.empresa):
+        return None
     m = _membresia(request)
     return Perfil.de(m) if m else None
 
@@ -77,7 +80,9 @@ def inicio(request):
     if perfil is None and tiene_capacidad(request.user, 'jor.dashboard.view', request.empresa):
         return redirect('jor_diario:resumen')
     if perfil is None and tiene_capacidad(request.user, 'jor.equipo.ver', request.empresa):
-        return redirect('jor_diario:equipo')   # superusuario sin membresía: no tiene jornada propia, su inicio es el equipo
+        return redirect('jor_diario:equipo')   # superusuario/administrador: no tiene jornada propia, su inicio es el equipo
+    if perfil is None:
+        raise PermissionDenied
     en_curso = servicios.jornada_en_curso(perfil) if perfil else None
     hoy = timezone.localdate()
     ini = timezone.make_aware(datetime.combine(hoy, datetime.min.time()))

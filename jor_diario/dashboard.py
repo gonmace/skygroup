@@ -50,7 +50,8 @@ def _calcular(empresa):
     hace30, hace60 = hoy - timedelta(days=30), hoy - timedelta(days=60)
 
     miembros = [m for m in Membresia.objects.filter(
-        empresa=empresa, activa=True, user__is_active=True, rol__rol_base__in=FICHAN)
+        empresa=empresa, activa=True, user__is_active=True, user__is_superuser=False, rol__rol_base__in=FICHAN)
+        .exclude(user__empresas_administradas=empresa)
         .select_related('user', 'rol', 'perfil_jor').order_by('user__first_name', 'user__email')
         if getattr(m, 'perfil_jor', None) is None or m.perfil_jor.activo]
     feriado = NotaCalendario.objects.filter(empresa=empresa, fecha=hoy, tipo=NotaCalendario.Tipo.FERIADO).exists()

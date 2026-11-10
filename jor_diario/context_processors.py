@@ -7,6 +7,7 @@ from cuentas.roles import RolBase
 
 from .estado import estado_del_dia
 from .models import Jornada
+from .servicios import lleva_jornada
 
 
 def jornada_hoy(request):
@@ -17,7 +18,7 @@ def jornada_hoy(request):
     empresa = getattr(request, 'empresa', None)
     if not user or not user.is_authenticated or empresa is None or not empresa.tiene_modulo('jor'):
         return {}
-    if not tiene_capacidad(user, 'jor.fichar', empresa):
+    if not tiene_capacidad(user, 'jor.fichar', empresa) or not lleva_jornada(user, empresa):
         return {}
     m = membresia_activa(user, empresa)
     if m is None or m.rol.rol_base != RolBase.MIEMBRO:

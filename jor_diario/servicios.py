@@ -10,6 +10,13 @@ from .verificacion import MOTIVOS, verificar_presencia
 HORA_CIERRE_AUTO = time(17, 0)
 
 
+def lleva_jornada(user, empresa):
+    """¿Esta persona inicia y finaliza su propia jornada en `empresa`? Los superusuarios y los administradores de
+    sistema de la empresa administran la plataforma: no tienen jornada, ausencias ni reportes propios."""
+    from cuentas.capacidades import administra
+    return not (user.is_superuser or administra(user, getattr(empresa, 'pk', None)))
+
+
 class ErrorJornada(Exception):
     """Mensaje apto para mostrar a la persona."""
 

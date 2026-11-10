@@ -890,3 +890,54 @@ class CierreExigePasskeyTests(JornadasBase):
         self.assertEqual(r.status_code, 400)
         self.assertTrue(r.json()['ubicacion_requerida'])
         self.assertEqual(Jornada.objects.get().estado, 'en_curso')
+
+
+class SinJornadaPropiaTests(JornadasBase):
+    """Superusuarios y administradores de la empresa no llevan jornada propia (aunque tengan membresía)."""
+
+    def _admin(self):
+        self.pmo.empresas_administradas.add(self.a)
+        self.pmo.__dict__.pop('_administra', None)
+        self.pmo.__dict__.pop('_caps', None)
+        return self.pmo
+
+    def _super(self):
+        su = User.objects.create_superuser('root@x.cl', 'x')
+        agregar_miembro(su, self.a, rol_por_base(self.a, RolBase.MIEMBRO))
+        return su
+
+    def test_lleva_jornada(self):
+        self.assertTrue(servicios.lleva_jornada(self.emp, self.a))
+        self.assertFalse(servicios.lleva_jornada(self._admin(), self.a))
+        self.assertFalse(servicios.lleva_jornada(self._super(), self.a))
+        self.assertTrue(servicios.lleva_jornada(self.pmo, self.b))          # administrar una empresa no afecta a otra
+
+    def test_administrador_no_inicia_jornada_y_su_inicio_es_el_resumen(self):
+        pmo = self._admin()
+        r = self.ir(pmo, 'iniciar/', {})
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(Jornada.objects.exists())
+        self.assertEqual(self.ir(pmo, '').status_code, 302)
+
+    def test_superusuario_con_membresia_no_inicia_jornada(self):
+        su = self._super()
+        self.assertEqual(self.ir(su, 'iniciar/', {}).status_code, 403)
+        self.assertEqual(self.ir(su, '').status_code, 302)
+        self.assertFalse(Jornada.objects.exists())
+
+    def test_no_ven_las_entradas_de_mi_trabajo_pero_el_empleado_si(self):
+        self.assertContains(self.ir(self.emp, 'mis-reportes/'), 'Mis reportes')
+        pmo = self._admin()
+        self.client.force_login(pmo)
+        r = self.client.get('/tekon/jornadas/equipo/')
+        self.assertNotContains(r, 'Mis reportes')
+        self.assertNotContains(r, 'Mi jornada')
+
+    def test_el_resumen_no_cuenta_a_administradores_como_sin_iniciar(self):
+        from .dashboard import _calcular
+        self._admin()
+        self._super()
+        datos = _calcular(self.a)
+        nombres = {p['nombre'] for p in datos['sin_iniciar']}
+        self.assertEqual(nombres, {'Dir', 'Emp', 'Emp2'})          # ni el administrador (Pmo) ni el superusuario
+        self.assertEqual(datos['total'], 3)

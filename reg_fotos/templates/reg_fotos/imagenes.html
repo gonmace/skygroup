@@ -1,0 +1,105 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block page_title %}Imágenes{% endblock %}
+{% block content_main %}
+<div id="imagenes" data-url-descargar="{% url 'reg_fotos:imagenes_descargar' %}" data-url-comprimir="{% url 'reg_fotos:imagenes_comprimir' %}"
+     data-url-eliminar="{% url 'reg_fotos:imagenes_eliminar' %}" data-max-eliminar="{{ limites.eliminar }}"
+     data-max-comprimir="{{ limites.comprimir }}" data-max-zip="{{ limites.zip }}">
+
+  <form method="get" class="mb-3 flex flex-wrap items-end gap-2">
+    <label class="form-control"><span class="label-text text-xs">Tipo de registro</span>
+      <select name="tipo" class="select select-bordered select-sm">
+        <option value="">Todos</option>
+        {% for clave, nombre in tipos %}<option value="{{ clave }}" {% if filtros.tipo == clave %}selected{% endif %}>{{ nombre }}</option>{% endfor %}
+      </select></label>
+    <label class="form-control"><span class="label-text text-xs">{{ termino_proyecto }}</span>
+      <select name="proyecto" class="select select-bordered select-sm max-w-52">
+        <option value="">Todos</option>
+        {% for pk, codigo, nombre in proyectos %}<option value="{{ pk }}" {% if filtros.proyecto == pk|stringformat:"s" %}selected{% endif %}>{{ codigo }}{% if codigo %} – {% endif %}{{ nombre }}</option>{% endfor %}
+      </select></label>
+    <label class="form-control"><span class="label-text text-xs">Etapa</span>
+      <select name="etapa" class="select select-bordered select-sm">
+        <option value="">Todas</option>
+        {% for e in etapas %}<option value="{{ e }}" {% if filtros.etapa == e %}selected{% endif %}>{{ e }}</option>{% endfor %}
+      </select></label>
+    <label class="form-control"><span class="label-text text-xs">Desde (KB)</span>
+      <input type="number" name="kb_min" min="0" value="{{ filtros.kb_min }}" class="input input-bordered input-sm w-24 text-right"></label>
+    <label class="form-control"><span class="label-text text-xs">Hasta (KB)</span>
+      <input type="number" name="kb_max" min="0" value="{{ filtros.kb_max }}" class="input input-bordered input-sm w-24 text-right"></label>
+    <label class="form-control"><span class="label-text text-xs">Orden</span>
+      <select name="orden" class="select select-bordered select-sm">
+        <option value="">Más recientes</option>
+        <option value="antiguas" {% if filtros.orden == "antiguas" %}selected{% endif %}>Más antiguas</option>
+        <option value="mayor" {% if filtros.orden == "mayor" %}selected{% endif %}>Mayor tamaño</option>
+        <option value="menor" {% if filtros.orden == "menor" %}selected{% endif %}>Menor tamaño</option>
+      </select></label>
+    <button class="btn btn-sm btn-primary">Filtrar</button>
+    {% if qs_sin_pagina %}<a href="{% url 'reg_fotos:imagenes' %}" class="btn btn-sm btn-ghost">Limpiar</a>{% endif %}
+    <span class="ml-auto text-sm text-base-content/60"><strong class="tabular-nums">{{ total }}</strong> imagen{{ total|pluralize:"es" }}</span>
+  </form>
+
+  <div id="imagenes-aviso" role="status" class="alert mb-3 hidden text-sm"></div>
+
+  <div id="imagenes-acciones" class="sticky top-0 z-20 mb-3 hidden flex-wrap items-center gap-2 rounded-box border border-base-300 bg-base-200 px-3 py-2">
+    <span class="text-sm font-medium"><span id="imagenes-contador">0</span> seleccionada(s)</span>
+    <button type="button" class="btn btn-ghost btn-xs" data-accion="todas">Seleccionar todas</button>
+    <button type="button" class="btn btn-ghost btn-xs" data-accion="ninguna">Deseleccionar</button>
+    <span class="flex-1"></span>
+    <button type="button" class="btn btn-info btn-sm" data-accion="descargar">{% include "components/icon.html" with name="arrow-down" cls="size-4" %} Descargar ZIP</button>
+    <label class="flex items-center gap-1 text-xs text-base-content/70">Calidad
+      <input id="imagenes-calidad" type="number" min="10" max="95" value="{{ calidad }}" class="input input-bordered input-xs w-16 text-right"></label>
+    <button type="button" class="btn btn-warning btn-sm" data-accion="comprimir">{% include "components/icon.html" with name="archive" cls="size-4" %} Comprimir</button>
+    <button type="button" class="btn btn-error btn-sm" data-accion="eliminar">{% include "components/icon.html" with name="trash" cls="size-4" %} Eliminar</button>
+  </div>
+
+  {% if pagina.object_list %}
+  <label class="mb-2 flex cursor-pointer items-center gap-2 text-sm text-base-content/70">
+    <input type="checkbox" id="imagenes-todas" class="checkbox checkbox-sm"> Seleccionar las {{ pagina|length }} de esta página
+  </label>
+  <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+    {% for f in pagina %}
+    <div class="imagen-ficha group relative overflow-hidden rounded-lg border border-base-300 bg-base-200" data-id="{{ f.pk }}">
+      <label class="absolute right-1.5 top-1.5 z-10 grid size-7 cursor-pointer place-items-center rounded-full bg-black/40" title="Seleccionar">
+        <input type="checkbox" class="imagen-check checkbox checkbox-sm border-white" value="{{ f.pk }}" aria-label="Seleccionar la foto {{ f.pk }}">
+      </label>
+      <button type="button" class="imagen-abrir block w-full" data-src="{% url 'reg_fotos:imagenes_archivo' f.pk %}"
+              data-info="{{ f.reg.proyecto.codigo|default:'' }} · {{ f.tipo.nombre }} · {{ f.etapa }}{% if f.descripcion %} · {{ f.descripcion }}{% endif %}{% if f.exif_fecha %} · EXIF {{ f.exif_fecha|date:'d/m/Y H:i' }}{% endif %}">
+        <img src="{% url 'reg_fotos:imagenes_miniatura' f.pk %}" alt="{{ f.descripcion|default:f.etapa }}" loading="lazy" class="h-32 w-full object-cover transition hover:brightness-90">
+      </button>
+      <div class="space-y-0.5 border-t border-base-300 px-1.5 py-1 text-[0.7rem] leading-tight">
+        <div class="flex items-center justify-between gap-1">
+          <span class="truncate font-semibold">{{ f.reg.proyecto.codigo|default:"Sin proyecto" }}</span>
+          <span class="shrink-0 tabular-nums text-base-content/70">{% if f.tamano %}{{ f.tamano|filesizeformat }}{% else %}—{% endif %}</span>
+        </div>
+        <div class="flex items-center justify-between gap-1 text-base-content/60">
+          <span class="truncate">{{ f.tipo.nombre }} · {{ f.etapa }}</span>
+          {% if f.url_registro %}<a href="{{ f.url_registro }}" class="link shrink-0" title="Abrir el registro" target="_blank" rel="noopener">{{ f.reg.fecha|date:"d/m/y" }}</a>{% endif %}
+        </div>
+        {% if f.reg.concluido %}<div class="text-warning">Concluido: no se puede eliminar</div>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if pagina.has_other_pages %}
+  <nav class="mt-4 flex items-center justify-center gap-2" aria-label="Paginación">
+    {% if pagina.has_previous %}<a class="btn btn-sm btn-ghost" href="?{% if qs_sin_pagina %}{{ qs_sin_pagina }}&{% endif %}page={{ pagina.previous_page_number }}" aria-label="Anterior">{% include "components/icon.html" with name="chevron-left" cls="size-4" %}</a>{% endif %}
+    <span class="text-sm text-base-content/70">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+    {% if pagina.has_next %}<a class="btn btn-sm btn-ghost" href="?{% if qs_sin_pagina %}{{ qs_sin_pagina }}&{% endif %}page={{ pagina.next_page_number }}" aria-label="Siguiente">{% include "components/icon.html" with name="arrow-right" cls="size-4" %}</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% else %}
+  <p class="py-16 text-center text-base-content/60">No hay imágenes con esos filtros.</p>
+  {% endif %}
+</div>
+
+<dialog id="imagenes-visor" class="modal">
+  <div class="modal-box relative flex max-h-[92vh] max-w-[92vw] flex-col items-center overflow-hidden bg-black/90 p-0">
+    <form method="dialog" class="absolute right-2 top-2 z-10"><button class="btn btn-circle btn-ghost btn-sm text-white/80" aria-label="Cerrar">{% include "components/icon.html" with name="x" cls="size-4" %}</button></form>
+    <img id="imagenes-visor-img" src="" alt="" class="max-h-[82vh] max-w-full object-contain">
+    <p id="imagenes-visor-info" class="w-full bg-black/70 px-3 py-2 text-xs text-white/80"></p>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button aria-label="Cerrar">cerrar</button></form>
+</dialog>
+{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/reg-imagenes.js' %}" defer></script>{% endblock %}

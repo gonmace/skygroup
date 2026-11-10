@@ -16,3 +16,10 @@ class RegFotosConfig(AppConfig):
         # Las fotos se sirven SOLO por las vistas de este módulo (validan el alcance del registro).
         proteger_modulo('reg')
         registrar_fuente(fuente_estado)
+
+        # «Imágenes»: solo superusuario y administradores de sistema (ver `imagenes.puede_gestionar_imagenes`).
+        from panel.menu import registrar_item
+
+        from .imagenes import puede_gestionar_imagenes
+        registrar_item('reg', 'Imágenes', 'reg_fotos:imagenes', 'camera', orden=80,
+                       condicion=lambda request: puede_gestionar_imagenes(request.user, getattr(request, 'empresa', None)))

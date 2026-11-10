@@ -93,10 +93,16 @@ def finalizar(jornada_id, perfil, dispositivo, lecturas, realizado='', planifica
     """Cierra la jornada. Exige identidad (passkey) y ubicación legible; el resultado de la presencia al
     terminar queda registrado para quien revisa, pero no cambia el estado de verificación del inicio."""
     realizado, planificado = (realizado or '').strip(), (planificado or '').strip()
-    res, motivos = _evaluar(perfil, dispositivo, lecturas)
-    if res['lat'] is None:
-        raise ErrorJornada('No se pudo leer tu ubicación. Revisa el permiso del navegador e inténtalo de nuevo.',
-                           ubicacion_requerida=True)
+    sin_dispositivo = dispositivo is None
+    if sin_dispositivo:
+        # Sin celular vinculado se puede cerrar (nunca iniciar), pero sin identidad ni presencia verificadas.
+        res = {'lat': None, 'lon': None, 'precision_m': None, 'distancia_m': None, 'avisos': []}
+        motivos = ['sin_dispositivo']
+    else:
+        res, motivos = _evaluar(perfil, dispositivo, lecturas)
+        if res['lat'] is None:
+            raise ErrorJornada('No se pudo leer tu ubicación. Revisa el permiso del navegador e inténtalo de nuevo.',
+                               ubicacion_requerida=True)
     if perfil.exige_reporte and not (realizado and planificado):
         raise ErrorJornada('Debes completar el reporte diario antes de finalizar.', reporte_requerido=True)
     jornada = (Jornada.objects.select_for_update()

@@ -106,13 +106,20 @@
   raiz.querySelectorAll('form[data-marcar]').forEach(function (form) {
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      if (!window.PublicKeyCredential) return mostrarError('Este navegador no admite passkeys. Usa Chrome o Safari actualizados.');
+      var sinDisp = form.hasAttribute('data-sin-dispositivo');
+      if (!sinDisp && !window.PublicKeyCredential) return mostrarError('Este navegador no admite passkeys. Usa Chrome o Safari actualizados.');
       if (aviso) aviso.classList.add('hidden');
       var confirmar = form.getAttribute('data-confirmar-marcar');
       var previo = confirmar && window.confirmarUI ? window.confirmarUI(confirmar) : Promise.resolve(true);
       previo.then(function (ok) {
         if (!ok) return;
         ocupado(form, true);
+        if (sinDisp) {  // sin celular vinculado: solo se puede cerrar, sin passkey ni ubicación
+          return post(form.action, new FormData(form)).then(function (r) {
+            if (r.ok) { location.href = r.url; return; }
+            throw new Error(r.error);
+          });
+        }
         // Primero la ubicación (3 lecturas) y justo antes de firmar, el challenge: así no caduca mientras se lee el GPS.
         return lecturas().then(function (ls) {
           return post(raiz.dataset.urlDesafio, {}).then(function (r) {

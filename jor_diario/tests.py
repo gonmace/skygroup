@@ -546,8 +546,15 @@ class MarcacionTests(JornadasBase):
         with self.assertRaises(servicios.ErrorJornada) as e:
             self.fin(j.pk, p, 'a', 'b', lecturas=[])
         self.assertTrue(e.exception.extra.get('ubicacion_requerida'))
+
+    def test_sin_celular_se_puede_cerrar_pero_no_iniciar(self):
+        p = self.perfil(self.emp)
+        j = self.ini(p)
+        j = servicios.finalizar(j.pk, p, None, [], 'a', 'b')
+        self.assertEqual(j.estado, 'completada')
+        self.assertIn('sin_dispositivo', j.verificacion['fin']['motivos'])
         with self.assertRaises(servicios.ErrorJornada):
-            servicios.finalizar(j.pk, p, None, self.lecturas(), 'a', 'b')
+            servicios.iniciar(p, None, self.lecturas())
 
 
 class ExcepcionesTests(JornadasBase):

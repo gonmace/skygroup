@@ -112,14 +112,18 @@ def _json(request):
         raise servicios.ErrorJornada('La verificación enviada no es válida.')
 
 
-def _responder_marca(request, hacer, ok_msg):
-    """Verifica el passkey y ejecuta `hacer(dispositivo, lecturas)`; responde JSON para el script del celular."""
+def _responder_marca(request, hacer, ok_msg, permitir_sin_dispositivo=False):
+    """Verifica el passkey y ejecuta `hacer(dispositivo, lecturas)`; responde JSON para el script del celular.
+    Con `permitir_sin_dispositivo`, quien no tiene celular vinculado ejecuta `hacer` sin passkey (solo para cerrar)."""
     perfil = _perfil_propio(request)
     if perfil is None:
         raise PermissionDenied
     try:
-        credencial, lecturas = _json(request)
-        dispositivo = passkeys.verificar_aserto(request, perfil, credencial)
+        if permitir_sin_dispositivo and passkeys.dispositivo_activo(perfil) is None:
+            dispositivo, lecturas = None, []
+        else:
+            credencial, lecturas = _json(request)
+            dispositivo = passkeys.verificar_aserto(request, perfil, credencial)
         hacer(perfil, dispositivo, lecturas)
     except passkeys.ErrorPasskey as e:
         return JsonResponse({'ok': False, 'error': str(e), 'reintentar': True}, status=400)
@@ -192,7 +196,7 @@ def finalizar(request):
     return _responder_marca(request, lambda perfil, disp, lecturas: servicios.finalizar(
         request.POST.get('jornada') or 0, perfil, disp, lecturas, form.cleaned_data.get('realizado'),
         form.cleaned_data.get('planificado'), _ip(request)),
-        'Jornada finalizada. ¡Buen trabajo!')
+        'Jornada finalizada. ¡Buen trabajo!', permitir_sin_dispositivo=True)
 
 
 def _puede_ver_mapa(user, empresa):

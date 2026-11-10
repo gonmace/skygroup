@@ -684,3 +684,73 @@ class SedesTests(TestCase):
         self.m_otro.save()
         self.client.post(f'/tekon/config/sedes/{s.pk}/eliminar/')
         self.assertFalse(Sede.objects.filter(pk=s.pk).exists())
+
+
+class ProveedorDelServicioTests(TestCase):
+    """Logo del proveedor (p. ej. Redline): opcional, lo define solo el superusuario y se ve en el pie de la app."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.a = crear_empresa(nombre='Tekon', slug='tekon', termino_proyecto_singular='Sitio',
+                              termino_proyecto_plural='Sitios', modulos=['tar'])
+        cls.pmo = User.objects.create_user('pmo@example.com', 'x')
+        agregar_miembro(cls.pmo, cls.a, rol_por_base(cls.a, RolBase.COORDINADOR))
+        cls.root = User.objects.create_superuser('root@example.com', 'x')
+
+    def setUp(self):
+        import shutil
+        import tempfile
+        cache.clear()
+        self.addCleanup(cache.clear)
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        ctx = override_settings(MEDIA_ROOT=tmp, **AJUSTES)
+        ctx.enable()
+        self.addCleanup(ctx.disable)
+
+    @staticmethod
+    def _logo():
+        from io import BytesIO
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        b = BytesIO()
+        Image.new('RGB', (120, 40), 'red').save(b, 'PNG')
+        return SimpleUploadedFile('redline.png', b.getvalue(), content_type='image/png')
+
+    def _datos(self, **extra):
+        return {'nombre': 'Tekon', 'slug': 'tekon', 'activa': 'on', 'modulos': ['tar'],
+                'termino_proyecto_singular': 'Sitio', 'termino_proyecto_plural': 'Sitios', **extra}
+
+    def test_es_opcional(self):
+        self.client.force_login(self.root)
+        r = self.client.post(f'/panel/empresas/{self.a.pk}/', self._datos())
+        self.assertEqual(r.status_code, 302)
+        self.a.refresh_from_db()
+        self.assertFalse(self.a.logo_proveedor)
+        self.assertNotContains(self.client.get('/tekon/'), 'Servicio por')
+
+    def test_el_superusuario_lo_define_y_aparece_en_el_pie(self):
+        self.client.force_login(self.root)
+        r = self.client.post(f'/panel/empresas/{self.a.pk}/', self._datos(nombre_proveedor='Redline', logo_proveedor=self._logo()))
+        self.assertEqual(r.status_code, 302)
+        self.a.refresh_from_db()
+        self.assertEqual(self.a.nombre_proveedor, 'Redline')
+        self.assertEqual(self.a.logo_proveedor.name, 'branding/tekon/proveedor.png')
+        pagina = self.client.get('/tekon/').content.decode()
+        self.assertIn('Servicio por', pagina)
+        self.assertIn('/media/branding/tekon/proveedor.png', pagina)
+
+    def test_el_formulario_de_marca_del_coordinador_no_lo_incluye(self):
+        self.client.force_login(self.pmo)
+        self.assertNotContains(self.client.get('/tekon/config/marca/'), 'logo_proveedor')
+        self.client.post('/tekon/config/marca/', {
+            'termino_proyecto_singular': 'Sitio', 'termino_proyecto_plural': 'Sitios',
+            'nombre_proveedor': 'Otro', 'logo_proveedor': self._logo(),
+        })
+        self.a.refresh_from_db()
+        self.assertEqual((self.a.nombre_proveedor, bool(self.a.logo_proveedor)), ('', False))
+
+    def test_el_login_muestra_al_proveedor(self):
+        self.a.logo_proveedor.save('p.png', self._logo(), save=True)
+        self.assertContains(self.client.get('/tekon/acceso/login/'), 'Servicio por')

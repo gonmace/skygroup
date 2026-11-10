@@ -9,7 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.template.loader import render_to_string
 
 from reg_actividades.models import DatoPaso
-from reg_construccion.pdf.reporte import CSS, _buscar, _data_uri, _decimal, _dms, _logo_data_uri
+from reg_construccion.pdf.reporte import CSS, _buscar, _data_uri, _decimal, _dms, _logo_data_uri, logo_proveedor
 from reg_fotos.models import Foto
 
 from ..models import Hallazgo, RegConstruccionBase, SeguimientoHallazgo
@@ -106,6 +106,7 @@ def contexto(registro, columnas):
     return {
         'registro': registro, 'empresa': empresa, 'proyecto': p, 'codigo': p.codigo if p else '',
         'logo_empresa': _logo_data_uri(empresa.logo_claro) if getattr(empresa, 'logo_claro', None) else None,
+        'logo_proveedor': logo_proveedor(empresa)[0], 'proveedor': logo_proveedor(empresa)[1],
         'borrador': not registro.concluido, 'supervisor': registro.responsable_nombre,
         'fecha_inicio': inicio, 'dias_transcurridos': (registro.fecha - inicio).days if inicio else None,
         'motivo': _buscar(d_datos, 'motivo') or '', 'comentario': str(_buscar(d_datos, 'comentario') or '').strip(),

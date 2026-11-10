@@ -129,7 +129,9 @@ p {
 }
 
 .header-logo.right img {
-    height: 42px;
+    max-height: 40px;
+    height: auto;
+    width: auto;
     max-width: 100%;
     border: none;
     display: block;

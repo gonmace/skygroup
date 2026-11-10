@@ -9,7 +9,7 @@
   <table class="header-table"><tr>
     <td class="header-logo left">{% if logo_empresa %}<img src="{{ logo_empresa }}" alt="{{ empresa.nombre }}">{% endif %}</td>
     <td class="header-title"><h1>Reporte de Visita de Supervisión<br>{{ codigo }} · Visita N° {{ registro.numero }}{% if registro.rev_numero %} · Rev. {{ registro.rev_numero }}{% endif %}</h1></td>
-    <td class="header-logo right"></td>
+    <td class="header-logo right">{% if logo_proveedor %}<img src="{{ logo_proveedor }}" alt="{{ proveedor|default:'Proveedor' }}">{% endif %}</td>
   </tr></table>
 </div>
 

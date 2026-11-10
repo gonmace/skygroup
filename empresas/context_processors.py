@@ -13,6 +13,7 @@ def marca_empresa(request):
         return {
             'empresa': None, 'producto': PRODUCTO, 'marca': PRODUCTO,
             'logo_claro_url': None, 'logo_oscuro_url': None, 'favicon_url': None,
+            'logo_proveedor_url': None, 'nombre_proveedor': '',
             'tema_css_url': None, 'termino_proyecto': 'Proyecto', 'termino_proyectos': 'Proyectos',
             'modulos_activos': [],
         }
@@ -26,6 +27,8 @@ def marca_empresa(request):
         'logo_claro_url': logo_claro,
         'logo_oscuro_url': logo_oscuro,
         'favicon_url': f'{empresa.favicon.url}?v={v}' if empresa.favicon else None,
+        'logo_proveedor_url': f'{empresa.logo_proveedor.url}?v={v}' if empresa.logo_proveedor else None,
+        'nombre_proveedor': empresa.nombre_proveedor,
         'tema_css_url': f"{reverse('empresas:tema_css')}?v={v}" if empresa.tiene_colores else None,
         'termino_proyecto': empresa.termino_proyecto_singular,
         'termino_proyectos': empresa.termino_proyecto_plural,

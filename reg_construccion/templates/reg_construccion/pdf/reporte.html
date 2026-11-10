@@ -21,7 +21,7 @@
         <h1>Reporte de Avance de Obra<br>
         {{ codigo }}</h1>
       </td>
-      <td class="header-logo right"></td>
+      <td class="header-logo right">{% if logo_proveedor %}<img src="{{ logo_proveedor }}" alt="{{ proveedor|default:'Proveedor' }}">{% endif %}</td>
     </tr>
   </table>
 </div>

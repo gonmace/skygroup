@@ -54,6 +54,10 @@ def logo_dark_path(instance, filename):
     return f'branding/{instance.slug}/logo-dark{_ext(filename)}'
 
 
+def logo_proveedor_path(instance, filename):
+    return f'branding/{instance.slug}/proveedor{_ext(filename)}'
+
+
 def favicon_path(instance, filename):
     return f'branding/{instance.slug}/favicon{_ext(filename)}'
 
@@ -125,6 +129,14 @@ class Empresa(models.Model):
     favicon = models.FileField(
         'Favicon', upload_to=favicon_path, blank=True,
         validators=[_validate_logo_size, _validate_favicon_ext], help_text='PNG o ICO.',
+    )
+    nombre_proveedor = models.CharField(
+        'Nombre del proveedor del servicio', max_length=60, blank=True,
+        help_text='Opcional. Empresa que presta el servicio a esta empresa (p. ej. Redline).',
+    )
+    logo_proveedor = models.ImageField(
+        'Logo del proveedor del servicio', upload_to=logo_proveedor_path, blank=True, validators=[_validate_logo_size],
+        help_text='Opcional. PNG/JPG/WEBP, máx. 2 MB. Aparece arriba a la derecha en los PDF y en el pie de la app.',
     )
     color_primario = models.CharField('Color primario (claro)', max_length=7, blank=True, validators=[hex_color_validator])
     color_primario_oscuro = models.CharField('Color primario (oscuro)', max_length=7, blank=True, validators=[hex_color_validator])

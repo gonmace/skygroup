@@ -110,6 +110,13 @@ def _logo_data_uri(campo):
     return 'data:image/png;base64,' + base64.b64encode(salida.getvalue()).decode()
 
 
+def logo_proveedor(empresa):
+    """(data URI, nombre) del proveedor del servicio de la empresa (arriba a la derecha del PDF). Opcional: sin logo,
+    (None, '') y la celda de la cabecera queda vacía."""
+    campo = getattr(empresa, 'logo_proveedor', None)
+    return (_logo_data_uri(campo) if campo else None), (getattr(empresa, 'nombre_proveedor', '') or '')
+
+
 def _fotos(registro, ct, etapa, desde=1):
     """Fotos de una etapa; la numeración («Imagen n») continúa entre secciones."""
     salida = []
@@ -174,6 +181,7 @@ def contexto(registro, columnas):
     cols = lambda k: columnas.get(k, 2)   # noqa: E731
     return {
         'registro': registro, 'empresa': empresa, 'logo_empresa': logo, 'proyecto': proyecto,
+        'logo_proveedor': logo_proveedor(empresa)[0], 'proveedor': logo_proveedor(empresa)[1],
         'codigo': proyecto.codigo,
         'borrador': not registro.concluido,   # sin concluir → marca de agua «BORRADOR»
         'supervisor': registro.responsable_nombre,

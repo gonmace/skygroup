@@ -38,6 +38,11 @@ y rellenan `page_title` y `content_main`. El menú viene de panel.menu (context 
         <p class="px-3 py-2 text-sm text-base-content/70">Sin opciones todavía.</p>
       {% endfor %}
     </nav>
+    {% if logo_proveedor_url %}
+    <div class="flex items-center gap-2 border-t border-base-content/10 px-4 py-3 text-xs text-base-content/50">
+      <span>Servicio por</span><img src="{{ logo_proveedor_url }}" alt="{{ nombre_proveedor|default:'Proveedor' }}" class="max-h-6 w-auto rounded bg-white px-1">
+    </div>
+    {% endif %}
   </aside>
 
   <div class="flex min-w-0 flex-1 flex-col">

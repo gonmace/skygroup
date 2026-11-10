@@ -11,7 +11,7 @@ from django.template.loader import render_to_string
 from reg_actividades import mapas, servicios
 from reg_actividades.widgets.base import Contexto
 from reg_base.geo import distancia_m, formatear_distancia
-from reg_construccion.pdf.reporte import CSS, _data_uri, _decimal, _dms
+from reg_construccion.pdf.reporte import CSS, _data_uri, _decimal, _dms, _logo_data_uri, logo_proveedor
 from reg_fotos.models import Foto
 
 from ..models import RegTxtss
@@ -182,7 +182,8 @@ def contexto(registro, columnas, user=None):
     empresa = registro.empresa
     return {
         'registro': registro, 'proyecto': p, 'empresa': empresa,
-        'logo_empresa': _data_uri(empresa.logo_claro)[0] if getattr(empresa, 'logo_claro', None) else None,
+        'logo_empresa': _logo_data_uri(empresa.logo_claro) if getattr(empresa, 'logo_claro', None) else None,
+        'logo_proveedor': logo_proveedor(empresa)[0], 'proveedor': logo_proveedor(empresa)[1],
         'codigo': p.codigo if p else '', 'borrador': not registro.concluido,
         'titulo': f'TX / Technical Site Survey',
         'generales': [(k, v) for k, v in generales if v not in (None, '')],

@@ -67,8 +67,9 @@ class EmpresaForm(EstiloMixin, forms.ModelForm):
     class Meta:
         model = Empresa
         fields = ('nombre', 'slug', 'activa', 'razon_social', 'rut', 'contacto_email', 'contacto_telefono',
-                  'modulos', *CAMPOS_MARCA)
-        widgets = WIDGETS_MARCA
+                  'modulos', *CAMPOS_MARCA, 'nombre_proveedor', 'logo_proveedor')
+        # El proveedor del servicio (p. ej. Redline) lo define solo el superusuario: no está en CAMPOS_MARCA.
+        widgets = {**WIDGETS_MARCA, 'logo_proveedor': ImagenWidget()}
 
     tipos_proyecto = forms.CharField(
         label='Tipos de proyecto (opcional)', required=False,

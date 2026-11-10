@@ -79,9 +79,24 @@
     aviso.textContent = msg;
     aviso.classList.remove('hidden');
   }
-  function ocupado(form, si) {
-    form.querySelectorAll('button[type=submit]').forEach(function (b) { b.disabled = si; b.classList.toggle('loading', si); });
+  // Con reporte obligatorio, "Finalizar" queda deshabilitado hasta completar realizado y planificado.
+  function reporteIncompleto(form) {
+    if (!form.hasAttribute('data-exige-reporte')) return false;
+    return ['realizado', 'planificado'].some(function (n) {
+      var c = form.elements[n];
+      return c && !c.value.trim();
+    });
   }
+  function ocupado(form, si) {
+    form.querySelectorAll('button[type=submit]').forEach(function (b) {
+      b.disabled = si || reporteIncompleto(form);
+      b.classList.toggle('loading', si);
+    });
+  }
+  raiz.querySelectorAll('form[data-exige-reporte]').forEach(function (form) {
+    form.addEventListener('input', function () { ocupado(form, false); });
+    ocupado(form, false);
+  });
 
   // ── Vincular este celular ──────────────────────────────────────────────────────────────────────
   var vincular = raiz.querySelector('[data-vincular]');

@@ -50,7 +50,7 @@
         {% if en_curso.estado_verificacion == 'excepcion_pendiente' %}<span class="badge badge-warning badge-sm">Pendiente de aprobación</span>{% endif %}
       </div>
       {% endif %}
-      <form method="post" action="{% url 'jor_diario:finalizar' %}" data-marcar data-confirmar-marcar="¿Finalizar la jornada?"{% if not dispositivo %} data-sin-dispositivo{% endif %} class="space-y-3">
+      <form method="post" action="{% url 'jor_diario:finalizar' %}" data-marcar data-confirmar-marcar="¿Finalizar la jornada?"{% if not dispositivo %} data-sin-dispositivo{% endif %}{% if exige_reporte %} data-exige-reporte{% endif %} class="space-y-3">
         {% csrf_token %}
         <input type="hidden" name="jornada" value="{{ en_curso.pk }}">
         <div><label class="mb-1 block text-sm font-medium">{{ form.realizado.label }}{% if exige_reporte %} *{% endif %}</label>{{ form.realizado }}</div>

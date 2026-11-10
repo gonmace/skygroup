@@ -20,9 +20,9 @@ class RegBaseConfig(AppConfig):
         # acotado (membresía con contratista); ITO/Buscador → Ejecutor; Visita → Observador.
         lector = set(R)
         registrar('reg', {
-            'reg.txtss.ver': ('Ver los registros TX/TSS', lector),
-            'reg.construccion.ver': ('Ver los registros de Construcción', lector),
-            'reg.construccion_base.ver': ('Ver los registros de Supervisión Campo', lector),
+            'reg.txtss.ver': ('Ver los registros TX/TSS', lector, {'admin_lectura': True}),
+            'reg.construccion.ver': ('Ver los registros de Construcción', lector, {'admin_lectura': True}),
+            'reg.construccion_base.ver': ('Ver los registros de Supervisión Campo', lector, {'admin_lectura': True}),
             # Alcance de datos: qué registros ve cada rol (si no tiene ninguno, solo los propios).
             'reg.alcance.todo': ('Ver los registros de toda la empresa', {R.COORDINADOR, R.OBSERVADOR}, {'empresa': True}),
             'reg.alcance.contratista': ('Ver los registros de su contratista', {R.COORDINADOR}),

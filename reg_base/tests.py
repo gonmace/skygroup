@@ -304,3 +304,58 @@ class PanelConstruccionTests(BaseRegistros):
         self.assertEqual(c['kpis']['proyectos'], 0)
         self.assertEqual(c['puntos'], [])
         self.assertEqual(c['actividad'], [])
+
+
+class AdministradorSoloLecturaTests(BaseRegistros):
+    """El administrador de sistema (Plataforma → Administradores) que no es miembro ve todos los registros de la
+    empresa, pero no carga, concluye, reabre ni elimina nada."""
+
+    def setUp(self):
+        super().setUp()
+        from reg_construccion.models import RegConstruccion
+        from reg_txtss.models import RegTxtss
+        self.adm = User.objects.create_user('adm@x.cl', 'x')
+        self.adm.empresas_administradas.add(self.a)
+        self.tx = RegTxtss.objects.create(empresa=self.a, proyecto=self.p1, user=self.ito1)
+        self.co = RegConstruccion.objects.create(empresa=self.a, proyecto=self.t1, user=self.ito2)
+
+    def get(self, ruta, user=None):
+        self.client.force_login(user or self.adm)
+        return self.client.get(f'/tekon/registros/{ruta}')
+
+    def post(self, ruta):
+        self.client.force_login(self.adm)
+        return self.client.post(f'/tekon/registros/{ruta}')
+
+    def test_ve_resumen_listas_detalle_y_pdf_de_toda_la_empresa(self):
+        for ruta in ('', 'txtss/', 'construccion/', f'txtss/{self.tx.pk}/', f'construccion/{self.co.pk}/',
+                     f'txtss/{self.tx.pk}/pdf/', f'construccion/{self.co.pk}/pdf/', f'txtss/{self.tx.pk}/fotos/general/',
+                     'imagenes/', 'config/'):
+            self.assertEqual(self.get(ruta).status_code, 200, ruta)
+
+    def test_no_ve_registros_de_otra_empresa(self):
+        from reg_txtss.models import RegTxtss
+        ajeno = RegTxtss.objects.create(empresa=self.b, proyecto=self.pb, user=self.pmo_b)
+        self.assertEqual(self.get(f'txtss/{ajeno.pk}/').status_code, 404)
+
+    def test_no_edita_concluye_reabre_ni_elimina(self):
+        for ruta in (f'txtss/{self.tx.pk}/concluir/', f'txtss/{self.tx.pk}/eliminar/', f'txtss/{self.tx.pk}/formatear/',
+                     f'txtss/{self.tx.pk}/fecha/', f'txtss/{self.tx.pk}/responsable/', f'construccion/{self.co.pk}/concluir/',
+                     f'construccion/{self.co.pk}/eliminar/', f'txtss/{self.tx.pk}/fotos/general/subir/',
+                     f'txtss/{self.tx.pk}/paso/sitio/guardar/', 'txtss/activar/'):
+            self.assertEqual(self.post(ruta).status_code, 403, ruta)
+        self.tx.refresh_from_db()
+        self.assertFalse(self.tx.concluido)
+        self.assertFalse(self.tx.is_deleted)
+
+    def test_el_administrador_de_otra_empresa_no_entra(self):
+        otro = User.objects.create_user('otro@x.cl', 'x')
+        otro.empresas_administradas.add(self.b)
+        self.assertEqual(self.get('', otro).status_code, 403)
+        self.assertEqual(self.get('txtss/', otro).status_code, 403)
+
+    def test_los_cargos_no_cambian(self):
+        """La lectura para administradores no altera lo que tienen los cargos: el Observador sigue sin editar."""
+        self.assertEqual(self.get('txtss/', self.patro).status_code, 200)
+        self.client.force_login(self.patro)
+        self.assertEqual(self.client.post(f'/tekon/registros/txtss/{self.tx.pk}/concluir/').status_code, 403)

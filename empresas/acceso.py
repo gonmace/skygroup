@@ -5,16 +5,21 @@ from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 
-from cuentas.capacidades import administra, tiene_capacidad
+from cuentas.capacidades import administra, lee_modulo_como_admin, tiene_capacidad
 
 
-def _puede_entrar(user, empresa, capacidades):
-    """Superusuario o miembro activo; o administrador de sistema de la empresa SIN ser miembro, pero solo si la vista
-    exige capacidades (de ámbito empresa: son las únicas que recibe sin membresía) y las tiene todas. Una vista que
-    pide solo «ser miembro» sigue cerrada para él."""
+def _puede_entrar(user, empresa, capacidades, modulo=None):
+    """Superusuario o miembro activo; o administrador de sistema de la empresa SIN ser miembro cuando (a) la vista
+    exige capacidades de ámbito empresa (las que recibe sin membresía) y las tiene todas, o (b) el módulo declara
+    capacidades de solo lectura para administradores y él las tiene. Lo que haga dentro lo deciden las capacidades de
+    cada vista; una vista que pide solo «ser miembro» en un módulo sin lectura para administradores sigue cerrada."""
     if user.is_superuser or user.membresias.filter(empresa=empresa, activa=True).exists():
         return True
-    return bool(capacidades) and administra(user, empresa.pk) and all(tiene_capacidad(user, c, empresa) for c in capacidades)
+    if not administra(user, empresa.pk):
+        return False
+    if capacidades and all(tiene_capacidad(user, c, empresa) for c in capacidades):
+        return True
+    return bool(modulo) and lee_modulo_como_admin(user, empresa, modulo)
 
 
 def acceso_modulo(codigo, *capacidades):
@@ -30,7 +35,7 @@ def acceso_modulo(codigo, *capacidades):
             empresa = getattr(request, 'empresa', None)
             if empresa is None or not empresa.tiene_modulo(codigo):
                 raise Http404
-            if not _puede_entrar(request.user, empresa, capacidades):
+            if not _puede_entrar(request.user, empresa, capacidades, codigo):
                 raise PermissionDenied
             if not all(tiene_capacidad(request.user, c, empresa) for c in capacidades):
                 raise PermissionDenied

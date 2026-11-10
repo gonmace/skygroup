@@ -10,6 +10,8 @@ Cada app declara sus capacidades con `registrar()` (normalmente en `AppConfig.re
 El tercer elemento opcional `{'empresa': True}` marca una capacidad de ámbito empresa: un
 Coordinador cuya membresía tiene `contratista` (Coordinador acotado) no la recibe por rol,
 solo por excepción de persona. Los demás roles con contratista (Ejecutor, Observador…) no se acotan.
+`{'admin_lectura': True}` marca una capacidad de SOLO LECTURA que también reciben los administradores de sistema
+sin ser miembros (p. ej. ver los registros de la empresa); no cambia lo que reciben los cargos.
 
 Resolución de `tiene_capacidad(user, cap, empresa)`:
   superusuario → sí
@@ -42,6 +44,7 @@ class Capacidad:
     modulo: str
     roles_default: frozenset
     solo_empresa: bool = False
+    admin_lectura: bool = False
 
 
 _REGISTRO = {}
@@ -53,7 +56,8 @@ def registrar(modulo, definiciones):
         if not clave.startswith(f'{modulo}.'):
             raise ValueError(f'La capacidad «{clave}» debe empezar con «{modulo}.»')
         solo_empresa = bool(opciones and opciones[0].get('empresa'))
-        _REGISTRO[clave] = Capacidad(clave, etiqueta, modulo, frozenset(str(r) for r in roles), solo_empresa)
+        admin_lectura = bool(opciones and opciones[0].get('admin_lectura'))
+        _REGISTRO[clave] = Capacidad(clave, etiqueta, modulo, frozenset(str(r) for r in roles), solo_empresa, admin_lectura)
 
 
 def todas():
@@ -133,6 +137,15 @@ def administra(user, empresa_id):
     return memo[empresa_id]
 
 
+def lee_modulo_como_admin(user, empresa, modulo):
+    """¿Es administrador de la empresa y tiene alguna capacidad de lectura (`admin_lectura`) de ese módulo? Con ella
+    puede ENTRAR al módulo sin ser miembro; lo que haga dentro lo siguen decidiendo las capacidades de cada vista."""
+    if not administra(user, getattr(empresa, 'pk', None)):
+        return False
+    caps = capacidades_de(user, empresa)
+    return any(c in caps for c, cap in _REGISTRO.items() if cap.admin_lectura and cap.modulo == modulo)
+
+
 def membresia_activa(user, empresa):
     """Membresía activa del usuario en la empresa (None si no tiene; el superusuario no necesita una)."""
     if user is None or not user.is_authenticated:
@@ -155,8 +168,8 @@ def capacidades_de(user, empresa=None):
         admin = administra(user, eid)
         if membresia is None and not admin:
             memo[eid] = frozenset()
-        elif membresia is None:   # administrador de sistema sin membresía: solo gestión de la empresa
-            memo[eid] = frozenset(c for c, cap in _REGISTRO.items() if cap.solo_empresa)
+        elif membresia is None:   # administrador de sistema sin membresía: gestión de la empresa + lectura marcada
+            memo[eid] = frozenset(c for c, cap in _REGISTRO.items() if cap.solo_empresa or cap.admin_lectura)
         else:
             efectivo = set(_conjunto_rol(membresia.rol))
             acotado = (membresia.contratista_id is not None

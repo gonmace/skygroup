@@ -5,6 +5,7 @@ Por defecto skygroup se prohíbe a sí mismo en marcos (`X-Frame-Options: DENY`,
   · el servidor de Nextcloud configurado en la empresa de la petición (Panel → Nextcloud), y
   · los orígenes de `settings.FRAME_ANCESTORS` (variable FRAME_ANCESTORS del .env, separados por comas).
 Se añade `frame-ancestors` al CSP y se omite `X-Frame-Options` (que no admite listas de orígenes)."""
+import re
 from urllib.parse import urlsplit
 
 from django.conf import settings
@@ -14,12 +15,23 @@ CACHE_KEY = 'embebido:empresa:{}'
 CACHE_TTL = 120
 
 
+_HOST = re.compile(r'^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$')
+
+
 def origen(url):
-    """`https://host[:puerto]` de una URL, o '' si no es http(s) válida."""
-    partes = urlsplit((url or '').strip())
-    if partes.scheme not in ('http', 'https') or not partes.hostname:
+    """`https://host[:puerto]` de una URL, o '' si no es http(s) válida.
+
+    Se reconstruye desde el host (solo letras, números, guiones y puntos) y el puerto (número): nunca se copia texto
+    de la URL tal cual, porque este valor va dentro de una cabecera CSP y un `;`, un espacio o un `*` añadirían
+    directivas o abrirían la política a cualquier sitio."""
+    try:
+        partes = urlsplit((url or '').strip())
+        host, puerto = (partes.hostname or '').rstrip('.').lower(), partes.port
+    except ValueError:
         return ''
-    return f'{partes.scheme}://{partes.netloc.rsplit("@", 1)[-1]}'
+    if partes.scheme not in ('http', 'https') or not host or not _HOST.match(host):
+        return ''
+    return f'{partes.scheme}://{host}' + (f':{puerto}' if puerto else '')
 
 
 def invalidar(empresa_id):

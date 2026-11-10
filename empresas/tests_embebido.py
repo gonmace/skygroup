@@ -81,5 +81,19 @@ class EmbebidoTests(TestCase):
         self.assertEqual(origen('https://sky.redlinegs.com/apps/x?y=1'), 'https://sky.redlinegs.com')
         self.assertEqual(origen('http://localhost:8080/'), 'http://localhost:8080')
         self.assertEqual(origen('https://usuario:clave@host.example.com/'), 'https://host.example.com')
-        for malo in ('', 'sky.redlinegs.com', 'ftp://x.test', 'javascript:alert(1)'):
+        self.assertEqual(origen('HTTPS://Sky.RedlineGS.com./x'), 'https://sky.redlinegs.com')
+        for malo in ('', 'sky.redlinegs.com', 'ftp://x.test', 'javascript:alert(1)', 'https://*.redlinegs.com',
+                     'https://a.com; script-src *', 'https://a.com script-src', "https://a.com' 'unsafe-inline",
+                     'https://a.com:abc', 'https://a.com:99999', 'https://-malo.com', 'https://[::1]/'):
             self.assertEqual(origen(malo), '', malo)
+
+    def test_una_url_con_inyeccion_no_llega_a_la_cabecera(self):
+        NextcloudConfig.objects.create(empresa=self.a, servidor_url='https://a.example.com; script-src *')
+        xfo, csp = self.cabeceras()
+        self.assertEqual(xfo, 'DENY')
+        self.assertNotIn('script-src *', csp)
+        self.assertNotIn('frame-ancestors', csp)
+        with override_settings(FRAME_ANCESTORS=['https://b.example.com;default-src *', 'https://ok.example.com']):
+            csp = self.cabeceras()[1]
+        self.assertIn("frame-ancestors 'self' https://ok.example.com", csp)
+        self.assertNotIn('default-src *', csp)

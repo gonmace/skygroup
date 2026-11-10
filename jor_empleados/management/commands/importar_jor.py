@@ -13,7 +13,7 @@ from decimal import Decimal
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date, parse_datetime
 
 from cuentas.models import Membresia, RolEmpresa, User
 from cuentas.roles import RolBase
@@ -82,9 +82,13 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('slug')
         parser.add_argument('--dump', default='backups/legacy/skylog.sql.gz')
+        parser.add_argument('--desde', help='AAAA-MM-DD: solo crea jornadas, ausencias, notas y mensajes de esa fecha en adelante.')
         parser.add_argument('--dry-run', action='store_true', help='Ejecuta todo y revierte al final.')
 
-    def handle(self, *args, slug, dump, dry_run, **opts):
+    def handle(self, *args, slug, dump, dry_run, desde=None, **opts):
+        self.desde = parse_date(desde) if desde else None
+        if desde and self.desde is None:
+            raise CommandError('--desde debe ser AAAA-MM-DD.')
         try:
             self.empresa = Empresa.objects.get(slug=slug)
         except Empresa.DoesNotExist:
@@ -148,9 +152,10 @@ class Command(BaseCommand):
             cargo = e['cargo'] or ''
             base = RolBase.MIEMBRO   # todos los empleados entran como Ejecutor; el cargo (PM, Supervisor…) queda en el Perfil
             m = self._membresia(user, base)
-            tipo = e['mobile_type'] or ''
+            # El reporte diario es obligatorio por defecto para todos (el tipo «mobile_type» de skylog ya no decide);
+            # un coordinador lo apaga a mano en Equipo para quien no reporta (p. ej. bodega).
             perfil, creado = Perfil.objects.get_or_create(membresia=m, defaults=dict(
-                cargo=cargo, hora_entrada=e['hora_entrada'], exige_reporte=tipo == 'reporte',
+                cargo=cargo, hora_entrada=e['hora_entrada'], exige_reporte=True,
                 haber_basico=_dec(e['haber_basico']) or 0, ciudad_catering=e['ciudad'] or 'NONE',
                 numero_item=int(e['item_number']) if e['item_number'] else None,
                 activo=e['skylog_access'] == 't' if e.get('skylog_access') else True,
@@ -206,6 +211,8 @@ class Command(BaseCommand):
                 j.lat_fin, j.lon_fin = _dec(w['end_latitude']), _dec(w['end_longitude'])
                 j.save(update_fields=['fin', 'duracion_min', 'estado', 'cierre_auto', 'lat_fin', 'lon_fin'])
                 self.n['jornadas actualizadas'] += 1
+            if j is None and self.desde and (_dt(w['start_time']) or datetime.min.replace(tzinfo=None)).date() < self.desde:
+                continue
             if j is None:
                 j = Jornada.objects.create(
                     empresa=self.empresa, perfil=perfil, inicio=_dt(w['start_time']), fin=_dt(w['end_time']),
@@ -255,7 +262,7 @@ class Command(BaseCommand):
     def ausencias_y_notas(self):
         for a in self.t['workdays_employeeleave']:
             perfil = self.perfil.get(a['employee_id'])
-            if perfil is None:
+            if perfil is None or (self.desde and a['end_date'] < self.desde.isoformat()):
                 continue
             _, creada = Ausencia.objects.get_or_create(
                 empresa=self.empresa, perfil=perfil, desde=a['start_date'], hasta=a['end_date'],
@@ -263,6 +270,8 @@ class Command(BaseCommand):
                               estado='aprobada', creada_por=self.user_de_legacy.get(a['created_by_id'])))
             self.n['ausencias'] += creada
         for c in self.t['workdays_calendarnote']:
+            if self.desde and c['date'] < self.desde.isoformat():
+                continue
             tipo = c['note_type'] if c['note_type'] in ('feriado', 'evento', 'otro') else 'otro'
             _, creada = NotaCalendario.objects.get_or_create(
                 empresa=self.empresa, fecha=c['date'], texto=c['text'][:200],
@@ -279,6 +288,8 @@ class Command(BaseCommand):
         for m in self.t['workdays_executivemessage']:
             perfil = self.perfil.get(m['recipient_id'])
             autor = self.user_de_legacy_empleado(m['sender_id'])
+            if self.desde and (_dt(m['sent_at']) is None or _dt(m['sent_at']).date() < self.desde):
+                continue
             if perfil is None or autor is None or autor.pk == perfil.membresia.user_id or int(m['id']) in hechos:
                 continue
             conv = chat.directo(self.empresa, autor, perfil.membresia.user)

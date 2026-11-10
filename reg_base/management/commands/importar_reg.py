@@ -15,14 +15,19 @@ class Command(BaseCommand):
         parser.add_argument('--media', default='backups/legacy/reg_media', help='Carpeta con photos/ y google_maps/.')
         parser.add_argument('--sin-archivos', action='store_true', help='No importar fotos ni imágenes de mapa.')
         parser.add_argument('--limpiar', action='store_true', help='Antes, borrar los datos de ejemplo de la empresa.')
+        parser.add_argument('--desde', help='AAAA-MM-DD: solo crea registros con esa fecha en adelante.')
         parser.add_argument('--dry-run', action='store_true', help='Ejecuta todo y revierte al final (muestra los conteos). No copia fotos ni mapas.')
 
-    def handle(self, *args, slug, dir, media, sin_archivos, limpiar, dry_run, **opts):
+    def handle(self, *args, slug, dir, media, sin_archivos, limpiar, dry_run, desde=None, **opts):
+        from django.utils.dateparse import parse_date
+        desde_f = parse_date(desde) if desde else None
+        if desde and desde_f is None:
+            raise CommandError('--desde debe ser AAAA-MM-DD.')
         try:
             empresa = Empresa.objects.get(slug=slug)
         except Empresa.DoesNotExist:
             raise CommandError(f'No existe la empresa «{slug}».')
-        imp = Importador(empresa, dir, media=media, con_archivos=not (sin_archivos or dry_run), salida=self.stdout.write)
+        imp = Importador(empresa, dir, media=media, con_archivos=not (sin_archivos or dry_run), salida=self.stdout.write, desde=desde_f)
         if not imp.tabla('core_site'):
             raise CommandError(f'No hay datos en {dir} (¿corriste scripts/traer_legacy_reg.sh?).')
         try:

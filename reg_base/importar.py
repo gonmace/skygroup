@@ -156,7 +156,8 @@ def anidar(planos, widgets):
 
 
 class Importador:
-    def __init__(self, empresa, directorio, media=None, con_archivos=True, salida=None):
+    def __init__(self, empresa, directorio, media=None, con_archivos=True, salida=None, desde=None):
+        self.desde = desde   # solo crea registros con fecha >= desde
         self.empresa = empresa
         self.dir = directorio
         self.media = media
@@ -392,6 +393,8 @@ class Importador:
             for f in self.tabla(tabla):
                 r = existentes.get(f['id'])
                 if r is None:
+                    if self.desde and (_fecha(f['fecha']) or self.desde) < self.desde:
+                        continue
                     if f.get('sitio_id') not in self.proyectos:
                         self.omitidos[f'{clave} sin sitio'] += 1
                         continue

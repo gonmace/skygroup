@@ -73,6 +73,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'empresas.embebido.EmbebidoMiddleware',  # permite iframes solo desde el Nextcloud de la empresa (y FRAME_ANCESTORS)
     'cuentas.impersonacion.ImpersonacionMiddleware',  # superusuario → ver como otro usuario
     # Debe ir al FINAL: necesita request.user y messages (ver empresas/tenancy.py).
     'empresas.tenancy.EmpresaMiddleware',
@@ -241,6 +242,8 @@ if not DEBUG:
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 X_FRAME_OPTIONS = 'DENY'
+# Orígenes que pueden mostrar la app en un iframe además del Nextcloud de cada empresa (p. ej. https://sky.midominio.com).
+FRAME_ANCESTORS = config('FRAME_ANCESTORS', default='', cast=Csv())
 
 # ── Redis (cache, sesiones) ───────────────────────────────────────────────────
 # En dev sin .env, se conecta a localhost:6379 (Docker Desktop expone el puerto al host).

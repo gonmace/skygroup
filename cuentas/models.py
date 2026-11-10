@@ -304,6 +304,8 @@ class NextcloudConfig(models.Model):
     def save(self, *args, **kwargs):
         self.servidor_url = self.servidor_url.rstrip('/')
         super().save(*args, **kwargs)
+        from empresas.embebido import invalidar
+        invalidar(self.empresa_id)     # el Nextcloud de la empresa también autoriza el iframe
 
     @classmethod
     def de(cls, empresa):

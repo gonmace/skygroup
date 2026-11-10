@@ -941,3 +941,36 @@ class SinJornadaPropiaTests(JornadasBase):
         nombres = {p['nombre'] for p in datos['sin_iniciar']}
         self.assertEqual(nombres, {'Dir', 'Emp', 'Emp2'})          # ni el administrador (Pmo) ni el superusuario
         self.assertEqual(datos['total'], 3)
+
+
+class AdministradorSinMembresiaTests(JornadasBase):
+    """El administrador de sistema (Plataforma → Administradores) entra a Asistencia sin ser miembro: solo a las vistas
+    que exigen capacidades de ámbito empresa (resumen, equipo…); no a las que piden ser miembro o fichar."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.adm = User.objects.create_user('adm@x.cl', 'x')
+        cls.adm.empresas_administradas.add(cls.a)
+
+    def get(self, ruta, user=None):
+        self.client.force_login(user or self.adm)
+        return self.client.get(f'/tekon/jornadas/{ruta}')
+
+    def test_entra_al_resumen_y_al_equipo(self):
+        self.assertEqual(self.get('resumen/').status_code, 200)
+        self.assertEqual(self.get('equipo/').status_code, 200)
+
+    def test_no_entra_a_lo_personal(self):
+        for ruta in ('', 'ausencias/', 'mis-reportes/'):
+            self.assertEqual(self.get(ruta).status_code, 403, ruta)
+
+    def test_el_administrador_de_otra_empresa_no_entra(self):
+        otro = User.objects.create_user('otro@x.cl', 'x')
+        otro.empresas_administradas.add(self.b)
+        self.assertEqual(self.get('resumen/', otro).status_code, 403)
+
+    def test_quien_no_administra_ni_es_miembro_sigue_fuera(self):
+        extra = User.objects.create_user('extra@x.cl', 'x')
+        self.assertEqual(self.get('resumen/', extra).status_code, 403)
+        self.assertEqual(self.get('equipo/', extra).status_code, 403)

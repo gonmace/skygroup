@@ -13,8 +13,25 @@ from reg_construccion.models import RegConstruccion
 from reg_fotos.models import Foto
 from reg_txtss.models import RegTxtss
 
-from .importar import Importador, anidar
+from .importar import Importador, anidar, opcional_de_etapa
 from .tests import AJUSTES
+
+
+class OpcionalDeEtapaTests(SimpleTestCase):
+    def test_libro_de_obras_y_paso_electrico_son_opcionales_en_construccion(self):
+        self.assertTrue(opcional_de_etapa('construccion', 'obra_objetivos', 'camera_libro_widget', {})['opcional'])
+        self.assertTrue(opcional_de_etapa('construccion', 'obra_objetivos', 'camera_widget', {'etapa': 'obra_libro'})['opcional'])
+        self.assertTrue(opcional_de_etapa('construccion', 'obra_electrico', 'camera_widget', {'foto_min': 2})['opcional'])
+
+    def test_el_resto_no_cambia(self):
+        cfg = {'label': 'Actividades'}
+        self.assertEqual(opcional_de_etapa('construccion', 'obra_objetivos', 'lista_widget', cfg), cfg)
+        self.assertNotIn('opcional', opcional_de_etapa('txtss', 'obra_electrico', 'camera_libro_widget', {}))
+
+    def test_no_modifica_el_original(self):
+        cfg = {}
+        opcional_de_etapa('construccion', 'obra_electrico', 'camera_widget', cfg)
+        self.assertEqual(cfg, {})
 
 
 class AnidarTests(SimpleTestCase):

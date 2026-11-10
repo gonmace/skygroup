@@ -83,6 +83,20 @@ def _json(valor, defecto):
     return defecto if valor is None else valor
 
 
+def opcional_de_etapa(clave, paso, slug, config):
+    """Copia de `config` con `opcional` si el widget es de una etapa opcional de Construcción.
+
+    En reg las etapas `ETAPAS_OPCIONALES` (el paso eléctrico y las fotos del libro de obras) nunca contaban para que
+    una visita estuviera completa; en skygroup eso se expresa con `opcional` en el widget. Sin esta marca la plantilla
+    importada exigiría esas fotos y ninguna visita quedaría «completa»."""
+    from reg_construccion.models import ETAPAS_OPCIONALES
+    config = dict(config or {})
+    etapa = config.get('etapa') or ('obra_libro' if slug == 'camera_libro_widget' else '')
+    if clave == 'construccion' and (paso in ETAPAS_OPCIONALES or etapa in ETAPAS_OPCIONALES):
+        config['opcional'] = True
+    return config
+
+
 def _firma(widgets):
     return tuple(sorted((w['widget_slug'], json.dumps(w.get('config') or {}, sort_keys=True)) for w in widgets))
 
@@ -340,8 +354,9 @@ class Importador:
                     if creado:
                         self.n['pasos'] += 1
                         for w in ws:
-                            PasoWidget.objects.create(paso=paso, widget_slug=w['widget_slug'], orden=w.get('orden', 0),
-                                                      config=_json(w.get('config'), {}))
+                            PasoWidget.objects.create(
+                                paso=paso, widget_slug=w['widget_slug'], orden=w.get('orden', 0),
+                                config=opcional_de_etapa(clave, d['nombre'], w['widget_slug'], _json(w.get('config'), {})))
                     self.slug_pasodef[d['id']] = slug
                     tipo_de_paso.setdefault(slug, tid)
                 slug = self.slug_pasodef[d['id']]

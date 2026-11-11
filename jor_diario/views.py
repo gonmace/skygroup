@@ -2,6 +2,7 @@ import calendar
 import json
 from datetime import date, datetime
 
+from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.core.exceptions import PermissionDenied
@@ -13,7 +14,9 @@ from django.views.decorators.http import require_POST
 
 from cuentas.capacidades import administra, tiene_capacidad, usuarios_con_capacidad
 from cuentas.roles import RolBase
+from cuentas.models import NextcloudConfig
 from empresas.acceso import acceso_modulo
+from empresas.embebido import origen
 from jor_actividades.models import ItemActividad
 from jor_empleados import passkeys
 from jor_empleados.models import Perfil
@@ -164,6 +167,15 @@ def vincular_opciones(request):
         return JsonResponse({'ok': False, 'error': str(e)}, status=400)
 
 
+def _volver_a_nextcloud(request):
+    """Quien vinculó desde el enlace «Abrir en el navegador» (salió del iframe de Nextcloud) vuelve a skygroup dentro de Nextcloud."""
+    if request.POST.get('desde') != 'nextcloud':
+        return ''
+    config = NextcloudConfig.de(request.empresa)
+    base = origen(config.servidor_url) if config is not None and config.disponible else ''
+    return base + settings.NEXTCLOUD_APP_RUTA if base else ''
+
+
 @acceso_modulo('jor', 'jor.fichar')
 @require_POST
 def vincular(request):
@@ -177,7 +189,7 @@ def vincular(request):
         return JsonResponse({'ok': False, 'error': str(e) if isinstance(e, passkeys.ErrorPasskey) else 'Dato no válido.'},
                             status=400)
     messages.success(request, 'Celular vinculado. Ya puedes marcar tu jornada desde él.')
-    return JsonResponse({'ok': True, 'url': reverse('jor_diario:inicio')})
+    return JsonResponse({'ok': True, 'url': _volver_a_nextcloud(request) or reverse('jor_diario:inicio')})
 
 
 @acceso_modulo('jor', 'jor.fichar')

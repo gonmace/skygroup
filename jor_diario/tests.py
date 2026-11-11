@@ -1208,3 +1208,25 @@ class AdministradorSinMembresiaTests(JornadasBase):
         extra = User.objects.create_user('extra@x.cl', 'x')
         self.assertEqual(self.get('resumen/', extra).status_code, 403)
         self.assertEqual(self.get('equipo/', extra).status_code, 403)
+
+
+class VolverANextcloudTests(JornadasBase):
+    """Tras vincular el celular fuera del iframe («Abrir en el navegador») se vuelve a skygroup dentro de Nextcloud."""
+
+    def volver(self, desde='nextcloud'):
+        from django.test import RequestFactory
+        from . import views
+        r = RequestFactory().post('/', {'desde': desde} if desde else {})
+        r.empresa = self.a
+        return views._volver_a_nextcloud(r)
+
+    def test_vuelve_a_la_app_de_nextcloud_solo_si_viene_de_ahi(self):
+        from cuentas.models import NextcloudConfig
+        NextcloudConfig.objects.create(empresa=self.a, activo=True, servidor_url='https://sky.example.com/',
+                                       client_id='c', client_secret='s')
+        self.assertEqual(self.volver(), 'https://sky.example.com/apps/external/1/')
+        self.assertEqual(self.volver(''), '')                      # navegador normal: sigue en skygroup
+        self.assertEqual(self.volver('https://malo.example'), '')   # nunca se obedece una URL del cliente
+
+    def test_sin_nextcloud_no_redirige(self):
+        self.assertEqual(self.volver(), '')

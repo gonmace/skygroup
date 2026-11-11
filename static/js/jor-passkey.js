@@ -93,7 +93,7 @@
     mostrarError('Desde Nextcloud el celular no puede verificar tu identidad. Abre skygroup en el navegador del celular para continuar. ');
     if (aviso) {
       var a = document.createElement('a');
-      a.href = location.href; a.target = '_blank'; a.rel = 'noopener'; a.className = 'link font-medium';
+      a.href = location.pathname + '?desde=nextcloud'; a.target = '_blank'; a.rel = 'noopener'; a.className = 'link font-medium';
       a.textContent = 'Abrir en el navegador';
       aviso.appendChild(a);
     }
@@ -155,7 +155,8 @@
       if (!r.ok) throw new Error(r.error);
       return navigator.credentials.create({ publicKey: opcionesCreacion(r.opciones) });
     }).then(function (cred) {
-      return post(raiz.dataset.urlVincular, { credencial: credencialAJson(cred), nombre: navigator.platform || 'Celular' });
+      return post(raiz.dataset.urlVincular, { credencial: credencialAJson(cred), nombre: navigator.platform || 'Celular',
+                                           desde: new URLSearchParams(location.search).get('desde') || '' });
     }).then(function (r) {
       if (!r.ok) throw new Error(r.error);
       location.href = r.url;

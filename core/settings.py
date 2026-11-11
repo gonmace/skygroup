@@ -242,6 +242,8 @@ if not DEBUG:
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 X_FRAME_OPTIONS = 'DENY'
+# Ruta de skygroup dentro de Nextcloud (app «External sites»): a ella se vuelve tras vincular el celular fuera del iframe.
+NEXTCLOUD_APP_RUTA = config('NEXTCLOUD_APP_RUTA', default='/apps/external/1/')
 # Orígenes que pueden mostrar la app en un iframe además del Nextcloud de cada empresa (p. ej. https://sky.midominio.com).
 FRAME_ANCESTORS = config('FRAME_ANCESTORS', default='', cast=Csv())
 

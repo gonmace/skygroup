@@ -1,5 +1,36 @@
 // Confirmación como alerta tipo toast arriba a la derecha (igual que el sitio original).
 // window.confirmarUI(msg, {titulo, aceptar, cancelar}) → Promise<boolean>.
+// Spinner estándar: window.spinnerHTML(tam) → '<span class="loading loading-spinner loading-{tam}">' (tam: xs|sm|md|lg).
+// window.btnOcupado(btn, si) pone/quita el spinner al inicio del botón y lo deshabilita; no toca su texto.
+(function () {
+  window.spinnerHTML = function (tam) {
+    return '<span class="loading loading-spinner loading-' + (tam || 'sm') + '" aria-hidden="true"></span>';
+  };
+  window.btnOcupado = function (btn, si) {
+    var s = btn.querySelector(':scope > [data-spinner]');
+    if (si && !s) {
+      s = document.createElement('span');
+      s.setAttribute('data-spinner', '');
+      s.className = 'loading loading-spinner loading-sm';
+      s.setAttribute('aria-hidden', 'true');
+      btn.insertBefore(s, btn.firstChild);
+    } else if (!si && s) s.remove();
+    btn.setAttribute('aria-busy', si ? 'true' : 'false');
+    btn.disabled = !!si;
+  };
+})();
+
+// Copiar al portapapeles: <button data-copiar="id-del-elemento"> copia su texto y se tiñe de verde un instante (CSP-safe).
+document.addEventListener('click', function (e) {
+  var b = e.target.closest && e.target.closest('[data-copiar]');
+  var fuente = b && document.getElementById(b.getAttribute('data-copiar'));
+  if (!fuente || !navigator.clipboard) return;
+  navigator.clipboard.writeText(fuente.textContent.trim()).then(function () {
+    b.classList.add('text-success');
+    setTimeout(function () { b.classList.remove('text-success'); }, 1500);
+  });
+});
+
 (function () {
   window.confirmarUI = function (msg, op) {
     op = op || {};

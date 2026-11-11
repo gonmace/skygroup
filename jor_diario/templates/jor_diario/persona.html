@@ -75,6 +75,16 @@
         </div>
       </div>
 
+      {% if es_super %}
+      <details class="text-sm">
+        <summary class="btn btn-outline btn-xs gap-1">{% include "components/icon.html" with name="pencil" cls="size-4" %} Cambiar hora de inicio</summary>
+        <form method="post" action="{% url 'jor_diario:jornada_cambiar_inicio' j.pk %}" class="mt-2 flex flex-wrap items-center gap-2">{% csrf_token %}
+          <input type="datetime-local" name="inicio" required value="{{ j.inicio|date:'Y-m-d\TH:i' }}" class="input input-bordered input-sm">
+          <button class="btn btn-primary btn-sm">Guardar</button>
+        </form>
+      </details>
+      {% endif %}
+
       {% if j.lat_inicio != None or j.lat_fin != None %}
       <div class="flex flex-wrap gap-2 text-xs">
         {% if j.lat_inicio != None %}<a class="btn btn-xs gap-1 border-0 bg-success/15 text-success hover:bg-success/25" target="_blank" rel="noopener" href="https://maps.google.com/?q={{ j.lat_inicio|stringformat:'s' }},{{ j.lon_inicio|stringformat:'s' }}">{% include "components/icon.html" with name="map-pin" cls="size-4" %} Inicio{% if j.precision_inicio != None %} ±{{ j.precision_inicio|floatformat:0 }} m{% endif %}</a>{% endif %}

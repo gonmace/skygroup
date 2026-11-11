@@ -3,14 +3,17 @@
 El celular guarda la clave privada y la desbloquea con huella/PIN del propio teléfono; al servidor solo llega la
 clave pública y la firma de cada marcación. Cada «challenge» vive en la sesión, es de un solo uso y caduca."""
 import logging
+import secrets
 import time
 
+from django.core import signing
+from django.core.cache import cache
 from django.utils import timezone
 from webauthn import (base64url_to_bytes, generate_authentication_options, generate_registration_options,
                       options_to_json, verify_authentication_response, verify_registration_response)
 from webauthn.helpers import bytes_to_base64url
 from webauthn.helpers.exceptions import InvalidAuthenticationResponse, InvalidRegistrationResponse
-from webauthn.helpers.structs import (AuthenticatorAttachment, AuthenticatorSelectionCriteria,
+from webauthn.helpers.structs import (AuthenticatorAttachment, PublicKeyCredentialHint, AuthenticatorSelectionCriteria,
                                       PublicKeyCredentialDescriptor, ResidentKeyRequirement,
                                       UserVerificationRequirement)
 
@@ -19,7 +22,7 @@ from .models import DispositivoMarcacion
 logger = logging.getLogger(__name__)
 
 CLAVE_SESION = 'jor_passkey_challenge'
-TTL_S = 90
+TTL_S = 180   # el challenge vive mientras se firma (con QR desde el PC tarda) y se leen las 3 lecturas de GPS
 
 
 class ErrorPasskey(Exception):
@@ -43,21 +46,64 @@ def _tomar_challenge(request, uso):
     return base64url_to_bytes(dato['c'])
 
 
+# ── Enlace de vinculación (un solo uso) ────────────────────────────────────────────────────────────
+# Se genera desde la sesión del computador y se abre en el celular SIN iniciar sesión allí: es firmado, caduca a los
+# ENLACE_TTL_S y se invalida al vincular (o al generar otro: solo vale el último de cada persona).
+ENLACE_TTL_S = 600
+_SAL_ENLACE = 'jor-vincular-celular'
+
+
+def _clave_enlace(perfil_id):
+    return f'jor:vinc:vigente:{perfil_id}'
+
+
+def generar_enlace(perfil):
+    """Token firmado que autoriza vincular UN celular a `perfil`. Invalida el anterior de esa persona."""
+    if dispositivo_activo(perfil):
+        raise ErrorPasskey('Ya tienes un celular vinculado. Pide a un administrador que lo libere para cambiarlo.')
+    nonce = secrets.token_urlsafe(12)
+    cache.set(_clave_enlace(perfil.pk), nonce, ENLACE_TTL_S + 30)
+    return signing.dumps({'p': perfil.pk, 'n': nonce}, salt=_SAL_ENLACE)
+
+
+def perfil_de_enlace(token):
+    """Perfil al que pertenece un enlace vigente; ErrorPasskey si caducó, se usó o fue reemplazado."""
+    from .models import Perfil
+    try:
+        d = signing.loads(token, salt=_SAL_ENLACE, max_age=ENLACE_TTL_S)
+        vigente = cache.get(_clave_enlace(d['p']))
+    except (signing.BadSignature, KeyError, TypeError):
+        raise ErrorPasskey('Este enlace no es válido.')
+    if not vigente or vigente != d['n']:
+        raise ErrorPasskey('Este enlace ya se usó o caducó. Genera uno nuevo desde tu computador.')
+    perfil = Perfil.objects.select_related('membresia__user', 'membresia__empresa').filter(pk=d['p']).first()
+    if perfil is None or not perfil.activo or not perfil.membresia.activa:
+        raise ErrorPasskey('Este enlace no es válido.')
+    return perfil
+
+
+def consumir_enlace(perfil):
+    cache.delete(_clave_enlace(perfil.pk))
+
+
 def dispositivo_activo(perfil):
     return perfil.dispositivos.filter(activo=True).first()
 
 
-def opciones_registro(request, perfil):
+def opciones_registro(request, perfil, desde_pc=False):
     if dispositivo_activo(perfil):
         raise ErrorPasskey('Ya tienes un celular vinculado. Pide a un administrador que lo libere para cambiarlo.')
     rp_id, _ = _rp(request)
+    # Desde un computador el navegador muestra un QR y es el CELULAR (su llavero: Google/iCloud) quien crea y guarda la
+    # passkey («hybrid»): no puede restringirse a `platform`, que en el PC solo ofrece Windows Hello/Touch ID.
     opciones = generate_registration_options(
         rp_id=rp_id, rp_name=perfil.membresia.empresa.nombre, user_id=str(perfil.pk).encode(),
         user_name=perfil.user.email, user_display_name=perfil.nombre,
         authenticator_selection=AuthenticatorSelectionCriteria(
-            authenticator_attachment=AuthenticatorAttachment.PLATFORM,
+            authenticator_attachment=AuthenticatorAttachment.CROSS_PLATFORM if desde_pc else AuthenticatorAttachment.PLATFORM,
             resident_key=ResidentKeyRequirement.DISCOURAGED,
-            user_verification=UserVerificationRequirement.REQUIRED))
+            user_verification=UserVerificationRequirement.REQUIRED),
+        hints=[PublicKeyCredentialHint.HYBRID] if desde_pc else None)
     _guardar_challenge(request, opciones.challenge, 'registro')
     return opciones_a_dict(opciones)
 
@@ -83,7 +129,7 @@ def registrar(request, perfil, credencial, nombre=''):
         nombre=(nombre or '').strip()[:80], user_agent=request.META.get('HTTP_USER_AGENT', '')[:300])
 
 
-def opciones_autenticacion(request, perfil):
+def opciones_autenticacion(request, perfil, desde_pc=False):
     dispositivo = dispositivo_activo(perfil)
     if dispositivo is None:
         raise ErrorPasskey('Vincula tu celular para poder marcar tu jornada.')
@@ -92,7 +138,10 @@ def opciones_autenticacion(request, perfil):
         rp_id=rp_id, user_verification=UserVerificationRequirement.REQUIRED,
         allow_credentials=[PublicKeyCredentialDescriptor(id=bytes(dispositivo.credential_id))])
     _guardar_challenge(request, opciones.challenge, 'marca')
-    return opciones_a_dict(opciones)
+    d = opciones_a_dict(opciones)
+    if desde_pc:
+        d['hints'] = ['hybrid']   # en un computador: ofrecer el QR para firmar con el celular vinculado
+    return d
 
 
 def verificar_aserto(request, perfil, credencial):
@@ -100,8 +149,9 @@ def verificar_aserto(request, perfil, credencial):
     challenge = _tomar_challenge(request, 'marca')
     if not isinstance(credencial, dict):
         raise ErrorPasskey('Verificación no válida.')
-    if credencial.get('authenticatorAttachment') == 'cross-platform':
-        raise ErrorPasskey('Marca desde el celular vinculado, no con un llavero o dispositivo externo.')
+    # No se filtra por `authenticatorAttachment`: firmar desde el computador con el QR del celular, o con una passkey
+    # que el llavero del celular reporta como «cross-platform», es legítimo. La identidad la fija la credencial
+    # registrada: solo su clave pública verifica la firma.
     try:
         id_cred = base64url_to_bytes(credencial.get('rawId') or credencial.get('id') or '')
     except Exception:

@@ -455,6 +455,10 @@ Reglas a respetar al extender el proyecto:
 - **Deploy:** imagen etiquetada con el SHA de git (`${PROJECT_NAME}_app:<sha>`), healthcheck en `/healthz`, contenedor no-root (UID 1000: `staticfiles/` y `media/` deben ser de ese usuario). PostgreSQL fijo en 17.
 - **nginx:** `make nginx` solo una vez; certbot modifica el archivo y `deploy.sh` nunca lo toca.
 - **n8n:** `N8N_ENCRYPTION_KEY` no se cambia nunca.
+- **Spinner estándar:** siempre DaisyUI `loading loading-spinner` (tamaños `xs|sm|md|lg`), nunca CSS propio ni `btn loading`.
+  - Plantilla: `{% include "components/spinner.html" with size="sm" %}`.
+  - JS (`static/js/shell.js`): `window.btnOcupado(btn, true|false)` pone/quita el spinner al inicio del botón y lo deshabilita (botones de acción: `sm`); `window.spinnerHTML('xs')` devuelve el HTML para armar textos como «Guardando…».
+  - Cargas de pantalla completa o de bloque: `lg` con `text-primary`.
 - **Windows:** en `settings.py`, dentro de `if DEBUG:`, `NPM_BIN_PATH = r'C:\Program Files\nodejs\npm.cmd'`.
 
 ---

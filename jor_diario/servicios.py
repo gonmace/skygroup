@@ -47,12 +47,17 @@ def _coords(res):
     return round(res['lat'], 6), round(res['lon'], 6)
 
 
-def iniciar(perfil, dispositivo, lecturas, proyecto=None, motivo='', ip=None):
+def iniciar(perfil, dispositivo, lecturas, proyecto=None, motivo='', ip=None, origen=''):
+    """Se inicia con el passkey del celular vinculado, firmando en el propio celular o desde un computador (QR);
+    en ambos casos la ubicación es obligatoria. `origen` ('pc'|'celular') solo informa a quien revisa."""
     if not perfil.activo or not perfil.membresia.activa:
         raise ErrorJornada('Tu acceso a Asistencia está deshabilitado.')
     if proyecto is not None and proyecto.empresa_id != perfil.empresa_id:
         raise ErrorJornada('El proyecto no pertenece a esta empresa.')
     res, motivos = _evaluar(perfil, dispositivo, lecturas)
+    if res['lat'] is None:   # sin ubicación no se inicia, ni siquiera como excepción
+        raise ErrorJornada('No se pudo leer tu ubicación. Revisa el permiso del navegador e inténtalo de nuevo.',
+                           ubicacion_requerida=True)
     motivo = (motivo or '').strip()[:300]
     estado_v = Jornada.Verificacion.VERIFICADA
     if motivos:
@@ -70,7 +75,7 @@ def iniciar(perfil, dispositivo, lecturas, proyecto=None, motivo='', ip=None):
                 lat_inicio=lat, lon_inicio=lon, precision_inicio=res['precision_m'], ip_inicio=ip or None,
                 dispositivo=dispositivo, estado_verificacion=estado_v, motivo_excepcion=motivo if motivos else '',
                 verificacion={'inicio': {k: res[k] for k in ('motivos', 'avisos', 'distancia_m', 'precision_m')}
-                              | {'motivos': motivos}})
+                              | {'motivos': motivos, 'origen': origen}})
     except IntegrityError:
         raise ErrorJornada('Ya tienes una jornada activa.')
     if estado_v == Jornada.Verificacion.EXCEPCION_PENDIENTE:
@@ -88,6 +93,9 @@ def _avisar_excepcion(jornada):
         mensaje=f'{jornada.perfil.nombre} inició su jornada fuera de la sede y pide aprobación: {jornada.motivo_excepcion}')
 
 
+MIN_PALABRAS_REALIZADO, MIN_PALABRAS_PLANIFICADO = 10, 3  # con reporte obligatorio
+
+
 @transaction.atomic
 def finalizar(jornada_id, perfil, dispositivo, lecturas, realizado='', planificado='', ip=None):
     """Cierra la jornada. Exige identidad (passkey) y ubicación legible; el resultado de la presencia al
@@ -95,16 +103,24 @@ def finalizar(jornada_id, perfil, dispositivo, lecturas, realizado='', planifica
     realizado, planificado = (realizado or '').strip(), (planificado or '').strip()
     sin_dispositivo = dispositivo is None
     if sin_dispositivo:
-        # Sin celular vinculado se puede cerrar (nunca iniciar), pero sin identidad ni presencia verificadas.
-        res = {'lat': None, 'lon': None, 'precision_m': None, 'distancia_m': None, 'avisos': []}
-        motivos = ['sin_dispositivo']
+        # Desde un computador o sin celular vinculado se puede cerrar (nunca iniciar) sin passkey, pero la
+        # ubicación es obligatoria; lo que no cuadre (fuera de sede, etc.) queda registrado para quien revisa.
+        res = verificar_presencia(perfil.membresia.sede, lecturas)
+        motivos = ['sin_passkey', *res['motivos']]
     else:
         res, motivos = _evaluar(perfil, dispositivo, lecturas)
-        if res['lat'] is None:
-            raise ErrorJornada('No se pudo leer tu ubicación. Revisa el permiso del navegador e inténtalo de nuevo.',
-                               ubicacion_requerida=True)
-    if perfil.exige_reporte and not (realizado and planificado):
-        raise ErrorJornada('Debes completar el reporte diario antes de finalizar.', reporte_requerido=True)
+    if res['lat'] is None:
+        raise ErrorJornada('No se pudo leer tu ubicación. Revisa el permiso del navegador e inténtalo de nuevo.',
+                           ubicacion_requerida=True)
+    if perfil.exige_reporte:
+        if not (realizado and planificado):
+            raise ErrorJornada('Debes completar el reporte diario antes de finalizar.', reporte_requerido=True)
+        if len(realizado.split()) < MIN_PALABRAS_REALIZADO:
+            raise ErrorJornada(f'Las actividades realizadas deben tener al menos {MIN_PALABRAS_REALIZADO} palabras.',
+                               reporte_requerido=True)
+        if len(planificado.split()) < MIN_PALABRAS_PLANIFICADO:
+            raise ErrorJornada(f'Las actividades planificadas deben tener al menos {MIN_PALABRAS_PLANIFICADO} palabras.',
+                               reporte_requerido=True)
     jornada = (Jornada.objects.select_for_update()
                .filter(pk=jornada_id, perfil=perfil, estado=Jornada.Estado.EN_CURSO).first())
     if jornada is None:

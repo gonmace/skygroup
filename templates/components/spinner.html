@@ -1,0 +1,2 @@
+{# Spinner estándar (DaisyUI). Uso: {% include "components/spinner.html" with size="sm" %}  (size: xs|sm|md|lg; el color hereda del texto, o pasa cls="text-primary") #}
+<span class="loading loading-spinner loading-{{ size|default:'sm' }} {{ cls }}" role="status" aria-label="Cargando"></span>

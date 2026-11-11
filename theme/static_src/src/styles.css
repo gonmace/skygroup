@@ -25,6 +25,8 @@
 @source "../../../jor_reportes";
 @source "../../../jor_visitas";
 @source "../../../static/js";
+/* Spinner estándar: los tamaños se arman dinámicamente (components/spinner.html, shell.js) */
+@source inline("loading loading-spinner loading-{xs,sm,md,lg}");
 /* Variante para el tema que fija la app (data-theme), no la preferencia del sistema: `tema-oscuro:` */
 @custom-variant tema-oscuro (&:where([data-theme=dark], [data-theme=dark] *));
 /* `dark:` también sigue el tema de la app (data-theme, que cambia el botón de tema) y no la preferencia del sistema:

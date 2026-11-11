@@ -44,6 +44,8 @@ def dispositivo_liberar(request, membresia_id):
     n = passkeys.liberar(Perfil.de(membresia), request.user)
     messages.success(request, f'Celular de {membresia.user} liberado: ya puede vincular otro.' if n
                      else f'{membresia.user} no tiene un celular vinculado.')
+    if request.POST.get('next') == 'equipo':
+        return redirect('jor_diario:equipo')
     return redirect('jor_diario:persona', membresia_id=membresia.pk)
 
 

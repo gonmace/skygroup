@@ -17,6 +17,7 @@ MOTIVOS = {
     'precision_sospechosa': 'La precisión reportada por el GPS no es creíble.',
     'salto_imposible': 'Las lecturas de GPS saltan una distancia imposible.',
     'fuera_geocerca': 'Estás fuera del radio de la sede.',
+    'sin_passkey': 'Cerrada sin passkey (desde un computador o sin celular vinculado).',
     # Etiquetas históricas (ya no se generan): se conservan para mostrar jornadas antiguas.
     'no_movil': 'No se marcó desde un celular.',
     'cierre_pc': 'Cerrada desde un computador.',

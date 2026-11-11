@@ -1,0 +1,29 @@
+{% extends "cuentas/_auth_base.html" %}
+{% load static %}
+{% block title %}Iniciar jornada{% endblock %}
+{% block auth_titulo %}{% if listo %}Jornada iniciada{% else %}Iniciar jornada{% endif %}{% endblock %}
+{% block auth_subtitulo %}{{ marca }}{% endblock %}
+{% block auth_cuerpo %}
+{% if listo %}
+  <div class="alert alert-success alert-soft text-sm" role="status">Listo: tu jornada quedó iniciada. Ya puedes cerrar esta pantalla y seguir en tu computador.</div>
+{% elif error %}
+  <div class="alert alert-error text-sm" role="alert">{{ error }}</div>
+{% else %}
+  <div data-marcar-raiz data-url-desafio="{% url 'jor_diario:marca_qr_desafio' token %}" class="space-y-4">
+    <div class="alert alert-error hidden text-sm" role="alert" data-marcar-error></div>
+    <form method="post" action="{% url 'jor_diario:marca_qr_iniciar' token %}" data-marcar class="space-y-4">
+      {% csrf_token %}
+      <p class="text-sm text-base-content/70">Confirma con tu huella o el PIN del teléfono. Se registra la ubicación de este celular. No necesitas iniciar sesión aquí.</p>
+      {% if proyecto %}<p class="rounded-lg bg-base-200 px-3 py-2 text-sm"><span class="text-base-content/60">Proyecto:</span> <strong>{{ proyecto.nombre }}</strong></p>{% endif %}
+      <button type="submit" class="btn btn-primary btn-lg w-full gap-2">{% include "components/icon.html" with name="clock" cls="size-5" %}Iniciar jornada</button>
+      {# Solo aparece cuando la ubicación no valida y la persona puede pedir una excepción. #}
+      <div class="hidden" data-motivo>
+        <label class="mb-1 block text-sm font-medium" for="motivo">Motivo (estás fuera de la sede)</label>
+        <input id="motivo" name="motivo" maxlength="300" class="input input-bordered w-full" placeholder="Ej.: visita a terreno, reunión con el cliente">
+        <p class="mt-1 text-xs text-base-content/60">Tu coordinador deberá aprobarla para que las horas cuenten.</p>
+      </div>
+    </form>
+  </div>
+{% endif %}
+{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/jor-passkey.js' %}" defer></script>{% endblock %}

@@ -1,11 +1,12 @@
 {% extends "cuentas/_auth_base.html" %}
 {% block title %}Iniciar sesión{% endblock %}
 {% block auth_titulo %}Iniciar sesión{% endblock %}
-{% block auth_subtitulo %}{% if empresa %}Accede a tu espacio de {{ marca }}{% else %}Accede a tu cuenta{% endif %}{% endblock %}
+{% block auth_subtitulo %}{% if embebido %}Usa tu cuenta de Nextcloud{% elif empresa %}Accede a tu espacio de {{ marca }}{% else %}Accede a tu cuenta{% endif %}{% endblock %}
 {% block auth_cuerpo %}
 {% for m in messages %}<div class="alert alert-{% if m.tags == 'error' %}error{% else %}info{% endif %} alert-soft mb-4 text-sm">{{ m }}</div>{% endfor %}
 <form method="post" class="flex flex-col gap-4">
   {% csrf_token %}
+  <div data-solo-fuera-iframe class="flex flex-col gap-4{% if embebido %} hidden{% endif %}">
   {% if form.non_field_errors %}
     <div class="alert alert-error alert-soft text-sm">{{ form.non_field_errors.0 }}</div>
   {% endif %}
@@ -34,14 +35,15 @@
   </div>
   <input type="hidden" name="next" value="{{ next }}">
   <button type="submit" class="btn btn-primary mt-1 h-12 w-full rounded-xl text-base">Entrar</button>
+  {% if nextcloud %}<div class="divider my-0 text-xs text-base-content/50">o continúa con</div>{% endif %}
+  </div>
   {% if nextcloud %}
-    <div class="divider my-0 text-xs text-base-content/50">o continúa con</div>
-    <a href="{% url 'cuentas:nextcloud_iniciar' %}{% if next %}?next={{ next|urlencode }}{% endif %}" class="btn btn-outline h-12 w-full rounded-xl">
+    <a href="{% url 'cuentas:nextcloud_iniciar' %}{% if next %}?next={{ next|urlencode }}{% endif %}" data-nextcloud-entrar class="btn h-12 w-full rounded-xl {% if embebido %}btn-primary{% else %}btn-outline{% endif %}">
       {% include "components/icon.html" with name="cloud" cls="size-5" %}{{ nextcloud.texto_boton }}
     </a>
   {% endif %}
   {% if registro_abierto %}
-    <p class="mt-1 text-center text-sm text-base-content/70">¿Tienes correo de la empresa? <a href="{% url 'cuentas:registro' %}" class="link link-primary font-medium">Crea tu acceso</a></p>
+    <p data-solo-fuera-iframe class="mt-1 text-center text-sm text-base-content/70{% if embebido %} hidden{% endif %}">¿Tienes correo de la empresa? <a href="{% url 'cuentas:registro' %}" class="link link-primary font-medium">Crea tu acceso</a></p>
   {% endif %}
 </form>
 {% endblock %}

@@ -85,6 +85,19 @@
     aviso.textContent = msg;
     aviso.classList.remove('hidden');
   }
+  // WebAuthn no funciona dentro del iframe de otro sitio (Nextcloud) salvo que éste lo autorice: ahí el navegador
+  // responde NotAllowedError. Se explica y se ofrece abrir skygroup fuera del marco, donde sí funciona.
+  function errorPasskey(e, porDefecto) {
+    if (!(e && e.name === 'NotAllowedError')) return mostrarError(e && e.message || porDefecto);
+    if (window.self === window.top) return mostrarError('Se canceló la verificación del celular.');
+    mostrarError('Desde Nextcloud el celular no puede verificar tu identidad. Abre skygroup en el navegador del celular para continuar. ');
+    if (aviso) {
+      var a = document.createElement('a');
+      a.href = location.href; a.target = '_blank'; a.rel = 'noopener'; a.className = 'link font-medium';
+      a.textContent = 'Abrir en el navegador';
+      aviso.appendChild(a);
+    }
+  }
   // Con reporte obligatorio, "Finalizar" queda deshabilitado hasta completar realizado y planificado.
   function reporteIncompleto(form) {
     if (!form.hasAttribute('data-exige-reporte')) return false;
@@ -148,7 +161,7 @@
       location.href = r.url;
     }).catch(function (e) {
       vincular.disabled = false;
-      mostrarError(e && e.name === 'NotAllowedError' ? 'Se canceló la verificación del celular.' : (e.message || 'No se pudo vincular.'));
+      errorPasskey(e, 'No se pudo vincular.');
     });
   });
 
@@ -242,7 +255,7 @@
           throw new Error(r.error);
         });
       }).catch(function (e) {
-        mostrarError(e && e.name === 'NotAllowedError' ? 'Se canceló la verificación del celular.' : (e.message || 'No se pudo marcar.'));
+        errorPasskey(e, 'No se pudo marcar.');
       }).then(function () { ocupado(form, false); });
     });
   });

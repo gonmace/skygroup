@@ -1,5 +1,6 @@
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm, SetPasswordForm
+from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, SetPasswordForm
 
 
 class LoginForm(AuthenticationForm):
@@ -12,6 +13,14 @@ class LoginForm(AuthenticationForm):
         label='Contraseña', strip=False,
         widget=forms.PasswordInput(attrs={'autocomplete': 'current-password', 'class': 'input input-bordered w-full'}),
     )
+
+
+class RestablecerClaveForm(PasswordResetForm):
+    """Igual que el de Django, pero también para quien entró solo con Nextcloud (cuenta sin contraseña):
+    así puede crearse una y usar correo + contraseña fuera de Nextcloud."""
+
+    def get_users(self, email):
+        return get_user_model()._default_manager.filter(email__iexact=email, is_active=True)
 
 
 _INPUT = {'class': 'input input-bordered w-full'}

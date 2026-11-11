@@ -351,6 +351,26 @@ class NextcloudLoginTests(_NextcloudBase):
     def _cb(self, state, uid='ana', email='ana@example.com'):
         return self._callback(state, uid, email)
 
+    def test_en_iframe_solo_se_ofrece_nextcloud(self):
+        r = self.client.get('/emp-nc/acceso/login/', headers={'Sec-Fetch-Dest': 'iframe'})
+        self.assertContains(r, 'Usa tu cuenta de Nextcloud')
+        self.assertContains(r, 'data-nextcloud-entrar')
+        self.assertContains(r, 'data-solo-fuera-iframe class="flex flex-col gap-4 hidden"')    # formulario oculto
+        normal = self.client.get('/emp-nc/acceso/login/')
+        self.assertNotContains(normal, 'gap-4 hidden"')
+        self.assertContains(normal, 'Accede a tu espacio')
+        # Sin Nextcloud disponible no se deja a nadie sin forma de entrar: formulario normal aunque esté en un iframe.
+        r = self.client.get('/otra-nc/acceso/login/', headers={'Sec-Fetch-Dest': 'iframe'})
+        self.assertNotContains(r, 'gap-4 hidden"')
+
+    def test_quien_entro_solo_con_nextcloud_puede_crear_contrasena(self):
+        from django.core import mail
+        u = User.objects.create_user('nuevo@example.com', None)
+        u.set_unusable_password()
+        u.save()
+        self.client.post('/emp-nc/acceso/recuperar/', {'email': 'nuevo@example.com'})
+        self.assertEqual(len(mail.outbox), 1)
+
     def test_boton_segun_empresa(self):
         self.assertContains(self.client.get('/emp-nc/acceso/login/'), 'Entrar con Nextcloud')
         self.assertNotContains(self.client.get('/acceso/login/'), 'Entrar con Nextcloud')     # la raíz no tiene config propia

@@ -15,7 +15,7 @@ import secrets
 
 from . import correos, impersonacion, nextcloud, registro as reg
 
-from .forms import LoginForm, RegistroConfirmarForm, RegistroForm
+from .forms import LoginForm, RegistroConfirmarForm, RegistroForm, RestablecerClaveForm
 from empresas.models import Empresa
 
 from .models import Membresia, NextcloudConfig, NextcloudVinculo
@@ -34,6 +34,8 @@ class LoginView(auth_views.LoginView):
         ctx['registro_abierto'] = empresa is not None and reg.hay_dominios(empresa)
         config = NextcloudConfig.de(empresa)
         ctx['nextcloud'] = config if config is not None and config.disponible else None
+        # Dentro del iframe de Nextcloud solo se ofrece «Entrar con Nextcloud» (si hay uno disponible).
+        ctx['embebido'] = ctx['nextcloud'] is not None and self.request.headers.get('Sec-Fetch-Dest') == 'iframe'
         return ctx
 
 
@@ -45,6 +47,7 @@ class PasswordResetView(auth_views.PasswordResetView):
     template_name = 'cuentas/password_reset.html'
     email_template_name = 'cuentas/email/password_reset.txt'
     subject_template_name = 'cuentas/email/password_reset_asunto.txt'
+    form_class = RestablecerClaveForm
     success_url = reverse_lazy('cuentas:password_reset_hecho')
 
 

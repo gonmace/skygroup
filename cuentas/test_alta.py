@@ -34,11 +34,11 @@ class AltaTests(TestCase):
         self.client.force_login(self.coord)
         rol = rol_por_base(self.a, RolBase.MIEMBRO)
         with self.captureOnCommitCallbacks(execute=True):
-            self.client.post('/tekon/config/miembros/nuevo/', {'email': 'n@x.com', 'rol': rol.pk, 'enviar_correo': 'on'})
+            self.client.post('/tekon/config/miembros/nuevo/', {'email': 'n@x.com', 'rol': rol.pk, 'acceso': 'correo'})
         self.assertIn('/tekon/acceso/recuperar/', mail.outbox[0].body)
         User.objects.create_user('viejo@x.com', 'x')
         with self.captureOnCommitCallbacks(execute=True):
-            self.client.post('/tekon/config/miembros/nuevo/', {'email': 'viejo@x.com', 'rol': rol.pk, 'enviar_correo': 'on'})
+            self.client.post('/tekon/config/miembros/nuevo/', {'email': 'viejo@x.com', 'rol': rol.pk, 'acceso': 'correo'})
         self.assertEqual(len(mail.outbox), 2)
         self.assertNotIn('recuperar', mail.outbox[1].body)
 

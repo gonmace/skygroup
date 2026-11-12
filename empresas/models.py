@@ -176,6 +176,11 @@ class Empresa(models.Model):
         """Valor para cache-bust de logos y CSS de tema (cambia al guardar)."""
         return int(self.actualizada.timestamp()) if self.actualizada else 0
 
+    def nextcloud_activo(self):
+        """¿Tiene habilitado el inicio de sesión con Nextcloud?"""
+        from cuentas.models import NextcloudConfig
+        return NextcloudConfig.objects.filter(empresa=self, activo=True).exists()
+
     def tiene_modulo(self, codigo):
         return codigo in (self.modulos or [])
 

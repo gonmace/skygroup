@@ -340,13 +340,53 @@ class PanelTests(TestCase):
         self.client.force_login(self.pmo)
         rol = rol_por_base(self.a, RolBase.MIEMBRO)
         with self.captureOnCommitCallbacks(execute=True):
-            r = self.client.post('/tekon/config/miembros/nuevo/', {'email': 'Nuevo@Example.com', 'rol': rol.pk, 'enviar_correo': 'on'})
+            r = self.client.post('/tekon/config/miembros/nuevo/', {'email': 'Nuevo@Example.com', 'rol': rol.pk, 'acceso': 'correo'})
         self.assertRedirects(r, '/tekon/config/miembros/', fetch_redirect_response=False)
         u = User.objects.get(email='nuevo@example.com')
         self.assertFalse(u.has_usable_password())
         self.assertTrue(Membresia.objects.filter(user=u, empresa=self.a, activa=True).exists())
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('/tekon/acceso/recuperar/', mail.outbox[0].body)
+
+    def test_agregar_miembro_con_clave_generada(self):
+        self.client.force_login(self.pmo)
+        rol = rol_por_base(self.a, RolBase.MIEMBRO)
+        r = self.client.post('/tekon/config/miembros/nuevo/', {'email': 'clave@example.com', 'rol': rol.pk, 'acceso': 'clave'})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Cache-Control'], 'no-store')
+        u = User.objects.get(email='clave@example.com')
+        self.assertTrue(u.has_usable_password())
+        self.assertTrue(u.check_password(r.context['clave']))
+        self.assertContains(r, r.context['clave'])
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_agregar_miembro_para_nextcloud_no_da_clave_ni_correo(self):
+        from cuentas.models import NextcloudConfig
+        NextcloudConfig.objects.create(empresa=self.a, activo=True)
+        self.client.force_login(self.pmo)
+        rol = rol_por_base(self.a, RolBase.MIEMBRO)
+        r = self.client.post('/tekon/config/miembros/nuevo/', {'email': 'nc@example.com', 'rol': rol.pk, 'acceso': 'nextcloud'})
+        self.assertRedirects(r, '/tekon/config/miembros/', fetch_redirect_response=False)
+        self.assertFalse(User.objects.get(email='nc@example.com').has_usable_password())
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_opcion_nextcloud_solo_si_esta_habilitado(self):
+        self.client.force_login(self.pmo)
+        rol = rol_por_base(self.a, RolBase.MIEMBRO)
+        self.assertNotContains(self.client.get('/tekon/config/miembros/nuevo/'), 'value="nextcloud"')
+        r = self.client.post('/tekon/config/miembros/nuevo/', {'email': 'x2@example.com', 'rol': rol.pk, 'acceso': 'nextcloud'})
+        self.assertEqual(r.status_code, 200)                           # opción no válida: no crea nada
+        self.assertFalse(User.objects.filter(email='x2@example.com').exists())
+
+    def test_cuenta_existente_con_clave_no_cambia_su_contrasena(self):
+        self.client.force_login(self.pmo)
+        rol = rol_por_base(self.b, RolBase.MIEMBRO)
+        ya = User.objects.create_user('ya@example.com', 'secreta-123')
+        agregar_miembro(ya, self.b, rol)
+        r = self.client.post('/tekon/config/miembros/nuevo/', {'email': 'ya@example.com', 'rol': rol_por_base(self.a, RolBase.MIEMBRO).pk, 'acceso': 'clave'})
+        ya.refresh_from_db()
+        self.assertTrue(ya.check_password('secreta-123'))
+        self.assertEqual(r.status_code, 302)
 
     def test_no_se_asigna_rol_de_otra_empresa(self):
         self.client.force_login(self.pmo)
@@ -564,7 +604,7 @@ class ContratistasTests(TestCase):
 
     def test_asignar_contratista_a_un_miembro(self):
         rol = rol_por_base(self.a, RolBase.MIEMBRO)
-        self.client.post('/tekon/config/miembros/nuevo/', {'email': 'nuevo@example.com', 'rol': rol.pk, 'contratista': self.ca.pk})
+        self.client.post('/tekon/config/miembros/nuevo/', {'email': 'nuevo@example.com', 'rol': rol.pk, 'contratista': self.ca.pk, 'acceso': 'correo'})
         m = Membresia.objects.get(user__email='nuevo@example.com', empresa=self.a)
         self.assertEqual(m.contratista, self.ca)
         self.assertIn('Redes SA', self.client.get('/tekon/config/miembros/').content.decode())

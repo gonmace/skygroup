@@ -1,0 +1,12 @@
+{% extends "shell.html" %}
+{% block page_title %}Usuario creado{% endblock %}
+{% block content_main %}
+<div class="card max-w-xl bg-base-100"><div class="card-body gap-4">
+  <p class="text-sm">Se agregó a <strong>{{ user_nuevo.email }}</strong>. Entrégale estos datos de acceso: <strong>la contraseña no se volverá a mostrar</strong>; si se pierde, la persona puede pedir otra con «Olvidé mi contraseña».</p>
+  <dl class="grid gap-2 rounded-box bg-base-200 p-3 text-sm">
+    <div><dt class="text-base-content/60">Usuario (correo)</dt><dd class="font-mono">{{ user_nuevo.email }}</dd></div>
+    <div><dt class="text-base-content/60">Contraseña</dt><dd class="select-all font-mono text-lg" data-clave>{{ clave }}</dd></div>
+  </dl>
+  <div class="card-actions justify-end"><a href="{{ volver }}" class="btn btn-primary">Listo</a></div>
+</div></div>
+{% endblock %}

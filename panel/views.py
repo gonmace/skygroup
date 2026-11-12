@@ -6,6 +6,7 @@ from functools import wraps
 
 from django.conf import settings
 from django.contrib import messages
+from django.utils.crypto import get_random_string
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.db import models, transaction
@@ -312,6 +313,9 @@ def _puede_desactivar(request, membresia):
     return membresia.user_id != request.user.pk
 
 
+_CARACTERES_CLAVE = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'    # sin caracteres ambiguos (0/O, 1/l/I)
+
+
 @empresa_requerida
 @requiere_capacidad('cuentas.usuarios.manage')
 @transaction.atomic
@@ -323,20 +327,29 @@ def miembro_nuevo(request):
             email__iexact=d['email'],
             defaults={'email': d['email'], 'first_name': d['first_name'], 'last_name': d['last_name']},
         )
+        acceso = d['acceso']
+        clave = get_random_string(12, _CARACTERES_CLAVE) if creado and acceso == 'clave' else ''
         if creado:
-            user.set_unusable_password()
+            user.set_password(clave) if clave else user.set_unusable_password()
             user.save(update_fields=['password'])
         if Membresia.objects.filter(user=user, empresa=request.empresa).exists():
             messages.warning(request, f'{user.email} ya pertenece a la empresa.')
             return redirect(_destino(request, 'panel:miembros'))
         membresia = agregar_miembro(user, request.empresa, d['rol'], d['contratista'], d['sede'])
-        enviado = False
-        if d['enviar_correo']:
+        volver = _destino(request, 'panel:miembros')
+        if clave:     # se muestra aquí, una sola vez y sin pasar por los mensajes (que pueden viajar en una cookie)
+            respuesta = render(request, 'panel/miembro_credenciales.html', {'user_nuevo': user, 'clave': clave, 'volver': volver})
+            respuesta['Cache-Control'] = 'no-store'
+            return respuesta
+        if acceso == 'correo':
             preparar = correos.preparar_invitacion if creado else correos.preparar_aviso_agregado
             transaction.on_commit(preparar(request, user, membresia))
-            enviado = True
-        messages.success(request, f'{user.email} agregado' + (' · correo enviado.' if enviado else '.'))
-        return redirect(_destino(request, 'panel:miembros'))
+            messages.success(request, f'{user.email} agregado · correo enviado.')
+        elif creado:      # nextcloud
+            messages.success(request, f'{user.email} agregado. Entrará con Nextcloud: su usuario allí debe ser este correo.')
+        else:
+            messages.success(request, f'{user.email} agregado.')
+        return redirect(volver)
     return render(request, 'panel/miembro_form.html', {'form': form, 'obj': None, 'volver': _destino(request, reverse('panel:miembros'))})
 
 

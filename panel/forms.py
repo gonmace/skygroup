@@ -134,6 +134,12 @@ class AdministradorForm(EstiloMixin, forms.Form):
         return d
 
 
+class RadiosWidget(forms.RadioSelect):
+    """Radios con el estilo de la plataforma (el `RadioSelect` por defecto reparte las clases también al contenedor)."""
+    template_name = 'panel/widgets/radios.html'
+    option_template_name = 'panel/widgets/radio_opcion.html'
+
+
 class MiembroForm(EstiloMixin, forms.Form):
     email = forms.EmailField(label='Correo')
     first_name = forms.CharField(label='Nombre', max_length=150, required=False)
@@ -145,14 +151,20 @@ class MiembroForm(EstiloMixin, forms.Form):
     )
     sede = forms.ModelChoiceField(label='Sede', queryset=Sede.objects.none(), required=False,
                                   help_text='Opcional.')
-    enviar_correo = forms.BooleanField(
-        label='Enviar correo', required=False, initial=True,
-        help_text='Cuenta nueva: invitación para elegir contraseña. Cuenta existente: aviso de que fue agregada.',
+    acceso = forms.ChoiceField(
+        label='Acceso de la persona', initial='correo', widget=RadiosWidget(attrs={'class': 'radio radio-sm'}),
+        choices=[('correo', 'Enviar un correo para que elija su contraseña'),
+                 ('clave', 'Generar una contraseña (se muestra una sola vez)'),
+                 ('nextcloud', 'Entrará con Nextcloud (sin contraseña ni correo)')],
+        help_text='Solo para cuentas nuevas. Si la persona ya tiene cuenta, con la primera opción se le avisa que fue '
+                  'agregada y no se cambia su contraseña.',
     )
 
     def __init__(self, *args, empresa, **kwargs):
         super().__init__(*args, **kwargs)
         self.empresa = empresa
+        if not empresa.nextcloud_activo():
+            self.fields['acceso'].choices = self.fields['acceso'].choices[:2]    # Nextcloud no está habilitado
         self.fields['rol'].queryset = empresa.roles.filter(activo=True)
         self.fields['contratista'].queryset = empresa.contratistas.filter(is_deleted=False, activo=True)
         self.fields['sede'].queryset = empresa.sedes.filter(activo=True)

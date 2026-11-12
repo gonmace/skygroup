@@ -1,0 +1,30 @@
+{% extends "shell.html" %}
+{% block page_title %}Importar {{ termino_proyectos|lower }}{% endblock %}
+{% block content_main %}
+<div class="grid max-w-3xl gap-4">
+  <section class="card bg-base-100"><div class="card-body gap-3">
+    <h2 class="card-title text-base">1. Descarga la plantilla</h2>
+    <p class="text-sm text-base-content/70">Llena una fila por registro en la hoja «Proyectos». La hoja «Instrucciones» explica cada columna y lista los tipos y estados válidos.</p>
+    <div><a href="{% url 'proyectos:plantilla' %}" class="btn btn-sm gap-1">{% include "components/icon.html" with name="arrow-down" cls="size-4" %} Descargar plantilla (.xlsx)</a></div>
+  </div></section>
+
+  <form method="post" enctype="multipart/form-data" class="card bg-base-100"><div class="card-body gap-3">
+    {% csrf_token %}
+    <h2 class="card-title text-base">2. Sube el archivo lleno</h2>
+    <p class="text-sm text-base-content/70">Si ya existe un registro con el mismo código se actualiza (las celdas vacías no borran datos); si no, se crea. Si alguna fila tiene errores no se importa nada.</p>
+    <input type="file" name="archivo" accept=".xlsx" required class="file-input file-input-bordered w-full" aria-label="Archivo Excel">
+    {% if error_archivo %}<p class="text-sm text-error" role="alert">{{ error_archivo }}</p>{% endif %}
+    {% if errores %}
+    <div class="rounded-box border border-error/30 bg-error/5 p-3" role="alert">
+      <p class="mb-1 text-sm font-medium text-error">No se importó nada. Corrige estas filas y vuelve a subir el archivo:</p>
+      <ul class="max-h-64 list-disc overflow-y-auto pl-5 text-sm">{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul>
+      {% if mas_errores %}<p class="mt-1 text-xs text-base-content/60">…y {{ mas_errores }} errores más.</p>{% endif %}
+    </div>
+    {% endif %}
+    <div class="card-actions flex-col-reverse items-stretch sm:flex-row sm:items-center sm:justify-end">
+      <a href="{% url 'proyectos:lista' %}" class="btn btn-ghost">Volver</a>
+      <button type="submit" class="btn btn-primary gap-1">{% include "components/icon.html" with name="arrow-up" cls="size-4" %} Importar</button>
+    </div>
+  </div></form>
+</div>
+{% endblock %}

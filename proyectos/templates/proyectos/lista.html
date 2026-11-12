@@ -16,6 +16,9 @@
     <a href="{% url 'proyectos:tipos' %}" class="btn btn-ghost btn-sm btn-compacto order-2 ml-auto px-2 sm:order-5" title="Tipos" aria-label="Tipos">{% include "components/icon.html" with name="tag" cls="size-4" %}<span class="hidden sm:inline">Tipos</span></a>
     <a href="{% url 'proyectos:nuevo' %}" class="btn btn-primary btn-sm btn-compacto order-3 px-2 sm:order-6" title="Nuevo" aria-label="Nuevo">{% include "components/icon.html" with name="plus" cls="size-4" %}<span class="hidden sm:inline">Nuevo</span></a>
     {% endif %}
+    {% if puede_importar %}
+    <a href="{% url 'proyectos:importar' %}" class="btn btn-ghost btn-sm btn-compacto order-4 px-2 sm:order-7" title="Importar desde Excel" aria-label="Importar desde Excel">{% include "components/icon.html" with name="arrow-up" cls="size-4" %}<span class="hidden sm:inline">Importar</span></a>
+    {% endif %}
   </div>
   <div class="contents">
     <select name="estado" aria-label="Estado" data-autoenviar-select class="select select-bordered select-sm order-2 w-auto max-sm:hidden">

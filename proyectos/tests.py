@@ -232,3 +232,87 @@ class ProyectosTests(TestCase):
         r = self.client.get('/tekon/proyectos/')
         self.assertEqual(len(r.context['pagina']), 25)
         self.assertEqual(len(self.client.get('/tekon/proyectos/?page=2').context['pagina']), 6)
+
+
+@override_settings(**AJUSTES)
+class ImportarExcelTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.a = crear_empresa(nombre='Tekon', slug='tekon')
+        cls.pmo = User.objects.create_user('pmo@example.com', 'x')
+        agregar_miembro(cls.pmo, cls.a, rol_por_base(cls.a, RolBase.COORDINADOR))
+        cls.pmo.empresas_administradas.add(cls.a)
+        cls.coord = User.objects.create_user('coord@example.com', 'x')
+        agregar_miembro(cls.coord, cls.a, rol_por_base(cls.a, RolBase.COORDINADOR))
+        cls.lector = User.objects.create_user('lector@example.com', 'x')
+        agregar_miembro(cls.lector, cls.a, rol_por_base(cls.a, RolBase.OBSERVADOR))
+        cls.torre = TipoProyecto.objects.create(empresa=cls.a, nombre='Torre')
+
+    def xlsx(self, filas, nombre='p.xlsx'):
+        from io import BytesIO
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Proyectos'
+        ws.append(['Código', 'Nombre', 'Código operador', 'Tipo', 'Estado', 'Región', 'Comuna', 'Ciudad',
+                   'Descripción', 'Latitud', 'Longitud'])
+        for f in filas:
+            ws.append(f)
+        b = BytesIO()
+        wb.save(b)
+        return SimpleUploadedFile(nombre, b.getvalue())
+
+    def subir(self, filas, **kw):
+        self.client.force_login(self.pmo)
+        return self.client.post('/tekon/proyectos/importar/', {'archivo': self.xlsx(filas, **kw)})
+
+    def test_plantilla_se_descarga_con_los_encabezados(self):
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+        self.client.force_login(self.pmo)
+        r = self.client.get('/tekon/proyectos/plantilla.xlsx')
+        ws = load_workbook(BytesIO(r.content))['Proyectos']
+        self.assertEqual([c.value for c in ws[1]][:2], ['Código', 'Nombre'])
+
+    def test_crea_y_actualiza_por_codigo(self):
+        Proyecto.objects.create(empresa=self.a, nombre='Viejo', codigo='A-1', ciudad='Lima')
+        r = self.subir([['a-1', 'Nuevo nombre', '', 'torre', 'Concluido', '', '', '', '', '-33,4489', -70.6693],
+                        ['B-2', 'Otro', '', '', '', '', 'Providencia', '', '', '', '']])
+        self.assertRedirects(r, '/tekon/proyectos/')
+        a, b = Proyecto.objects.get(codigo='A-1'), Proyecto.objects.get(codigo='B-2')
+        self.assertEqual((a.nombre, a.ciudad, a.tipo, a.estado), ('Nuevo nombre', 'Lima', self.torre, 'CONCLUIDO'))
+        self.assertEqual((b.estado, b.comuna, Proyecto.objects.count()), ('CONSTRUCCION', 'Providencia', 2))
+        self.assertEqual(float(a.ubicaciones.get().lat), -33.4489)
+
+    def test_con_errores_no_se_importa_nada(self):
+        r = self.subir([['A-1', 'Bien', '', '', '', '', '', '', '', '', ''],
+                        ['A-2', '', '', 'Inexistente', 'Raro', '', '', '', '', '95', '']])
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(Proyecto.objects.count(), 0)
+        txt = ' '.join(r.context['errores'])
+        for esperado in ('falta el nombre', 'Inexistente', 'estado', 'Latitud', 'juntas'):
+            self.assertIn(esperado, txt)
+
+    def test_codigo_repetido_en_el_archivo(self):
+        r = self.subir([['A-1', 'Uno', '', '', '', '', '', '', '', '', ''], ['a-1', 'Dos', '', '', '', '', '', '', '', '', '']])
+        self.assertEqual(Proyecto.objects.count(), 0)
+        self.assertIn('repetido', ' '.join(r.context['errores']))
+
+    def test_archivo_no_xlsx(self):
+        r = self.subir([], nombre='datos.csv')
+        self.assertIn('.xlsx', r.context['error_archivo'])
+
+    def test_sin_permiso_no_importa(self):
+        for u in (self.lector, self.coord):    # el coordinador gestiona proyectos pero no es administrador
+            self.client.force_login(u)
+            self.assertEqual(self.client.get('/tekon/proyectos/importar/').status_code, 403)
+            self.assertEqual(self.client.get('/tekon/proyectos/plantilla.xlsx').status_code, 403)
+
+    def test_boton_importar_solo_para_administradores(self):
+        self.client.force_login(self.pmo)
+        self.assertContains(self.client.get('/tekon/proyectos/'), '/tekon/proyectos/importar/')
+        self.client.force_login(self.coord)
+        self.assertNotContains(self.client.get('/tekon/proyectos/'), '/tekon/proyectos/importar/')

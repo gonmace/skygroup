@@ -1,16 +1,19 @@
+from functools import wraps
+
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Case, Count, Exists, IntegerField, OuterRef, Prefetch, Q, Value, When
 from django.db.models.functions import Coalesce, Lower, NullIf
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from cuentas.capacidades import requiere_capacidad, tiene_capacidad
+from cuentas.capacidades import administra, requiere_capacidad, tiene_capacidad
 
+from . import importacion
 from .forms import ProyectoForm, TipoProyectoForm, UbicacionFormSet
 from .models import Proyecto, ProyectoUbicacion, TipoProyecto
 
@@ -62,6 +65,7 @@ def lista(request):
         qs = qs.order_by(expresion.desc(nulls_last=True) if descendente else expresion.asc(nulls_last=True), 'pk')
     else:
         orden = ''
+        qs = qs.order_by('-creado', '-pk')     # por defecto: los más recientes primero
     vista = 'mapa' if request.GET.get('vista') == 'mapa' else 'lista'
     ubicar = request.GET.get('ubicar', '')
     ubicar = int(ubicar) if ubicar.isdigit() else None   # proyecto al que volar al abrir el mapa
@@ -115,6 +119,7 @@ def lista(request):
         'tipo_sel': tipo, 'qs_filtros': params.urlencode(), 'botones_tipo': botones_tipo,
         'estados': Proyecto.Estado.choices,
         'puede_gestionar': tiene_capacidad(request.user, 'proyectos.manage', empresa),
+        'puede_importar': _puede_importar(request),
         'etiquetas_pendientes': _etiquetas_pendientes(request, empresa),
     })
 
@@ -166,6 +171,54 @@ def eliminar(request, pk):
     proyecto.save(update_fields=['is_deleted', 'actualizado'])
     messages.success(request, f'«{proyecto.nombre}» eliminado.')
     return redirect('proyectos:lista')
+
+
+# ── Importar desde Excel ──────────────────────────────────────────────────────
+
+def _puede_importar(request):
+    """Importar masivamente es solo de superusuarios y administradores de la empresa."""
+    return request.user.is_superuser or administra(request.user, getattr(request.empresa, 'pk', None))
+
+
+def _solo_admin(vista):
+    @wraps(vista)
+    def envoltura(request, *args, **kwargs):
+        if not _puede_importar(request):
+            raise PermissionDenied
+        return vista(request, *args, **kwargs)
+    return requiere_capacidad('proyectos.manage')(envoltura)
+
+
+@_solo_admin
+def plantilla(request):
+    r = HttpResponse(importacion.plantilla_xlsx(_empresa(request)),
+                     content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    r['Content-Disposition'] = 'attachment; filename="plantilla-proyectos.xlsx"'
+    return r
+
+
+@_solo_admin
+def importar(request):
+    empresa = _empresa(request)
+    ctx = {'errores': [], 'error_archivo': ''}
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if archivo is None:
+            ctx['error_archivo'] = 'Elige un archivo Excel (.xlsx).'
+        else:
+            try:
+                datos, errores = importacion.leer(archivo, empresa)
+            except importacion.ErrorArchivo as e:
+                ctx['error_archivo'] = str(e)
+            else:
+                if errores:
+                    ctx['errores'] = errores[:100]
+                    ctx['mas_errores'] = max(0, len(errores) - 100)
+                else:
+                    creados, actualizados = importacion.guardar(datos, empresa)
+                    messages.success(request, f'Importación lista: {creados} creados, {actualizados} actualizados.')
+                    return redirect('proyectos:lista')
+    return render(request, 'proyectos/importar.html', ctx)
 
 
 # ── Tipos ─────────────────────────────────────────────────────────────────────

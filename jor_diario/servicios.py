@@ -2,10 +2,11 @@
 from datetime import datetime, time, timedelta
 
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from .models import Jornada, ReporteDiario
-from .verificacion import MOTIVOS, verificar_presencia
+from .verificacion import MOTIVOS, mejor_lectura
 
 HORA_CIERRE_AUTO = time(17, 0)
 
@@ -29,53 +30,55 @@ def jornada_en_curso(perfil):
     return perfil.jornadas.filter(estado=Jornada.Estado.EN_CURSO).order_by('-inicio').first()
 
 
-def _evaluar(perfil, dispositivo, lecturas):
-    """Identidad (passkey ya verificada por la vista) + presencia. → (resultado, motivos)."""
-    if dispositivo is None or not dispositivo.activo or dispositivo.perfil_id != perfil.pk:
-        raise ErrorJornada('Vincula tu celular para poder marcar tu jornada.', dispositivo_requerido=True)
-    res = verificar_presencia(perfil.membresia.sede, lecturas)
-    return res, list(res['motivos'])
-
-
 def _texto_motivos(motivos):
     return ' '.join(MOTIVOS[m] for m in motivos if m in MOTIVOS)
 
 
-def _coords(res):
-    if res['lat'] is None:
-        return None, None
-    return round(res['lat'], 6), round(res['lon'], 6)
+def _ubicacion(lecturas):
+    """Ubicación obligatoria: la lectura más precisa, sin validar contra ninguna sede."""
+    res = mejor_lectura(lecturas)
+    if res is None:
+        raise ErrorJornada('No se pudo leer tu ubicación. Revisa el permiso del navegador e inténtalo de nuevo.',
+                           ubicacion_requerida=True)
+    return res
 
 
-def iniciar(perfil, dispositivo, lecturas, proyecto=None, motivo='', ip=None, origen=''):
-    """Se inicia con el passkey del celular vinculado, firmando en el propio celular o desde un computador (QR);
-    en ambos casos la ubicación es obligatoria. `origen` ('pc'|'celular') solo informa a quien revisa."""
+def _exigir_dispositivo_permitido(perfil, movil, accion):
+    if movil and not perfil.puede_movil:
+        raise ErrorJornada(f'Solo puedes {accion} tu jornada desde la computadora.', solo_pc=True)
+
+
+def _exigir_motivo_cambio(equipo, cambio_equipo, motivo):
+    """Un cambio de equipo no se bloquea: se avisa y se pide un motivo; la jornada queda a revisión."""
+    if cambio_equipo and not motivo:
+        reg = equipo.habitual.creado
+        raise ErrorJornada(
+            f'Estás usando un equipo distinto al registrado (desde el {reg:%d/%m/%Y}). Si continúas, tu jornada '
+            'quedará pendiente de revisión. Indica el motivo.', cambio_equipo=True, motivo_requerido=True)
+
+
+def iniciar(perfil, lecturas, proyecto=None, motivo='', ip=None, movil=False, equipo=None, cambio_equipo=False):
+    """Se inicia con la sesión de la persona y su ubicación (obligatoria, sin geocerca). Desde un celular solo si
+    `perfil.puede_movil`. Marcar desde un equipo distinto al habitual queda pendiente de revisión."""
     if not perfil.activo or not perfil.membresia.activa:
         raise ErrorJornada('Tu acceso a Asistencia está deshabilitado.')
     if proyecto is not None and proyecto.empresa_id != perfil.empresa_id:
         raise ErrorJornada('El proyecto no pertenece a esta empresa.')
-    res, motivos = _evaluar(perfil, dispositivo, lecturas)
-    if res['lat'] is None:   # sin ubicación no se inicia, ni siquiera como excepción
-        raise ErrorJornada('No se pudo leer tu ubicación. Revisa el permiso del navegador e inténtalo de nuevo.',
-                           ubicacion_requerida=True)
+    _exigir_dispositivo_permitido(perfil, movil, 'iniciar')
+    res = _ubicacion(lecturas)
     motivo = (motivo or '').strip()[:300]
-    estado_v = Jornada.Verificacion.VERIFICADA
-    if motivos:
-        if not perfil.puede_excepcion:
-            raise ErrorJornada(f'No se pudo verificar tu presencia. {_texto_motivos(motivos)}')
-        if not motivo:
-            raise ErrorJornada(f'No se pudo verificar tu presencia. {_texto_motivos(motivos)} '
-                               'Indica el motivo para enviarla a revisión.', motivo_requerido=True)
-        estado_v = Jornada.Verificacion.EXCEPCION_PENDIENTE
-    lat, lon = _coords(res)
+    _exigir_motivo_cambio(equipo, cambio_equipo, motivo)
+    motivos = ['cambio_equipo'] if cambio_equipo else []
+    estado_v = Jornada.Verificacion.EXCEPCION_PENDIENTE if motivos else Jornada.Verificacion.VERIFICADA
     try:
         with transaction.atomic():
             j = Jornada.objects.create(
                 empresa_id=perfil.empresa_id, perfil=perfil, proyecto=proyecto, inicio=timezone.now(),
-                lat_inicio=lat, lon_inicio=lon, precision_inicio=res['precision_m'], ip_inicio=ip or None,
-                dispositivo=dispositivo, estado_verificacion=estado_v, motivo_excepcion=motivo if motivos else '',
-                verificacion={'inicio': {k: res[k] for k in ('motivos', 'avisos', 'distancia_m', 'precision_m')}
-                              | {'motivos': motivos, 'origen': origen}})
+                lat_inicio=round(res['lat'], 6), lon_inicio=round(res['lon'], 6), precision_inicio=res['precision_m'],
+                ip_inicio=ip or None, equipo_inicio=equipo, estado_verificacion=estado_v,
+                motivo_excepcion=motivo if motivos else '',
+                verificacion={'inicio': {'motivos': motivos, 'avisos': [], 'precision_m': res['precision_m'],
+                                         'n_lecturas': res['n_lecturas'], 'origen': 'celular' if movil else 'pc'}})
     except IntegrityError:
         raise ErrorJornada('Ya tienes una jornada activa.')
     if estado_v == Jornada.Verificacion.EXCEPCION_PENDIENTE:
@@ -83,35 +86,49 @@ def iniciar(perfil, dispositivo, lecturas, proyecto=None, motivo='', ip=None, or
     return j
 
 
+def revisores_cambio_equipo(empresa):
+    """Usuarios que revisan los cambios de equipo, según `ConfigJornadas.revisa_cambio_equipo`."""
+    from cuentas.capacidades import administra, usuarios_con_capacidad
+    from cuentas.models import User
+    from jor_empleados.models import ConfigJornadas
+    quien = ConfigJornadas.de(empresa).revisa_cambio_equipo
+    usuarios = {}
+    if quien in (ConfigJornadas.RevisaEquipo.ADMIN, ConfigJornadas.RevisaEquipo.AMBOS):
+        for u in User.objects.filter(is_active=True).filter(Q(is_superuser=True) | Q(empresas_administradas=empresa)).distinct():
+            usuarios[u.pk] = u
+    if quien in (ConfigJornadas.RevisaEquipo.COORDINADOR, ConfigJornadas.RevisaEquipo.AMBOS):
+        for u in usuarios_con_capacidad(empresa, 'jor.excepciones.gestionar'):
+            if not (u.is_superuser or administra(u, empresa.pk)):     # los administradores son el otro grupo
+                usuarios[u.pk] = u
+    return list(usuarios.values())
+
+
+def puede_revisar_equipo(user, empresa):
+    return any(u.pk == user.pk for u in revisores_cambio_equipo(empresa))
+
+
 def _avisar_excepcion(jornada):
-    from cuentas.capacidades import usuarios_con_capacidad
     from notificaciones.services import notificar_a_varios
-    revisores = [u for u in usuarios_con_capacidad(jornada.empresa, 'jor.excepciones.gestionar')
-                 if u.pk != jornada.perfil.user.pk]
+    revisores = [u for u in revisores_cambio_equipo(jornada.empresa) if u.pk != jornada.perfil.user.pk]
     notificar_a_varios(
         revisores, jornada.empresa, actor=jornada.perfil.user, url='/jornadas/excepciones/',
-        mensaje=f'{jornada.perfil.nombre} inició su jornada fuera de la sede y pide aprobación: {jornada.motivo_excepcion}')
+        mensaje=f'{jornada.perfil.nombre} marcó su jornada desde un equipo distinto al habitual: {jornada.motivo_excepcion}')
 
 
 MIN_PALABRAS_REALIZADO, MIN_PALABRAS_PLANIFICADO = 10, 3  # con reporte obligatorio
 
 
 @transaction.atomic
-def finalizar(jornada_id, perfil, dispositivo, lecturas, realizado='', planificado='', ip=None):
-    """Cierra la jornada. Exige identidad (passkey) y ubicación legible; el resultado de la presencia al
-    terminar queda registrado para quien revisa, pero no cambia el estado de verificación del inicio."""
+def finalizar(jornada_id, perfil, lecturas, realizado='', planificado='', ip=None, movil=False, equipo=None,
+              cambio_equipo=False, motivo=''):
+    """Cierra la jornada con la sesión de la persona y su ubicación (obligatoria, sin geocerca). Desde un celular
+    solo si `perfil.puede_movil`. Cerrar desde un equipo distinto al habitual manda la jornada a revisión."""
     realizado, planificado = (realizado or '').strip(), (planificado or '').strip()
-    sin_dispositivo = dispositivo is None
-    if sin_dispositivo:
-        # Desde un computador o sin celular vinculado se puede cerrar (nunca iniciar) sin passkey, pero la
-        # ubicación es obligatoria; lo que no cuadre (fuera de sede, etc.) queda registrado para quien revisa.
-        res = verificar_presencia(perfil.membresia.sede, lecturas)
-        motivos = ['sin_passkey', *res['motivos']]
-    else:
-        res, motivos = _evaluar(perfil, dispositivo, lecturas)
-    if res['lat'] is None:
-        raise ErrorJornada('No se pudo leer tu ubicación. Revisa el permiso del navegador e inténtalo de nuevo.',
-                           ubicacion_requerida=True)
+    _exigir_dispositivo_permitido(perfil, movil, 'finalizar')
+    res = _ubicacion(lecturas)
+    motivo = (motivo or '').strip()[:300]
+    _exigir_motivo_cambio(equipo, cambio_equipo, motivo)
+    motivos = ['cambio_equipo'] if cambio_equipo else []
     if perfil.exige_reporte:
         if not (realizado and planificado):
             raise ErrorJornada('Debes completar el reporte diario antes de finalizar.', reporte_requerido=True)
@@ -128,27 +145,38 @@ def finalizar(jornada_id, perfil, dispositivo, lecturas, realizado='', planifica
     fin = timezone.now()
     jornada.fin, jornada.estado = fin, Jornada.Estado.COMPLETADA
     jornada.duracion_min = int((fin - jornada.inicio).total_seconds() // 60)
-    jornada.lat_fin, jornada.lon_fin = _coords(res)
-    jornada.precision_fin, jornada.ip_fin = res['precision_m'], ip or None
+    jornada.lat_fin, jornada.lon_fin = round(res['lat'], 6), round(res['lon'], 6)
+    jornada.precision_fin, jornada.ip_fin, jornada.equipo_fin = res['precision_m'], ip or None, equipo
     jornada.verificacion = {**jornada.verificacion, 'fin': {
-        'motivos': motivos, 'avisos': res['avisos'], 'distancia_m': res['distancia_m'], 'precision_m': res['precision_m']}}
+        'motivos': motivos, 'avisos': [], 'precision_m': res['precision_m'], 'n_lecturas': res['n_lecturas'],
+        'origen': 'celular' if movil else 'pc'}}
+    pendiente = bool(motivos) and jornada.estado_verificacion == Jornada.Verificacion.VERIFICADA
+    if pendiente:
+        jornada.estado_verificacion = Jornada.Verificacion.EXCEPCION_PENDIENTE
+        jornada.motivo_excepcion = f'Al finalizar: {motivo}'[:300]
     jornada.save()
     if realizado or planificado:
         reporte = ReporteDiario.objects.create(jornada=jornada, realizado=realizado, planificado=planificado)
         from jor_actividades.servicios import sincronizar_sin_fallar
         sincronizar_sin_fallar(reporte)
+    if pendiente:
+        transaction.on_commit(lambda: _avisar_excepcion(jornada))
     return jornada
 
 
 @transaction.atomic
-def decidir_excepcion(jornada_id, empresa, revisor, aprobar):
-    """Un coordinador aprueba o rechaza una jornada iniciada fuera de la sede."""
+def decidir_excepcion(jornada_id, empresa, revisor, aprobar, adoptar_equipo=False):
+    """Un revisor aprueba o rechaza una jornada pendiente (cambio de equipo, o excepciones históricas de ubicación).
+    Con `adoptar_equipo`, al aprobar, el equipo usado pasa a ser el habitual."""
     j = (Jornada.objects.select_for_update().select_related('perfil__membresia__user', 'empresa')
          .filter(pk=jornada_id, empresa=empresa, estado_verificacion=Jornada.Verificacion.EXCEPCION_PENDIENTE).first())
     if j is None:
         raise ErrorJornada('Esa excepción ya no está pendiente.')
     if j.perfil.user.pk == revisor.pk:
         raise ErrorJornada('No puedes decidir tu propia excepción.')
+    cambio = 'cambio_equipo' in (j.verificacion.get('inicio', {}).get('motivos', []) + j.verificacion.get('fin', {}).get('motivos', []))
+    if cambio and not puede_revisar_equipo(revisor, empresa):
+        raise ErrorJornada('Los cambios de equipo los revisa quien se indicó en la configuración de Jornadas.')
     j.estado_verificacion = Jornada.Verificacion.EXCEPCION_APROBADA if aprobar else Jornada.Verificacion.RECHAZADA
     j.revisada_por, j.revisada_en = revisor, timezone.now()
     campos = ['estado_verificacion', 'revisada_por', 'revisada_en']
@@ -157,6 +185,12 @@ def decidir_excepcion(jornada_id, empresa, revisor, aprobar):
         j.fin, j.estado, j.duracion_min = timezone.now(), Jornada.Estado.INCOMPLETA, 0
         campos += ['fin', 'estado', 'duracion_min']
     j.save(update_fields=campos)
+    if aprobar and adoptar_equipo:
+        from jor_empleados import equipos
+        for eq in (j.equipo_fin, j.equipo_inicio):
+            if eq is not None and not eq.activo:
+                equipos.adoptar(eq)
+                break
     from mje_mensajes.servicios import aviso_sistema
     aviso_sistema(j.empresa, j.perfil.user,
                   f'Tu jornada del {timezone.localtime(j.inicio):%d/%m/%Y} fue {"aprobada" if aprobar else "rechazada"} '

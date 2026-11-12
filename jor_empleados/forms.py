@@ -14,7 +14,7 @@ class PerfilForm(forms.ModelForm):
 
     class Meta:
         model = Perfil
-        fields = ['cargo', 'hora_entrada', 'activo', 'exige_reporte', 'puede_excepcion',
+        fields = ['cargo', 'hora_entrada', 'activo', 'exige_reporte', 'puede_movil',
                   'haber_basico', 'ciudad_catering', 'numero_item']
         widgets = {
             'cargo': forms.TextInput(attrs={'class': _INPUT}),
@@ -23,7 +23,7 @@ class PerfilForm(forms.ModelForm):
             'ciudad_catering': forms.Select(attrs={'class': 'select select-bordered w-full'}),
             'numero_item': forms.NumberInput(attrs={'class': _INPUT}),
             'activo': forms.CheckboxInput(attrs={'class': 'checkbox'}),
-            'puede_excepcion': forms.CheckboxInput(attrs={'class': 'checkbox'}),
+            'puede_movil': forms.CheckboxInput(attrs={'class': 'checkbox'}),
             'exige_reporte': forms.CheckboxInput(attrs={'class': 'checkbox'}),
         }
 
@@ -53,8 +53,9 @@ class ConfigJornadasForm(forms.ModelForm):
 
     class Meta:
         model = ConfigJornadas
-        fields = ['descuento_refrigerio_min', 'plantilla_certificado', 'tipo_cambio_certificado', 'moneda_certificado']
+        fields = ['revisa_cambio_equipo', 'descuento_refrigerio_min', 'plantilla_certificado', 'tipo_cambio_certificado', 'moneda_certificado']
         widgets = {
+            'revisa_cambio_equipo': forms.Select(attrs={'class': 'select select-bordered w-full'}),
             'descuento_refrigerio_min': forms.NumberInput(attrs={'class': _INPUT}),
             'plantilla_certificado': forms.ClearableFileInput(attrs={'class': 'file-input file-input-bordered w-full', 'accept': '.xlsx'}),
             'tipo_cambio_certificado': forms.NumberInput(attrs={'class': _INPUT, 'step': 'any'}),
@@ -64,13 +65,16 @@ class ConfigJornadasForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['termino_certificado'].initial = self.instance.empresa.termino_certificado
-        for nombre in ('tipo_cambio_certificado', 'moneda_certificado'):
+        for nombre in ('tipo_cambio_certificado', 'moneda_certificado', 'revisa_cambio_equipo'):
             self.fields[nombre].required = False
         self.fields['plantilla_certificado'].help_text = (
             'Libro .xlsx con variables {{ … }}. Sin plantilla se usa la base. Una plantilla sin variables con las hojas '
             '«PL» y «1…12» (formato clásico) también funciona.')
         self.fields['tipo_cambio_certificado'].help_text = 'Solo para plantillas clásicas.'
         self.fields['moneda_certificado'].help_text = 'Solo para plantillas clásicas.'
+
+    def clean_revisa_cambio_equipo(self):
+        return self.cleaned_data.get('revisa_cambio_equipo') or ConfigJornadas.RevisaEquipo.AMBOS
 
     def save(self, commit=True):
         config = super().save(commit)

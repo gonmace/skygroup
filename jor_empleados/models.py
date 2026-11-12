@@ -44,9 +44,9 @@ class Perfil(models.Model):
                                        'se muestra como «Supervisor - Civil».')
     hora_entrada = models.TimeField('Hora de entrada', default=datetime.time(8, 0),
                                     help_text='Hora de referencia para calcular atrasos.')
-    puede_excepcion = models.BooleanField('Puede marcar fuera de la sede', default=True,
-                                          help_text='Si la ubicación no valida, la jornada queda «pendiente» y la '
-                                                    'revisa un coordinador. Apágalo para rechazar esas marcaciones.')
+    puede_movil = models.BooleanField('Puede marcar desde el celular', default=False,
+                                      help_text='Apagado: inicia y finaliza su jornada solo desde un computador. '
+                                                'Encendido: puede hacerlo desde cualquier dispositivo.')
     exige_reporte = models.BooleanField('Reporte diario obligatorio', default=True,
                                         help_text='Exige completar «Realizado» y «Planificado» para finalizar la jornada. '
                                                   'Apágalo en roles que no reportan (p. ej. bodega).')
@@ -125,6 +125,40 @@ class DispositivoMarcacion(models.Model):
         return f'{self.perfil} — {self.nombre or "celular"}'
 
 
+class EquipoMarcacion(models.Model):
+    """Equipo (computador o celular) desde el que una persona marca. El primero que usa queda como su equipo habitual
+    de ese tipo; marcar desde otro manda la jornada a revisión. Se identifica con un token aleatorio (cookie).
+    Los inactivos son equipos distintos detectados: un revisor puede «adoptarlos» como habitual."""
+
+    class Tipo(models.TextChoices):
+        PC = 'pc', 'Computador'
+        MOVIL = 'movil', 'Celular'
+
+    perfil = models.ForeignKey(Perfil, on_delete=models.CASCADE, related_name='equipos')
+    tipo = models.CharField(max_length=5, choices=Tipo.choices)
+    token_hash = models.CharField(max_length=64, db_index=True)
+    user_agent = models.CharField(max_length=300, blank=True)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    activo = models.BooleanField(default=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    ultimo_uso = models.DateTimeField(null=True, blank=True)
+    liberado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+                                     related_name='+')
+    liberado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-creado']
+        verbose_name = 'Equipo de marcación'
+        verbose_name_plural = 'Equipos de marcación'
+        constraints = [
+            models.UniqueConstraint(fields=['perfil', 'tipo'], condition=models.Q(activo=True),
+                                    name='jor_un_equipo_activo_por_tipo'),
+        ]
+
+    def __str__(self):
+        return f'{self.perfil} — {self.get_tipo_display()}'
+
+
 class ConfigJornadas(models.Model):
     """Configuración de Jornadas de una empresa (una fila por empresa, creada al primer uso)."""
 
@@ -132,6 +166,14 @@ class ConfigJornadas(models.Model):
     descuento_refrigerio_min = models.PositiveSmallIntegerField(
         'Refrigerio descontado (min)', default=60, validators=[MaxValueValidator(240)],
         help_text='Se descuenta una vez por día de las horas trabajadas en el reporte de asistencia.')
+    class RevisaEquipo(models.TextChoices):
+        ADMIN = 'admin', 'Administradores'
+        COORDINADOR = 'coordinador', 'Coordinadores'
+        AMBOS = 'ambos', 'Administradores y coordinadores'
+
+    revisa_cambio_equipo = models.CharField(
+        'Quién revisa los cambios de equipo', max_length=12, choices=RevisaEquipo.choices, default=RevisaEquipo.AMBOS,
+        help_text='Quien inicia o finaliza desde un equipo distinto al habitual queda pendiente de esta revisión.')
     plantilla_certificado = models.FileField(
         'Plantilla del reporte de personal (.xlsx)', upload_to=ruta_plantilla, storage=almacenamiento_privado,
         blank=True, max_length=300, help_text='Libro con la hoja «PL» y las hojas «1»…«12». Sin ella no se genera el reporte.')

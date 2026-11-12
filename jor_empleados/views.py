@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -7,7 +8,7 @@ from django.views.decorators.http import require_POST
 from cuentas.capacidades import tiene_capacidad
 from empresas.acceso import acceso_modulo
 
-from . import passkeys
+from . import equipos
 from .forms import ConfigJornadasForm, PerfilForm
 from .models import ConfigJornadas, Perfil
 
@@ -38,12 +39,27 @@ def perfil_reporte(request, membresia_id):
 
 @acceso_modulo('jor', 'jor.perfiles.manage')
 @require_POST
-def dispositivo_liberar(request, membresia_id):
-    """Libera el celular vinculado (se perdió o se cambió) para que la persona vincule otro."""
+def perfil_movil(request, membresia_id):
+    """Interruptor de la pantalla Equipo: permite o no iniciar y finalizar la jornada desde un celular."""
     membresia = get_object_or_404(request.empresa.membresias.select_related('user'), pk=membresia_id)
-    n = passkeys.liberar(Perfil.de(membresia), request.user)
-    messages.success(request, f'Celular de {membresia.user} liberado: ya puede vincular otro.' if n
-                     else f'{membresia.user} no tiene un celular vinculado.')
+    perfil = Perfil.de(membresia)
+    perfil.puede_movil = not perfil.puede_movil
+    perfil.save(update_fields=['puede_movil'])
+    messages.success(request, f'{membresia.user}: {"puede" if perfil.puede_movil else "ya no puede"} marcar desde el celular.')
+    return redirect('jor_diario:equipo')
+
+
+@acceso_modulo('jor', 'jor.perfiles.manage')
+@require_POST
+def equipo_liberar(request, membresia_id, tipo):
+    """Libera el equipo habitual (se cambió o se perdió): la siguiente marcación registra otro, sin revisión."""
+    if tipo not in ('pc', 'movil'):
+        raise Http404
+    membresia = get_object_or_404(request.empresa.membresias.select_related('user'), pk=membresia_id)
+    n = equipos.liberar(Perfil.de(membresia), tipo, request.user)
+    nombre = 'computador' if tipo == 'pc' else 'celular'
+    messages.success(request, f'Equipo ({nombre}) de {membresia.user} liberado: el próximo que use quedará como habitual.' if n
+                     else f'{membresia.user} no tiene un {nombre} registrado.')
     if request.POST.get('next') == 'equipo':
         return redirect('jor_diario:equipo')
     return redirect('jor_diario:persona', membresia_id=membresia.pk)

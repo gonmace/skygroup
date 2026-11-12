@@ -367,15 +367,15 @@ Backups periódicos independientes del deploy (cron diario, 03:00):
 
 `backup.sh` respalda **solo PostgreSQL**. La carpeta `media/` (incluida `media/privado/`) no está incluida: respáldala aparte (o muévela a un bucket con `make media-cdn`).
 
-### Inicio de jornada verificado (sin agente de escritorio)
+### Marcación de jornada: computador, ubicación y equipo habitual
 
-La jornada se marca **desde el celular personal** de cada persona, en tres capas (`jor_diario/verificacion.py`, `jor_empleados/passkeys.py`):
+La jornada se inicia y se finaliza **desde el computador** (`jor_diario/servicios.py`, `jor_diario/dispositivo.py`, `jor_empleados/equipos.py`):
 
-1. **Identidad:** el celular se vincula una vez con una passkey (WebAuthn, huella/PIN del teléfono; al servidor solo llega la clave pública). Un celular activo por persona; un administrador lo libera desde *Equipo → persona* si se pierde o se cambia.
-2. **Presencia:** 3 lecturas de GPS contra la geocerca de la **Sede** (`lat`, `lon`, `radio_m`, `precision_max_m`; se cargan en *Ajustes → Sedes*). Se valida precisión, antigüedad de las lecturas, saltos imposibles y que el navegador sea móvil. La IP y el user-agent se guardan solo como auditoría.
-3. **Excepción, no bloqueo:** si la presencia no valida, la persona indica un motivo y la jornada queda `excepción pendiente`; los coordinadores (`jor.excepciones.gestionar`) la aprueban o rechazan en *Equipo → Excepciones*. **Asistencia, estadísticas y certificado solo cuentan jornadas verificadas o aprobadas** (`Jornada.objects.computables()`). `Perfil.puede_excepcion` en falso rechaza esas marcaciones en vez de enviarlas a revisión.
+1. **Dispositivo:** por defecto solo desde un computador. En *Equipo* cada persona tiene el interruptor «Marca desde el celular» (`Perfil.puede_movil`); con él encendido inicia y finaliza desde cualquier dispositivo, y apagado el celular no puede iniciar ni finalizar. La detección (`es_movil`: Client Hint `Sec-CH-UA-Mobile`, User-Agent y lo que calcula el JS) es una barrera razonable, no absoluta; la complementa el equipo habitual.
+2. **Ubicación obligatoria, sin geocerca:** el navegador observa el GPS hasta ~10 s (o hasta ±20 m) y el servidor guarda la lectura más precisa (`jor_diario/verificacion.py › mejor_lectura`) para auditoría y para el mapa. No se compara con la sede. Sin ubicación no se marca.
+3. **Equipo habitual:** el primer computador (y el primer celular, si puede marcar desde él) queda registrado como habitual (`EquipoMarcacion`, token en la cookie `jor_equipo` con copia en `localStorage`). Marcar desde otro equipo avisa a la persona, le pide un motivo y deja la jornada `excepción pendiente`. Quién la revisa (administradores, coordinadores o ambos) se elige en *Configuración → General*; el revisor puede aprobar, aprobar y adoptar el equipo como habitual, o rechazar, en *Equipo → Excepciones*. Un administrador puede liberar un equipo desde *Equipo*. **Asistencia, estadísticas y certificado solo cuentan jornadas verificadas o aprobadas** (`Jornada.objects.computables()`).
 
-Requisitos de despliegue: HTTPS (WebAuthn no funciona sin él, salvo `localhost`), el dominio estable (la passkey queda atada al dominio) y cargar las coordenadas de cada sede; **una sede sin coordenadas manda toda marcación a revisión**. Riesgo residual: quien esté dentro del radio puede marcar, y Android con ubicación simulada puede engañar al GPS; se mitiga con las comprobaciones anteriores y la bandeja de excepciones.
+Limitación conocida: borrar los datos del navegador o usar otro navegador en el mismo computador cuenta como un equipo distinto. La ubicación de un computador es aproximada (Wi-Fi/IP) y puede falsearse con las herramientas de desarrollo: queda registrada, no validada. HTTPS es necesario para que el navegador entregue la ubicación.
 
 Tareas recurrentes de Asistencia (no hay nada que las programe por defecto; usa cron o un workflow de n8n):
 

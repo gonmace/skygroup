@@ -21,56 +21,24 @@
       <p class="text-sm text-base-content/70">{{ jornada_hoy.inicio|date:"H:i" }} → {{ jornada_hoy.fin|date:"H:i" }}</p>
     {% else %}
       <p class="text-lg font-semibold">Aún no has iniciado tu jornada</p>
-      <p class="text-sm text-base-content/70 md:hidden">Inícala abajo para empezar a registrar tu tiempo.</p>
-      {% if dispositivo %}
-      <p class="hidden text-sm text-base-content/70 md:block">Desde la computadora puedes iniciar con un código QR o con tu celular: mira las opciones abajo.</p>
-      {% endif %}
+      <p class="text-sm text-base-content/70">{% if es_movil and not puede_movil %}Inícala desde tu computadora.{% else %}Inícala abajo para empezar a registrar tu tiempo.{% endif %}</p>
     {% endif %}
   </div>
   {% if estado_hoy == 'en_curso' %}<div class="ml-auto text-right"><p class="text-2xl font-bold tabular-nums leading-none" data-jor-reloj="{{ jornada_hoy.inicio|date:'c' }}"></p><p class="mt-1 text-xs text-base-content/60">transcurrido</p></div>
   {% elif estado_hoy == 'cerrada' and jornada_hoy.duracion_min %}<div class="ml-auto text-right"><p class="text-2xl font-bold tabular-nums leading-none">{{ jornada_hoy.duracion_min|horas_min }}</p><p class="mt-1 text-xs text-base-content/60">trabajadas</p></div>{% endif %}
 </section>
 <div class="grid gap-4 lg:grid-cols-3">
-  <div class="card bg-base-100 lg:col-span-2"><div class="card-body gap-4" data-marcar-raiz
-       data-url-desafio="{% url 'jor_diario:desafio' %}" data-url-opciones="{% url 'jor_diario:vincular_opciones' %}" data-url-vincular="{% url 'jor_diario:vincular' %}">
+  <div class="card bg-base-100 lg:col-span-2"><div class="card-body gap-4" data-marcar-raiz>
     <div class="alert alert-error hidden text-sm" role="alert" data-marcar-error></div>
-    {% if not dispositivo %}
-      <div class="hidden rounded-xl border-2 border-warning bg-warning/15 p-4 md:block" role="alert">
-        <div class="flex items-start gap-3">
-          <span class="mt-0.5 shrink-0 text-warning">{% include "components/icon.html" with name="shield" cls="size-7" %}</span>
-          <div class="min-w-0 flex-1 space-y-1">
-            <p class="text-base font-bold">No tienes un número de teléfono vinculado</p>
-            <p class="text-sm">Para <strong>iniciar</strong> tu jornada primero vincula tu celular. Luego podrás iniciar desde el propio celular o desde esta computadora, firmando con él.</p>
-      <div class="mt-3" data-enlace-vinculo data-url="{% url 'jor_diario:vincular_enlace_crear' %}">
-        <p class="text-sm text-base-content/70">Escanea un código QR con la cámara del celular. No necesitas iniciar sesión en él, el código caduca a los 10 minutos y sirve una sola vez.</p>
-        <button type="button" class="btn btn-warning btn-sm mt-2" data-enlace-generar>Vincular mi celular (código QR)</button>
-        <div class="mt-3 hidden flex-wrap items-center gap-4" data-enlace-resultado>
-          <img alt="Código QR para vincular el celular" class="size-40 shrink-0 rounded-lg bg-white p-1" data-enlace-qr>
-          <div class="min-w-48 flex-1 space-y-2 text-sm">
-            <p class="flex items-center gap-2 text-base-content/70"><span class="loading loading-spinner loading-sm" aria-hidden="true"></span>Esperando que vincules desde el celular…</p>
-            <div class="flex items-center gap-2">
-              <code id="jor-url-vinculo" class="min-w-0 flex-1 truncate rounded-lg bg-base-100 px-3 py-2 text-xs"></code>
-              <button type="button" class="btn btn-ghost btn-sm btn-square" title="Copiar enlace" aria-label="Copiar enlace" data-copiar="jor-url-vinculo">{% include "components/icon.html" with name="copy" cls="size-4" %}</button>
-            </div>
-          </div>
-        </div>
-        <p class="mt-1 hidden text-xs text-base-content/60" data-enlace-nota></p>
-        <p class="mt-1 hidden text-xs text-error" data-enlace-error role="alert"></p>
-      </div>
-
-          </div>
-        </div>
-      </div>
-      <div class="rounded-xl border-2 border-warning bg-warning/15 p-4 md:hidden" role="alert">
+    {% if es_movil and not puede_movil %}
+      <div class="rounded-xl border-2 border-warning bg-warning/15 p-4" role="alert">
         <div class="flex items-start gap-3">
           <span class="mt-0.5 shrink-0 text-warning">{% include "components/icon.html" with name="shield" cls="size-7" %}</span>
           <div class="min-w-0 space-y-1">
-            <p class="text-base font-bold">Vincula este celular para poder marcar</p>
-            <p class="text-sm">Sin un celular vinculado no puedes iniciar tu jornada.</p>
-            <p class="text-sm text-base-content/70">Se confirma con tu huella o el PIN del teléfono; no se envía ningún dato biométrico. Solo puedes tener un celular vinculado.</p>
+            <p class="text-base font-bold">{% if en_curso %}Finaliza tu jornada desde la computadora{% else %}Inicia tu jornada desde la computadora{% endif %}</p>
+            <p class="text-sm">Tu usuario solo puede marcar la jornada desde un computador. Si necesitas hacerlo desde el celular, pídelo a tu coordinador.</p>
           </div>
         </div>
-        <button type="button" class="btn btn-warning btn-block mt-3" data-vincular>Vincular este celular</button>
       </div>
     {% endif %}
     {% if en_curso %}
@@ -81,69 +49,29 @@
         {% if en_curso.estado_verificacion == 'excepcion_pendiente' %}<span class="badge badge-warning badge-sm">Pendiente de aprobación</span>{% endif %}
       </div>
       {% endif %}
-      <form method="post" action="{% url 'jor_diario:finalizar' %}" data-marcar data-confirmar-marcar="¿Finalizar la jornada?" data-cierre-sin-passkey-en-pc{% if not dispositivo %} data-sin-dispositivo{% endif %}{% if exige_reporte %} data-exige-reporte{% endif %} class="space-y-3">
+      <form method="post" action="{% url 'jor_diario:finalizar' %}" data-marcar data-confirmar-marcar="¿Finalizar la jornada?"{% if exige_reporte %} data-exige-reporte{% endif %} class="space-y-3">
         {% csrf_token %}
         <input type="hidden" name="jornada" value="{{ en_curso.pk }}">
         <div><label class="mb-1 block text-sm font-medium">{{ form.realizado.label }}{% if exige_reporte %} *{% endif %}</label>{{ form.realizado }}</div>
         <div><label class="mb-1 block text-sm font-medium">{{ form.planificado.label }}{% if exige_reporte %} *{% endif %}</label>{{ form.planificado }}</div>
-        <button type="submit" class="btn btn-error btn-lg w-full gap-2">{% include "components/icon.html" with name="check" cls="size-5" %}Finalizar jornada</button>
+        <button type="submit" class="btn btn-error btn-lg w-full gap-2"{% if es_movil and not puede_movil %} disabled{% endif %}>{% include "components/icon.html" with name="check" cls="size-5" %}Finalizar jornada</button>
       </form>
     {% else %}
-      <form method="post" action="{% url 'jor_diario:iniciar' %}" data-marcar{% if dispositivo %} data-iniciar-qr-en-pc data-url-qr="{% url 'jor_diario:marca_qr_crear' %}"{% endif %} class="space-y-3">
+      <form method="post" action="{% url 'jor_diario:iniciar' %}" data-marcar class="space-y-3">
         {% csrf_token %}
         <div class="space-y-3">
           {% if proyectos %}
             <div><label class="mb-1 block text-sm font-medium" for="proyecto">{{ termino_proyecto }} <span class="font-normal text-base-content/55">(opcional)</span></label>
               <select id="proyecto" name="proyecto" class="select select-bordered w-full"><option value="">Sin {{ termino_proyecto|lower }}</option>{% for p in proyectos %}<option value="{{ p.pk }}">{{ p.nombre }}</option>{% endfor %}</select></div>
           {% endif %}
-          <button type="submit" class="btn btn-primary btn-lg w-full gap-2{% if dispositivo %} md:hidden{% endif %}" {% if not dispositivo %}disabled{% endif %}>{% include "components/icon.html" with name="clock" cls="size-5" %}Iniciar jornada</button>
-          {% if dispositivo %}
-          <div class="hidden md:block">
-            <p class="mb-2 text-sm font-medium text-base-content/70">Desde la computadora puedes iniciar de dos maneras</p>
-            <div class="grid gap-3 xl:grid-cols-2">
-              <div class="flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-4">
-                <div class="flex items-center gap-3">
-                  <span class="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-sm font-bold text-primary-content">1</span>
-                  <p class="font-semibold">Con un código QR</p>
-                </div>
-                <p class="flex-1 text-sm text-base-content/70">Escanéalo con la cámara de tu celular vinculado y confirma con tu huella o PIN. No necesitas iniciar sesión en el celular y se registra la ubicación del celular.</p>
-                <button type="submit" class="btn btn-primary w-full gap-2">{% include "components/icon.html" with name="clock" cls="size-5" %}Iniciar jornada</button>
-              </div>
-              <div class="flex flex-col gap-3 rounded-2xl border border-base-content/15 p-4">
-                <div class="flex items-center gap-3">
-                  <span class="grid size-8 shrink-0 place-items-center rounded-full bg-base-content/10 text-sm font-bold">2</span>
-                  <p class="font-semibold">Desde tu celular</p>
-                </div>
-                <p class="flex-1 text-sm text-base-content/70">Abre este enlace en tu celular, inicia sesión con tu usuario y pulsa «Iniciar jornada».</p>
-                <div class="flex items-center gap-2">
-                  <code id="jor-url-celular" class="min-w-0 flex-1 truncate rounded-lg bg-base-200 px-3 py-2.5 text-xs">{{ request.scheme }}://{{ request.get_host }}{{ request.path }}</code>
-                  <button type="button" class="btn btn-outline btn-sm btn-square shrink-0" title="Copiar enlace" aria-label="Copiar enlace" data-copiar="jor-url-celular">{% include "components/icon.html" with name="copy" cls="size-4" %}</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="hidden rounded-xl border border-base-content/15 p-4" data-qr-panel>
-            <div class="flex flex-wrap items-center gap-4">
-              <img alt="Código QR para iniciar la jornada" class="size-44 rounded-lg bg-white p-1" data-qr-img>
-              <div class="min-w-48 flex-1 space-y-2 text-sm">
-                <p class="font-medium">Escanéalo con tu celular</p>
-                <p class="flex items-center gap-2 text-base-content/70"><span class="loading loading-spinner loading-sm" aria-hidden="true"></span>Esperando que inicies desde el celular…</p>
-                <p class="text-xs text-base-content/60" data-qr-nota></p>
-                <div class="flex items-center gap-2">
-                  <code id="jor-url-qr" class="min-w-0 flex-1 truncate rounded-lg bg-base-200 px-3 py-2 text-xs"></code>
-                  <button type="button" class="btn btn-ghost btn-sm btn-square" title="Copiar enlace" aria-label="Copiar enlace" data-copiar="jor-url-qr">{% include "components/icon.html" with name="copy" cls="size-4" %}</button>
-                </div>
-                <button type="button" class="btn btn-ghost btn-sm" data-qr-cancelar>Cancelar</button>
-              </div>
-            </div>
-          </div>
-          {% endif %}
+          <button type="submit" class="btn btn-primary btn-lg w-full gap-2"{% if es_movil and not puede_movil %} disabled{% endif %}>{% include "components/icon.html" with name="clock" cls="size-5" %}Iniciar jornada</button>
+          <p class="text-xs text-base-content/60">Se registrará tu ubicación: el navegador te pedirá permiso. Usa siempre el mismo equipo para marcar; si cambias de equipo, tu jornada quedará pendiente de revisión.</p>
         </div>
-        {# Solo aparece cuando la ubicación no valida y la persona puede pedir una excepción. #}
+        {# Solo aparece al marcar desde un equipo distinto al habitual: la jornada queda pendiente de revisión. #}
         <div class="hidden" data-motivo>
-          <label class="mb-1 block text-sm font-medium" for="motivo">Motivo (estás fuera de la sede)</label>
-          <input id="motivo" name="motivo" maxlength="300" class="input input-bordered w-full" placeholder="Ej.: visita a terreno, reunión con el cliente">
-          <p class="mt-1 text-xs text-base-content/60">Tu coordinador deberá aprobarla para que las horas cuenten.</p>
+          <label class="mb-1 block text-sm font-medium" for="motivo">Motivo (equipo distinto al habitual)</label>
+          <input id="motivo" name="motivo" maxlength="300" class="input input-bordered w-full" placeholder="Ej.: mi computador está en reparación">
+          <p class="mt-1 text-xs text-base-content/60">Un revisor deberá aprobarla para que las horas cuenten.</p>
         </div>
       </form>
     {% endif %}
@@ -164,7 +92,7 @@
     </ul>
   </div></div>
 </div>
-<script src="{% static 'js/jor-passkey.js' %}" defer></script>
+<script src="{% static 'js/jor-marcar.js' %}" defer></script>
 <script src="{% static 'js/jor-reloj.js' %}" defer></script>
 {% endif %}
 {% endblock %}

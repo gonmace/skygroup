@@ -5,16 +5,20 @@
   <button type="submit" class="btn btn-ghost btn-square {{ btn }} text-accent hover:bg-accent/10" title="Ver como {{ f.m.user.email }}" aria-label="Ver la aplicación como {{ f.m.user.email }}">{% include "components/icon.html" with name="user-switch" cls="size-5" %}</button>
 </form>
 {% endif %}
-{# Celular vinculado (verde): quien administra perfiles lo desvincula con un clic; el resto solo lo ve. Sin celular: icono apagado. #}
-{% if f.dispositivo %}
-  {% if puede_perfiles %}
-  <form method="post" action="{% url 'jor_empleados:dispositivo_liberar' f.m.pk %}" class="inline" data-confirmar="¿Desvincular el celular de {{ f.m.user }}? Tendrá que vincular uno nuevo para marcar su jornada.">{% csrf_token %}
-    <input type="hidden" name="next" value="equipo">
-    <button type="submit" class="btn btn-ghost btn-square {{ btn }} text-success hover:bg-error/10 hover:text-error" title="Celular vinculado{% if f.dispositivo.nombre %}: {{ f.dispositivo.nombre }}{% endif %} desde el {{ f.dispositivo.creado|date:'d/m/Y' }}. Clic para desvincular" aria-label="Desvincular el celular de {{ f.m.user }}">{% include "components/icon.html" with name="smartphone" cls="size-5" %}</button>
-  </form>
+{# Equipo habitual de marcación (computador y celular): verde si hay uno registrado; quien administra perfiles lo libera con un clic. #}
+{% if f.perfil %}
+{% for tipo, eq, icono, nombre in f.equipos_fila %}
+  {% if eq %}
+    {% if puede_perfiles %}
+    <form method="post" action="{% url 'jor_empleados:equipo_liberar' f.m.pk tipo %}" class="inline" data-confirmar="¿Liberar el {{ nombre }} habitual de {{ f.m.user }}? El próximo equipo que use quedará como habitual.">{% csrf_token %}
+      <input type="hidden" name="next" value="equipo">
+      <button type="submit" class="btn btn-ghost btn-square {{ btn }} text-success hover:bg-error/10 hover:text-error" title="{{ nombre|capfirst }} habitual registrado el {{ eq.creado|date:'d/m/Y' }}{% if eq.ultimo_uso %}, último uso {{ eq.ultimo_uso|date:'d/m H:i' }}{% endif %}. Clic para liberar" aria-label="Liberar el {{ nombre }} habitual de {{ f.m.user }}">{% include "components/icon.html" with name=icono cls="size-5" %}</button>
+    </form>
+    {% else %}
+    <span class="btn btn-ghost btn-square {{ btn }} pointer-events-none text-success" title="{{ nombre|capfirst }} habitual registrado el {{ eq.creado|date:'d/m/Y' }}" aria-label="{{ nombre|capfirst }} habitual registrado">{% include "components/icon.html" with name=icono cls="size-5" %}</span>
+    {% endif %}
   {% else %}
-  <span class="btn btn-ghost btn-square {{ btn }} pointer-events-none text-success" title="Celular vinculado desde el {{ f.dispositivo.creado|date:'d/m/Y' }}" aria-label="Celular vinculado">{% include "components/icon.html" with name="smartphone" cls="size-5" %}</span>
+  <span class="btn btn-ghost btn-square {{ btn }} pointer-events-none text-base-content/25" title="Sin {{ nombre }} registrado" aria-label="Sin {{ nombre }} registrado">{% include "components/icon.html" with name=icono cls="size-5" %}</span>
   {% endif %}
-{% elif f.perfil %}
-<span class="btn btn-ghost btn-square {{ btn }} pointer-events-none text-base-content/25" title="Sin celular vinculado" aria-label="Sin celular vinculado">{% include "components/icon.html" with name="smartphone" cls="size-5" %}</span>
+{% endfor %}
 {% endif %}

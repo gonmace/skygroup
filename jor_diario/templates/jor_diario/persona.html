@@ -23,19 +23,19 @@
       </div>
     </div>
 
-    {# Celular vinculado #}
-    <div class="flex flex-wrap items-center gap-3 rounded-box px-3 py-2 text-sm {% if dispositivo %}bg-success/10{% else %}bg-warning/10{% endif %}">
-      {% if dispositivo %}
-        <span class="grid size-8 place-items-center rounded-lg bg-success/20 text-success">{% include "components/icon.html" with name="check" cls="size-5" %}</span>
-        <div class="min-w-0 flex-1">
-          <p class="font-medium">Celular vinculado: {{ dispositivo.nombre|default:"celular" }}</p>
-          <p class="text-xs text-base-content/60">Desde el {{ dispositivo.creado|date:"d/m/Y" }}{% if dispositivo.ultimo_uso %} · último uso {{ dispositivo.ultimo_uso|date:"d/m H:i" }}{% endif %}</p>
+    {# Equipos habituales (computador y celular) y permiso de celular #}
+    <div class="flex flex-wrap items-center gap-3 rounded-box bg-base-200/60 px-3 py-2 text-sm">
+      {% for tipo, eq, icono, nombre in equipos_p %}
+        <div class="flex min-w-0 flex-1 items-center gap-2">
+          <span class="grid size-8 shrink-0 place-items-center rounded-lg {% if eq %}bg-success/20 text-success{% else %}bg-base-content/10 text-base-content/40{% endif %}">{% include "components/icon.html" with name=icono cls="size-5" %}</span>
+          <div class="min-w-0 flex-1">
+            <p class="font-medium">{% if eq %}{{ nombre|capfirst }} habitual{% else %}Sin {{ nombre }} registrado{% endif %}</p>
+            {% if eq %}<p class="text-xs text-base-content/60">Desde el {{ eq.creado|date:"d/m/Y" }}{% if eq.ultimo_uso %} · último uso {{ eq.ultimo_uso|date:"d/m H:i" }}{% endif %}</p>{% endif %}
+          </div>
+          {% if eq and puede_perfiles %}<form method="post" action="{% url 'jor_empleados:equipo_liberar' m.pk tipo %}" data-confirmar="¿Liberar el {{ nombre }} habitual de {{ m.user }}? El próximo que use quedará como habitual.">{% csrf_token %}<button class="btn btn-outline btn-xs gap-1">{% include "components/icon.html" with name="unlock" cls="size-4" %} Liberar</button></form>{% endif %}
         </div>
-        {% if puede_perfiles %}<form method="post" action="{% url 'jor_empleados:dispositivo_liberar' m.pk %}" data-confirmar="¿Liberar el celular de {{ m.user }}? Tendrá que vincular uno nuevo.">{% csrf_token %}<button class="btn btn-outline btn-xs gap-1">{% include "components/icon.html" with name="unlock" cls="size-4" %} Liberar celular</button></form>{% endif %}
-      {% else %}
-        <span class="grid size-8 place-items-center rounded-lg bg-warning/20 text-warning">{% include "components/icon.html" with name="lock" cls="size-5" %}</span>
-        <p class="font-medium">Sin celular vinculado <span class="font-normal text-base-content/60">· no podrá marcar hasta vincular uno</span></p>
-      {% endif %}
+      {% endfor %}
+      <span class="badge {% if perfil.puede_movil %}badge-success{% else %}badge-ghost{% endif %}">{% if perfil.puede_movil %}Puede marcar desde el celular{% else %}Solo desde el computador{% endif %}</span>
     </div>
   </div></section>
 
@@ -72,6 +72,8 @@
           <span class="badge badge-outline">{{ j.get_estado_display }}</span>
           {% if j.estado_verificacion != 'verificada' %}<span class="badge {% if j.estado_verificacion == 'rechazada' %}badge-error{% elif j.estado_verificacion == 'excepcion_aprobada' %}badge-success{% else %}badge-warning{% endif %}">{{ j.get_estado_verificacion_display }}</span>{% endif %}
           {% if j.cierre_auto %}<span class="badge badge-warning">Cierre automático</span>{% endif %}
+          {% if j.cambio_equipo %}<span class="badge badge-warning badge-outline">Cambio de equipo</span>{% endif %}
+          {% if j.origen_inicio %}<span class="badge badge-ghost" title="Desde dónde se inició">{% if j.origen_inicio == 'celular' %}Inició en celular{% else %}Inició en computador{% endif %}</span>{% endif %}
         </div>
       </div>
 

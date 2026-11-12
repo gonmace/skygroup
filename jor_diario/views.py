@@ -2,7 +2,6 @@ import calendar
 import json
 from datetime import date, datetime
 
-from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.core.exceptions import PermissionDenied
@@ -14,16 +13,15 @@ from django.views.decorators.http import require_POST
 
 from cuentas.capacidades import administra, tiene_capacidad, usuarios_con_capacidad
 from cuentas.roles import RolBase
-from cuentas.models import NextcloudConfig
 from empresas.acceso import acceso_modulo
-from empresas.embebido import origen
 from jor_actividades.models import ItemActividad
-from jor_empleados import passkeys
+from jor_empleados import equipos
 from jor_empleados.models import Perfil
 from notificaciones.services import notificar, notificar_a_varios
 from proyectos.models import Proyecto
 
-from . import marca_qr, servicios
+from . import servicios
+from .dispositivo import es_movil
 from .estado import estado_del_dia
 from .forms import AusenciaForm, NotaForm, ReporteForm
 from .models import Ausencia, Jornada, NotaCalendario
@@ -99,8 +97,7 @@ def inicio(request):
         'proyectos': Proyecto.objects.de_empresa(request.empresa).activos().order_by('nombre') if perfil else [],
         'hoy': jornadas_hoy, 'fecha_hoy': hoy,
         'exige_reporte': bool(perfil and perfil.exige_reporte),
-        'dispositivo': passkeys.dispositivo_activo(perfil) if perfil else None,
-        'sede': _membresia(request).sede if perfil else None,
+        'es_movil': es_movil(request), 'puede_movil': bool(perfil and perfil.puede_movil),
     })
 
 
@@ -109,239 +106,33 @@ def _ip(request):
     return request.META.get('HTTP_X_REAL_IP') or request.META.get('REMOTE_ADDR') or None
 
 
-def _json(request):
-    """Cuerpo de las marcaciones: campos de formulario con `credencial` y `lecturas` en JSON."""
+def _lecturas(request):
+    """Lecturas de GPS que envía el navegador (JSON en el campo `lecturas`)."""
     try:
-        return json.loads(request.POST.get('credencial') or 'null'), json.loads(request.POST.get('lecturas') or '[]')
+        return json.loads(request.POST.get('lecturas') or '[]')
     except ValueError:
-        raise servicios.ErrorJornada('La verificación enviada no es válida.')
+        raise servicios.ErrorJornada('La ubicación enviada no es válida.')
 
 
-def _responder_marca(request, hacer, ok_msg, permitir_sin_dispositivo=False):
-    """Verifica el passkey y ejecuta `hacer(dispositivo, lecturas)`; responde JSON para el script del celular.
-    Con `permitir_sin_dispositivo` (solo cerrar), quien no tiene celular vinculado o cierra desde un computador
-    (sin credencial) ejecuta `hacer` sin passkey pero con las lecturas de ubicación (obligatorias)"""
+def _marcar(request, hacer, ok_msg):
+    """Resuelve el equipo y ejecuta `hacer(perfil, lecturas, ctx)` con ctx = movil/equipo/cambio_equipo; responde JSON
+    para el script. Un cambio de equipo no bloquea: el servicio pide el motivo y la jornada queda a revisión."""
     perfil = _perfil_propio(request)
     if perfil is None:
         raise PermissionDenied
+    movil = es_movil(request)
+    token = None
     try:
-        if permitir_sin_dispositivo and (passkeys.dispositivo_activo(perfil) is None or not request.POST.get('credencial')):
-            dispositivo = None
-            _, lecturas = _json(request)
-        else:
-            credencial, lecturas = _json(request)
-            dispositivo = passkeys.verificar_aserto(request, perfil, credencial)
-        hacer(perfil, dispositivo, lecturas)
-    except passkeys.ErrorPasskey as e:
-        return JsonResponse({'ok': False, 'error': str(e), 'reintentar': True}, status=400)
-    except (servicios.ErrorJornada, ValueError) as e:
-        extra = e.extra if isinstance(e, servicios.ErrorJornada) else {}
-        return JsonResponse({'ok': False, 'error': str(e) if isinstance(e, servicios.ErrorJornada) else 'Jornada no válida.',
-                             **extra}, status=400)
-    messages.success(request, ok_msg)
-    return JsonResponse({'ok': True, 'url': reverse('jor_diario:inicio')})
-
-
-@acceso_modulo('jor', 'jor.fichar')
-@require_POST
-def desafio(request):
-    """Opciones WebAuthn (challenge de un solo uso) para marcar con el celular vinculado."""
-    perfil = _perfil_propio(request)
-    if perfil is None:
-        raise PermissionDenied
-    try:
-        return JsonResponse({'ok': True, 'opciones': passkeys.opciones_autenticacion(request, perfil, desde_pc=request.POST.get('pc') == '1')})
-    except passkeys.ErrorPasskey as e:
-        return JsonResponse({'ok': False, 'error': str(e), 'dispositivo_requerido': True}, status=400)
-
-
-@acceso_modulo('jor', 'jor.fichar')
-@require_POST
-def vincular_opciones(request):
-    perfil = _perfil_propio(request)
-    if perfil is None:
-        raise PermissionDenied
-    try:
-        return JsonResponse({'ok': True, 'opciones': passkeys.opciones_registro(request, perfil, desde_pc=request.POST.get('pc') == '1')})
-    except passkeys.ErrorPasskey as e:
-        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
-
-
-def _volver_a_nextcloud(request):
-    """Quien vinculó desde el enlace «Abrir en el navegador» (salió del iframe de Nextcloud) vuelve a skygroup dentro de Nextcloud."""
-    if request.POST.get('desde') != 'nextcloud':
-        return ''
-    config = NextcloudConfig.de(request.empresa)
-    base = origen(config.servidor_url) if config is not None and config.disponible else ''
-    return base + settings.NEXTCLOUD_APP_RUTA if base else ''
-
-
-@acceso_modulo('jor', 'jor.fichar')
-@require_POST
-def vincular(request):
-    perfil = _perfil_propio(request)
-    if perfil is None:
-        raise PermissionDenied
-    try:
-        passkeys.registrar(request, perfil, json.loads(request.POST.get('credencial') or 'null'),
-                           request.POST.get('nombre', ''))
-    except (passkeys.ErrorPasskey, ValueError) as e:
-        return JsonResponse({'ok': False, 'error': str(e) if isinstance(e, passkeys.ErrorPasskey) else 'Dato no válido.'},
-                            status=400)
-    messages.success(request, 'Celular vinculado. Ya puedes marcar tu jornada desde él.')
-    return JsonResponse({'ok': True, 'url': _volver_a_nextcloud(request) or reverse('jor_diario:inicio')})
-
-
-@acceso_modulo('jor', 'jor.fichar')
-@require_POST
-def vincular_enlace_crear(request):
-    """Genera (desde la sesión del computador) el enlace de un solo uso para vincular el celular."""
-    perfil = _perfil_propio(request)
-    if perfil is None:
-        raise PermissionDenied
-    try:
-        token = passkeys.generar_enlace(perfil)
-    except passkeys.ErrorPasskey as e:
-        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
-    import segno
-    url = request.build_absolute_uri(reverse('jor_diario:vincular_enlace', args=[token]))
-    return JsonResponse({'ok': True, 'url': url, 'minutos': passkeys.ENLACE_TTL_S // 60,
-                         'qr': segno.make(url, error='m').svg_data_uri(scale=6, border=2),
-                         'estado_url': reverse('jor_diario:vincular_enlace_estado')})
-
-
-@acceso_modulo('jor', 'jor.fichar')
-def vincular_enlace_estado(request):
-    """El computador consulta si el celular ya quedó vinculado para recargar la página."""
-    perfil = _perfil_propio(request)
-    if perfil is None:
-        raise PermissionDenied
-    return JsonResponse({'vinculado': passkeys.dispositivo_activo(perfil) is not None, 'url': reverse('jor_diario:inicio')})
-
-
-def _vinculo_ctx(request, **extra):
-    return {'empresa': request.empresa, **extra}
-
-
-def vincular_enlace(request, token):
-    """Página pública del celular: el token firmado hace de credencial para este único paso."""
-    try:
-        passkeys.perfil_de_enlace(token)
-    except passkeys.ErrorPasskey as e:
-        return render(request, 'jor_diario/vincular_celular.html', _vinculo_ctx(request, error=str(e)), status=400)
-    return render(request, 'jor_diario/vincular_celular.html', _vinculo_ctx(request, token=token))
-
-
-def vincular_enlace_listo(request):
-    return render(request, 'jor_diario/vincular_celular.html', _vinculo_ctx(request, listo=True))
-
-
-@require_POST
-def vincular_enlace_opciones(request, token):
-    try:
-        perfil = passkeys.perfil_de_enlace(token)
-        return JsonResponse({'ok': True, 'opciones': passkeys.opciones_registro(request, perfil)})
-    except passkeys.ErrorPasskey as e:
-        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
-
-
-@require_POST
-def vincular_enlace_registrar(request, token):
-    try:
-        perfil = passkeys.perfil_de_enlace(token)
-        passkeys.registrar(request, perfil, json.loads(request.POST.get('credencial') or 'null'),
-                           request.POST.get('nombre', ''))
-    except (passkeys.ErrorPasskey, ValueError) as e:
-        return JsonResponse({'ok': False, 'error': str(e) if isinstance(e, passkeys.ErrorPasskey) else 'Dato no válido.'},
-                            status=400)
-    passkeys.consumir_enlace(perfil)
-    return JsonResponse({'ok': True, 'url': reverse('jor_diario:vincular_enlace_listo')})
-
-
-# ── Iniciar desde el computador con el QR del celular (el celular firma y aporta su ubicación) ────────────────
-@acceso_modulo('jor', 'jor.fichar')
-@require_POST
-def marca_qr_crear(request):
-    perfil = _perfil_propio(request)
-    if perfil is None:
-        raise PermissionDenied
-    if passkeys.dispositivo_activo(perfil) is None:
-        return JsonResponse({'ok': False, 'error': 'Vincula tu celular para poder iniciar tu jornada.'}, status=400)
-    if servicios.jornada_en_curso(perfil):
-        return JsonResponse({'ok': False, 'error': 'Ya tienes una jornada activa.'}, status=400)
-    proyecto_id = None
-    if request.POST.get('proyecto'):
-        proyecto = Proyecto.objects.de_empresa(request.empresa).activos().filter(
-            pk=request.POST['proyecto'] if request.POST['proyecto'].isdigit() else 0).first()
-        if proyecto is None:
-            return JsonResponse({'ok': False, 'error': 'Ese proyecto no existe.'}, status=400)
-        proyecto_id = proyecto.pk
-    import segno
-    nonce, token = marca_qr.crear(perfil, proyecto_id)
-    url = request.build_absolute_uri(reverse('jor_diario:marca_qr_pagina', args=[token]))
-    return JsonResponse({'ok': True, 'nonce': nonce, 'url': url, 'minutos': marca_qr.TTL_S // 60,
-                         'qr': segno.make(url, error='m').svg_data_uri(scale=6, border=2),
-                         'estado_url': reverse('jor_diario:marca_qr_estado', args=[nonce])})
-
-
-@acceso_modulo('jor', 'jor.fichar')
-def marca_qr_estado(request, nonce):
-    perfil = _perfil_propio(request)
-    if perfil is None:
-        raise PermissionDenied
-    return JsonResponse({'estado': marca_qr.estado(nonce, perfil), 'url': reverse('jor_diario:inicio')})
-
-
-def _solicitud_qr(token):
-    """(nonce, datos, perfil) de la solicitud, o ErrorSolicitud. El token firmado hace de credencial para este paso;
-    quien lo abre igualmente debe firmar con el passkey del celular vinculado."""
-    nonce, datos = marca_qr.cargar(token)
-    perfil = Perfil.objects.select_related('membresia__user', 'membresia__empresa').filter(pk=datos['p']).first()
-    if perfil is None or not perfil.activo or not perfil.membresia.activa:
-        raise marca_qr.ErrorSolicitud('Este código no es válido.')
-    return nonce, datos, perfil
-
-
-def marca_qr_pagina(request, token):
-    try:
-        _, datos, _ = _solicitud_qr(token)
-    except marca_qr.ErrorSolicitud as e:
-        return render(request, 'jor_diario/marcar_celular.html', {'empresa': request.empresa, 'error': str(e)}, status=400)
-    proyecto = Proyecto.objects.filter(pk=datos['pr']).first() if datos['pr'] else None
-    return render(request, 'jor_diario/marcar_celular.html', {'empresa': request.empresa, 'token': token, 'proyecto': proyecto})
-
-
-def marca_qr_listo(request):
-    return render(request, 'jor_diario/marcar_celular.html', {'empresa': request.empresa, 'listo': True})
-
-
-@require_POST
-def marca_qr_desafio(request, token):
-    try:
-        _, _, perfil = _solicitud_qr(token)
-        return JsonResponse({'ok': True, 'opciones': passkeys.opciones_autenticacion(request, perfil)})
-    except (marca_qr.ErrorSolicitud, passkeys.ErrorPasskey) as e:
-        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
-
-
-@require_POST
-def marca_qr_iniciar(request, token):
-    try:
-        nonce, datos, perfil = _solicitud_qr(token)
-        credencial, lecturas = _json(request)
-        dispositivo = passkeys.verificar_aserto(request, perfil, credencial)
-        proyecto = Proyecto.objects.de_empresa(perfil.empresa).activos().filter(pk=datos['pr']).first() if datos['pr'] else None
-        servicios.iniciar(perfil, dispositivo, lecturas, proyecto, request.POST.get('motivo', ''), _ip(request), origen='qr')
-    except marca_qr.ErrorSolicitud as e:
-        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
-    except passkeys.ErrorPasskey as e:
-        return JsonResponse({'ok': False, 'error': str(e), 'reintentar': True}, status=400)
-    except (servicios.ErrorJornada, ValueError) as e:
-        extra = e.extra if isinstance(e, servicios.ErrorJornada) else {}
-        return JsonResponse({'ok': False, 'error': str(e) if isinstance(e, servicios.ErrorJornada) else 'Jornada no válida.',
-                             **extra}, status=400)
-    marca_qr.completar(nonce)
-    return JsonResponse({'ok': True, 'url': reverse('jor_diario:marca_qr_listo')})
+        equipo, token, cambio = equipos.resolver(request, perfil, 'movil' if movil else 'pc', _ip(request))
+        hacer(perfil, _lecturas(request), {'movil': movil, 'equipo': equipo, 'cambio_equipo': cambio})
+    except servicios.ErrorJornada as e:
+        resp = JsonResponse({'ok': False, 'error': str(e), 'equipo': token, **e.extra}, status=400)
+    else:
+        messages.success(request, ok_msg)
+        resp = JsonResponse({'ok': True, 'url': reverse('jor_diario:inicio'), 'equipo': token})
+    if token:
+        equipos.poner_cookie(resp, token)
+    return resp
 
 
 @acceso_modulo('jor', 'jor.fichar')
@@ -352,9 +143,8 @@ def iniciar(request):
         proyecto = Proyecto.objects.de_empresa(request.empresa).activos().filter(pk=request.POST['proyecto'] if request.POST['proyecto'].isdigit() else 0).first()
         if proyecto is None:
             return JsonResponse({'ok': False, 'error': 'Ese proyecto no existe.'}, status=400)
-    return _responder_marca(request, lambda perfil, disp, lecturas: servicios.iniciar(
-        perfil, disp, lecturas, proyecto, request.POST.get('motivo', ''), _ip(request),
-        origen=request.POST.get('origen') if request.POST.get('origen') in ('pc', 'celular') else ''), 'Jornada iniciada.')
+    return _marcar(request, lambda perfil, lecturas, ctx: servicios.iniciar(
+        perfil, lecturas, proyecto, request.POST.get('motivo', ''), _ip(request), **ctx), 'Jornada iniciada.')
 
 
 @acceso_modulo('jor', 'jor.fichar')
@@ -362,10 +152,10 @@ def iniciar(request):
 def finalizar(request):
     form = ReporteForm(request.POST)
     form.is_valid()
-    return _responder_marca(request, lambda perfil, disp, lecturas: servicios.finalizar(
-        request.POST.get('jornada') or 0, perfil, disp, lecturas, form.cleaned_data.get('realizado'),
-        form.cleaned_data.get('planificado'), _ip(request)),
-        'Jornada finalizada. ¡Buen trabajo!', permitir_sin_dispositivo=True)
+    return _marcar(request, lambda perfil, lecturas, ctx: servicios.finalizar(
+        request.POST.get('jornada') or 0, perfil, lecturas, form.cleaned_data.get('realizado'),
+        form.cleaned_data.get('planificado'), _ip(request), motivo=request.POST.get('motivo', ''), **ctx),
+        'Jornada finalizada. ¡Buen trabajo!')
 
 
 def _puede_ver_mapa(user, empresa):
@@ -401,24 +191,38 @@ def mapa_equipo(request):
         'siguiente': dia + timedelta(days=1) if dia < hoy else None})
 
 
-# ── Excepciones: jornadas iniciadas fuera de la sede, pendientes de aprobación ──────────────────
+# ── Excepciones: jornadas pendientes de aprobación (cambio de equipo y, en las antiguas, fuera de la sede) ───────────
+def _motivos_jornada(j):
+    return (j.verificacion.get('inicio', {}).get('motivos', []) or []) + (j.verificacion.get('fin', {}).get('motivos', []) or [])
+
+
 @acceso_modulo('jor', 'jor.excepciones.gestionar')
 def excepciones(request):
-    qs = Jornada.objects.filter(empresa=request.empresa).select_related('perfil__membresia__user', 'perfil__membresia__sede')
+    qs = Jornada.objects.filter(empresa=request.empresa).select_related(
+        'perfil__membresia__user', 'perfil__membresia__sede', 'equipo_inicio', 'equipo_fin')
     recientes = (Jornada.Verificacion.EXCEPCION_APROBADA, Jornada.Verificacion.RECHAZADA)
+    puede_equipo = servicios.puede_revisar_equipo(request.user, request.empresa)
+    pendientes = list(qs.filter(estado_verificacion=Jornada.Verificacion.EXCEPCION_PENDIENTE).order_by('inicio'))
+    for j in pendientes:
+        j.cambio_equipo = 'cambio_equipo' in _motivos_jornada(j)
+        j.puede_decidir = puede_equipo or not j.cambio_equipo
+        j.etiquetas = [servicios.MOTIVOS.get(m, m) for m in _motivos_jornada(j)]
+        eq = j.equipo_fin if j.equipo_fin and not j.equipo_fin.activo else j.equipo_inicio
+        j.equipo_nuevo = eq if j.cambio_equipo and eq and not eq.activo else None
     return render(request, 'jor_diario/excepciones.html', {
-        'pendientes': qs.filter(estado_verificacion=Jornada.Verificacion.EXCEPCION_PENDIENTE).order_by('inicio'),
+        'pendientes': pendientes,
         'resueltas': qs.filter(estado_verificacion__in=recientes).select_related('revisada_por').order_by('-revisada_en')[:30]})
 
 
 @acceso_modulo('jor', 'jor.excepciones.gestionar')
 @require_POST
 def excepcion_decidir(request, pk):
-    aprobar = request.POST.get('decision') == 'aprobar'
-    if request.POST.get('decision') not in ('aprobar', 'rechazar'):
+    decision = request.POST.get('decision')
+    if decision not in ('aprobar', 'aprobar_equipo', 'rechazar'):
         raise PermissionDenied
+    aprobar = decision != 'rechazar'
     try:
-        servicios.decidir_excepcion(pk, request.empresa, request.user, aprobar)
+        servicios.decidir_excepcion(pk, request.empresa, request.user, aprobar, adoptar_equipo=decision == 'aprobar_equipo')
         messages.success(request, 'Excepción aprobada.' if aprobar else 'Excepción rechazada.')
     except servicios.ErrorJornada as e:
         messages.error(request, str(e))
@@ -461,9 +265,10 @@ def equipo(request):
         de_dia[j.perfil_id] = j                      # la última del día
     ausentes = set(Ausencia.objects.filter(empresa=request.empresa, estado=Ausencia.Estado.APROBADA,
                                            desde__lte=dia, hasta__gte=dia).values_list('perfil_id', flat=True))
-    from jor_empleados.models import DispositivoMarcacion
-    dispositivos = {d.perfil_id: d for d in DispositivoMarcacion.objects.filter(
-        activo=True, perfil_id__in=[m.perfil_jor.pk for m in miembros if getattr(m, 'perfil_jor', None)])}
+    from jor_empleados.models import EquipoMarcacion
+    equipos_hab = {}
+    for e in EquipoMarcacion.objects.filter(activo=True, perfil_id__in=[m.perfil_jor.pk for m in miembros if getattr(m, 'perfil_jor', None)]):
+        equipos_hab.setdefault(e.perfil_id, {})[e.tipo] = e
     filas = []
     for m in miembros:
         perfil = getattr(m, 'perfil_jor', None)
@@ -479,7 +284,8 @@ def equipo(request):
         dur = f'{j.duracion_min // 60}h {j.duracion_min % 60:02d}m' if j and j.duracion_min is not None else ''
         rep = getattr(j, 'reporte', None) if j else None
         filas.append({'m': m, 'perfil': perfil, 'jornada': j, 'estado': estado, 'duracion': dur,
-                      'dispositivo': dispositivos.get(perfil.pk) if perfil else None,
+                      'equipos_fila': [('pc', equipos_hab.get(perfil.pk, {}).get('pc'), 'monitor', 'computador'),
+                                       ('movil', equipos_hab.get(perfil.pk, {}).get('movil'), 'smartphone', 'celular')] if perfil else [],
                       'hizo': rep.realizado if rep else '', 'planes': rep.planificado if rep else ''})
     orden = request.GET.get('orden', '')
     desc = request.GET.get('dir') == 'desc'
@@ -520,6 +326,9 @@ def persona(request, membresia_id):
     a, mes = _mes(request)
     ini, fin, d_ini, d_fin = _rango_mes(a, mes)
     jornadas = list(perfil.jornadas.filter(inicio__range=(ini, fin)).select_related('reporte').order_by('-inicio'))
+    for j in jornadas:
+        j.cambio_equipo = 'cambio_equipo' in _motivos_jornada(j)
+        j.origen_inicio = j.verificacion.get('inicio', {}).get('origen', '')
     return render(request, 'jor_diario/persona.html', {
         'm': m, 'perfil': perfil, 'jornadas': jornadas, 'nav': _mes_nav(a, mes),
         'total_min': sum(j.duracion_min or 0 for j in jornadas),
@@ -527,7 +336,8 @@ def persona(request, membresia_id):
         'promedio_txt': _horas(sum(j.duracion_min or 0 for j in jornadas) // max(1, sum(1 for j in jornadas if j.duracion_min))),
         'con_reporte': sum(1 for j in jornadas if getattr(j, 'reporte', None)),
         'ausencias': perfil.ausencias.filter(desde__lte=d_fin, hasta__gte=d_ini),
-        'dispositivo': passkeys.dispositivo_activo(perfil),
+        'equipos_p': [('pc', perfil.equipos.filter(tipo='pc', activo=True).first(), 'monitor', 'computador'),
+                      ('movil', perfil.equipos.filter(tipo='movil', activo=True).first(), 'smartphone', 'celular')],
         'es_super': request.user.is_superuser,
         'puede_perfiles': tiene_capacidad(request.user, 'jor.perfiles.manage', request.empresa)})
 

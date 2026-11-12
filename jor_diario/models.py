@@ -43,6 +43,10 @@ class Jornada(models.Model):
     ip_fin = models.GenericIPAddressField(null=True, blank=True)
     dispositivo = models.ForeignKey('jor_empleados.DispositivoMarcacion', null=True, blank=True,
                                     on_delete=models.SET_NULL, related_name='jornadas')
+    equipo_inicio = models.ForeignKey('jor_empleados.EquipoMarcacion', null=True, blank=True,
+                                      on_delete=models.SET_NULL, related_name='+')
+    equipo_fin = models.ForeignKey('jor_empleados.EquipoMarcacion', null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name='+')
     verificacion = models.JSONField(default=dict, blank=True)
     estado_verificacion = models.CharField(max_length=20, choices=Verificacion.choices,
                                            default=Verificacion.VERIFICADA)

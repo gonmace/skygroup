@@ -1,11 +1,11 @@
 {% extends "shell.html" %}
 {% block page_title %}Excepciones de jornada{% endblock %}
 {% block content_main %}
-<p class="mb-3 max-w-3xl text-sm text-base-content/70">Jornadas iniciadas donde no se pudo verificar la presencia en la sede. Las horas <strong>solo cuentan</strong> en asistencia, estadísticas y certificado cuando se aprueban.</p>
+<p class="mb-3 max-w-3xl text-sm text-base-content/70">Jornadas marcadas desde un equipo distinto al habitual (o, en las antiguas, fuera de la sede). Las horas <strong>solo cuentan</strong> en asistencia, estadísticas y certificado cuando se aprueban.</p>
 <h2 class="mb-2 font-semibold">Pendientes <span class="badge badge-warning badge-sm align-middle">{{ pendientes|length }}</span></h2>
 <div class="table-card mb-6 overflow-auto">
   <table class="table tabla-fija">
-    <thead><tr><th>Persona</th><th>Inicio</th><th>Motivo</th><th>Qué falló</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+    <thead><tr><th>Persona</th><th>Inicio</th><th>Motivo</th><th>Detalle</th><th><span class="sr-only">Acciones</span></th></tr></thead>
     <tbody>
     {% for j in pendientes %}
       <tr class="hover">
@@ -13,17 +13,17 @@
         <td class="whitespace-nowrap">{{ j.inicio|date:"d/m/Y H:i" }}</td>
         <td class="max-w-xs whitespace-normal">{{ j.motivo_excepcion }}</td>
         <td class="max-w-xs whitespace-normal text-xs text-base-content/70">
-          {% with v=j.verificacion.inicio %}
-            {% for m in v.motivos %}<span class="badge badge-ghost badge-sm">{{ m }}</span> {% endfor %}
-            {% if v.distancia_m != None %}<span class="block">a {{ v.distancia_m|floatformat:0 }} m de la sede{% if v.precision_m != None %}, precisión ±{{ v.precision_m|floatformat:0 }} m{% endif %}</span>{% endif %}
-          {% endwith %}
+          {% for t in j.etiquetas %}<span class="badge badge-ghost badge-sm whitespace-normal">{{ t }}</span> {% endfor %}
+          {% with v=j.verificacion.inicio %}{% if v.distancia_m != None %}<span class="block">a {{ v.distancia_m|floatformat:0 }} m de la sede{% if v.precision_m != None %}, precisión ±{{ v.precision_m|floatformat:0 }} m{% endif %}</span>{% endif %}{% endwith %}
+          {% if j.equipo_nuevo %}<span class="block">Equipo: {{ j.equipo_nuevo.get_tipo_display }} · {{ j.equipo_nuevo.user_agent|truncatechars:60 }}</span>{% endif %}
           {% if j.lat_inicio != None %}<a class="link block" target="_blank" rel="noopener" href="https://maps.google.com/?q={{ j.lat_inicio|stringformat:'s' }},{{ j.lon_inicio|stringformat:'s' }}">Ver dónde marcó</a>{% endif %}
         </td>
         <td class="whitespace-nowrap text-right">
-          <form method="post" action="{% url 'jor_diario:excepcion_decidir' j.pk %}" class="inline">{% csrf_token %}
+          {% if j.puede_decidir %}<form method="post" action="{% url 'jor_diario:excepcion_decidir' j.pk %}" class="inline">{% csrf_token %}
             <button name="decision" value="aprobar" class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Aprobar" aria-label="Aprobar la jornada de {{ j.perfil.nombre }}">{% include "components/icon.html" with name="check" cls="size-5" %}</button>
+            {% if j.equipo_nuevo %}<button name="decision" value="aprobar_equipo" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Aprobar y registrar este equipo como habitual" aria-label="Aprobar y registrar el equipo de {{ j.perfil.nombre }} como habitual">{% include "components/icon.html" with name="monitor" cls="size-5" %}</button>{% endif %}
             <button name="decision" value="rechazar" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Rechazar" aria-label="Rechazar la jornada de {{ j.perfil.nombre }}">{% include "components/icon.html" with name="ban" cls="size-5" %}</button>
-          </form>
+          </form>{% else %}<span class="text-xs text-base-content/50">Lo revisa otro rol</span>{% endif %}
         </td>
       </tr>
     {% empty %}

@@ -749,6 +749,10 @@ class VistasMarcacionTests(JornadasBase):
         m = self.emp.membresias.get(empresa=self.a)
         r = self.ir(self.pmo, 'equipo/')
         self.assertContains(r, '>Móvil</th>')
+        html = r.content.decode()
+        tabla = html[html.index('<tbody'):]
+        self.assertLess(tabla.index('/reporte/'), tabla.index('/movil/'))     # mismo orden que la cabecera
+        self.assertLess(html.index('>Reporte obligatorio</th>'), html.index('>Móvil</th>'))
         self.assertFalse(self.perfil(self.emp).puede_movil)          # apagado por defecto
         self.assertContains(r, 'Clic para liberar')
         self.assertContains(self.ir(self.pmo, f'equipo/{m.pk}/'), 'Computador habitual')

@@ -77,13 +77,13 @@
         <td class="tabular-nums {% if f.jornada.fin %}text-success{% endif %}">{% if f.jornada.fin %}{{ f.jornada.fin|date:"H:i" }}{% else %}—{% endif %}</td>
         <td class="tabular-nums {% if f.jornada.fin %}text-success{% endif %}">{{ f.duracion|default:"—" }}</td>
         {% if puede_perfiles %}<td class="text-center">
-          {% if f.perfil %}<form method="post" action="{% url 'jor_empleados:perfil_movil' f.m.pk %}">{% csrf_token %}
-            <input type="checkbox" class="toggle toggle-success toggle-sm" {% if f.perfil.puede_movil %}checked{% endif %} data-autoenviar="{% if f.perfil.puede_movil %}¿Desactivar el móvil para {{ f.m.user|escapejs }}? Solo podrá iniciar y finalizar su jornada desde el computador.{% else %}¿Activar el móvil para {{ f.m.user|escapejs }}? Podrá iniciar y finalizar su jornada también desde el celular.{% endif %}" aria-label="Móvil: {{ f.m.user }}">
+          {% if f.perfil %}<form method="post" action="{% url 'jor_empleados:perfil_reporte' f.m.pk %}">{% csrf_token %}
+            <input type="checkbox" class="toggle toggle-success toggle-sm" {% if f.perfil.exige_reporte %}checked{% endif %} data-autoenviar="{% if f.perfil.exige_reporte %}¿Dejar de exigir el reporte diario a {{ f.m.user|escapejs }}?{% else %}¿Exigir el reporte diario (Realizado y Planificado) a {{ f.m.user|escapejs }}?{% endif %}" aria-label="Reporte obligatorio de {{ f.m.user }}">
           </form>{% endif %}
         </td>{% endif %}
         {% if puede_perfiles %}<td class="text-center">
-          {% if f.perfil %}<form method="post" action="{% url 'jor_empleados:perfil_reporte' f.m.pk %}">{% csrf_token %}
-            <input type="checkbox" class="toggle toggle-success toggle-sm" {% if f.perfil.exige_reporte %}checked{% endif %} data-autoenviar="{% if f.perfil.exige_reporte %}¿Dejar de exigir el reporte diario a {{ f.m.user|escapejs }}?{% else %}¿Exigir el reporte diario (Realizado y Planificado) a {{ f.m.user|escapejs }}?{% endif %}" aria-label="Reporte obligatorio de {{ f.m.user }}">
+          {% if f.perfil %}<form method="post" action="{% url 'jor_empleados:perfil_movil' f.m.pk %}">{% csrf_token %}
+            <input type="checkbox" class="toggle toggle-success toggle-sm" {% if f.perfil.puede_movil %}checked{% endif %} data-autoenviar="{% if f.perfil.puede_movil %}¿Desactivar el móvil para {{ f.m.user|escapejs }}? Solo podrá iniciar y finalizar su jornada desde el computador.{% else %}¿Activar el móvil para {{ f.m.user|escapejs }}? Podrá iniciar y finalizar su jornada también desde el celular.{% endif %}" aria-label="Móvil: {{ f.m.user }}">
           </form>{% endif %}
         </td>{% endif %}
         <td class="max-w-48 truncate text-sm" title="{{ f.hizo }}">{{ f.hizo|default:"—" }}</td>

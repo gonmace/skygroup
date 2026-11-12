@@ -53,7 +53,7 @@
       </dl>{% endif %}
       <div class="mt-2 flex items-center justify-between gap-1 border-t border-base-content/10 pt-2">
         {% if puede_perfiles and f.perfil %}<form method="post" action="{% url 'jor_empleados:perfil_movil' f.m.pk %}" class="flex items-center gap-2 text-xs text-base-content/60">{% csrf_token %}
-          <input type="checkbox" class="toggle toggle-success" {% if f.perfil.puede_movil %}checked{% endif %} data-autoenviar="{% if f.perfil.puede_movil %}¿Dejar de permitir que {{ f.m.user|escapejs }} marque desde el celular?{% else %}¿Permitir que {{ f.m.user|escapejs }} inicie y finalice su jornada desde el celular?{% endif %}" aria-label="Marcar desde el celular: {{ f.m.user }}"> Celular
+          <input type="checkbox" class="toggle toggle-success" {% if f.perfil.puede_movil %}checked{% endif %} data-autoenviar="{% if f.perfil.puede_movil %}¿Desactivar el móvil para {{ f.m.user|escapejs }}? Solo podrá iniciar y finalizar su jornada desde el computador.{% else %}¿Activar el móvil para {{ f.m.user|escapejs }}? Podrá iniciar y finalizar su jornada también desde el celular.{% endif %}" aria-label="Móvil: {{ f.m.user }}"> Móvil
         </form>{% endif %}
         {% if puede_perfiles and f.perfil %}<form method="post" action="{% url 'jor_empleados:perfil_reporte' f.m.pk %}" class="flex items-center gap-2 text-xs text-base-content/60">{% csrf_token %}
           <input type="checkbox" class="toggle toggle-success" {% if f.perfil.exige_reporte %}checked{% endif %} data-autoenviar="{% if f.perfil.exige_reporte %}¿Dejar de exigir el reporte diario a {{ f.m.user|escapejs }}?{% else %}¿Exigir el reporte diario (Realizado y Planificado) a {{ f.m.user|escapejs }}?{% endif %}" aria-label="Reporte obligatorio de {{ f.m.user }}"> Reporte obligatorio
@@ -67,7 +67,7 @@
 
 <div class="table-card hidden min-h-0 overflow-auto md:block">
   <table class="table tabla-fija">
-    <thead><tr><th><div class="flex items-center gap-3">{% for c in cabeceras %}<a href="{{ c.url }}" class="inline-flex items-center gap-1 hover:text-base-content {% if c.activa %}text-base-content{% endif %}" title="Ordenar por {{ c.titulo|lower }}"{% if c.activa %} aria-sort="{% if c.desc %}descending{% else %}ascending{% endif %}"{% endif %}>{{ c.titulo }}<span aria-hidden="true" class="text-[0.7em] {% if not c.activa %}opacity-30{% endif %}">{% if c.desc %}▼{% elif c.activa %}▲{% else %}↕{% endif %}</span></a>{% endfor %}</div></th><th class="text-center">Jornada</th><th>Inicio</th><th>Fin</th><th>Duración</th>{% if puede_perfiles %}<th class="text-center">Reporte obligatorio</th><th class="text-center">Marca desde el celular</th>{% endif %}<th>Realizado</th><th>Planificado</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+    <thead><tr><th><div class="flex items-center gap-3">{% for c in cabeceras %}<a href="{{ c.url }}" class="inline-flex items-center gap-1 hover:text-base-content {% if c.activa %}text-base-content{% endif %}" title="Ordenar por {{ c.titulo|lower }}"{% if c.activa %} aria-sort="{% if c.desc %}descending{% else %}ascending{% endif %}"{% endif %}>{{ c.titulo }}<span aria-hidden="true" class="text-[0.7em] {% if not c.activa %}opacity-30{% endif %}">{% if c.desc %}▼{% elif c.activa %}▲{% else %}↕{% endif %}</span></a>{% endfor %}</div></th><th class="text-center">Jornada</th><th>Inicio</th><th>Fin</th><th>Duración</th>{% if puede_perfiles %}<th class="text-center">Reporte obligatorio</th><th class="text-center">Móvil</th>{% endif %}<th>Realizado</th><th>Planificado</th><th><span class="sr-only">Acciones</span></th></tr></thead>
     <tbody>
     {% for f in filas %}
       <tr class="hover {% if f.perfil and not f.perfil.activo %}opacity-60{% endif %}">
@@ -78,7 +78,7 @@
         <td class="tabular-nums {% if f.jornada.fin %}text-success{% endif %}">{{ f.duracion|default:"—" }}</td>
         {% if puede_perfiles %}<td class="text-center">
           {% if f.perfil %}<form method="post" action="{% url 'jor_empleados:perfil_movil' f.m.pk %}">{% csrf_token %}
-            <input type="checkbox" class="toggle toggle-success toggle-sm" {% if f.perfil.puede_movil %}checked{% endif %} data-autoenviar="{% if f.perfil.puede_movil %}¿Dejar de permitir que {{ f.m.user|escapejs }} marque desde el celular?{% else %}¿Permitir que {{ f.m.user|escapejs }} inicie y finalice su jornada desde el celular?{% endif %}" aria-label="Marcar desde el celular: {{ f.m.user }}">
+            <input type="checkbox" class="toggle toggle-success toggle-sm" {% if f.perfil.puede_movil %}checked{% endif %} data-autoenviar="{% if f.perfil.puede_movil %}¿Desactivar el móvil para {{ f.m.user|escapejs }}? Solo podrá iniciar y finalizar su jornada desde el computador.{% else %}¿Activar el móvil para {{ f.m.user|escapejs }}? Podrá iniciar y finalizar su jornada también desde el celular.{% endif %}" aria-label="Móvil: {{ f.m.user }}">
           </form>{% endif %}
         </td>{% endif %}
         {% if puede_perfiles %}<td class="text-center">

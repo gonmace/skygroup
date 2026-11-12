@@ -748,7 +748,8 @@ class VistasMarcacionTests(JornadasBase):
         con_cambio_equipo(self.perfil(self.emp))
         m = self.emp.membresias.get(empresa=self.a)
         r = self.ir(self.pmo, 'equipo/')
-        self.assertContains(r, 'Marca desde el celular')
+        self.assertContains(r, '>Móvil</th>')
+        self.assertFalse(self.perfil(self.emp).puede_movil)          # apagado por defecto
         self.assertContains(r, 'Clic para liberar')
         self.assertContains(self.ir(self.pmo, f'equipo/{m.pk}/'), 'Computador habitual')
 

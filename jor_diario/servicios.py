@@ -150,10 +150,13 @@ def finalizar(jornada_id, perfil, lecturas, realizado='', planificado='', ip=Non
     jornada.verificacion = {**jornada.verificacion, 'fin': {
         'motivos': motivos, 'avisos': [], 'precision_m': res['precision_m'], 'n_lecturas': res['n_lecturas'],
         'origen': 'celular' if movil else 'pc'}}
-    pendiente = bool(motivos) and jornada.estado_verificacion == Jornada.Verificacion.VERIFICADA
+    # Un cambio de equipo al cerrar se revisa aunque el inicio ya estuviera aprobado: la aprobación anterior no lo cubre.
+    pendiente = bool(motivos) and jornada.estado_verificacion in (
+        Jornada.Verificacion.VERIFICADA, Jornada.Verificacion.EXCEPCION_APROBADA)
     if pendiente:
         jornada.estado_verificacion = Jornada.Verificacion.EXCEPCION_PENDIENTE
         jornada.motivo_excepcion = f'Al finalizar: {motivo}'[:300]
+        jornada.revisada_por, jornada.revisada_en = None, None
     jornada.save()
     if realizado or planificado:
         reporte = ReporteDiario.objects.create(jornada=jornada, realizado=realizado, planificado=planificado)

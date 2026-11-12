@@ -512,6 +512,19 @@ class EquipoHabitualTests(JornadasBase):
         self.assertEqual((j.estado, j.estado_verificacion, j.equipo_fin), ('completada', 'excepcion_pendiente', nuevo))
         self.assertFalse(Jornada.objects.computables().filter(pk=j.pk).exists())
 
+    def test_cerrar_desde_otro_equipo_vuelve_a_revision_aunque_el_inicio_estuviera_aprobado(self):
+        p = self.perfil(self.emp)
+        _, nuevo = con_cambio_equipo(p)
+        j = self.ini(p, equipo=nuevo, cambio_equipo=True, motivo='PC nuevo')
+        servicios.decidir_excepcion(j.pk, self.a, self.pmo, True)            # aprobada con la jornada aún abierta
+        otro = EquipoMarcacion.objects.create(perfil=p, tipo='pc', token_hash='o' * 64, activo=False)
+        otro.habitual = nuevo
+        j = self.fin(j.pk, p, 'Hice varias tareas de obra durante la jornada de hoy', 'Haré la revisión mañana',
+                     equipo=otro, cambio_equipo=True, motivo='Otro más')
+        self.assertEqual(j.estado_verificacion, 'excepcion_pendiente')
+        self.assertIsNone(j.revisada_por)
+        self.assertFalse(Jornada.objects.computables().filter(pk=j.pk).exists())
+
     def test_resolver_registra_el_primero_reconoce_y_detecta_el_cambio(self):
         from jor_empleados import equipos
         p = self.perfil(self.emp)

@@ -1,0 +1,7 @@
+<div data-filtro-lista>
+  <input type="search" placeholder="Buscar por código o nombre" autocomplete="off" aria-label="Buscar" class="input input-bordered input-sm mb-2 w-full" data-filtro-input>
+  <div id="{{ widget.attrs.id }}" role="group" class="max-h-72 overflow-y-auto overscroll-contain rounded-box border border-base-content/10 p-1">
+    {% for group_name, group_choices, group_index in widget.optgroups %}{% for option in group_choices %}{% include option.template_name with widget=option %}{% endfor %}{% endfor %}
+    <p class="hidden px-2 py-3 text-center text-sm text-base-content/60" data-filtro-vacio>Sin resultados.</p>
+  </div>
+</div>

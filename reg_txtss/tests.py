@@ -86,6 +86,12 @@ class ListaTests(TxtssBase):
         self.login(self.pmo)
         self.assertEqual(len(self.client.get('/tekon/registros/txtss/').context['pagina']), 25)
 
+    def test_el_select_de_proyectos_lista_los_de_la_empresa(self):
+        self.login(self.pmo)
+        html = self.client.get('/tekon/registros/txtss/activar/').content.decode()
+        self.assertIn(f'name="proyectos" value="{self.p1.pk}"', html)
+        self.assertNotIn(f'name="proyectos" value="{self.pb.pk}"', html)      # de otra empresa
+
     def test_visibilidad_del_boton_activar(self):
         for u, espera in ((self.pmo, True), (self.dir1, True), (self.ito1, False), (self.visita, False)):
             self.login(u)
@@ -412,7 +418,7 @@ class MapaEnPdfTests(TestCase):
 
 
 class PdfTxtssPlantillaTests(TxtssBase):
-    """El PDF recorre los pasos de la plantilla: datos del poste, coordenadas y desfase respecto al mandato."""
+    """El PDF recorre los pasos de la plantilla: datos del poste, coordenadas y desfase respecto a la referencia."""
 
     def test_contexto_con_poste_y_desfase(self):
         from django.contrib.contenttypes.models import ContentType
@@ -433,7 +439,7 @@ class PdfTxtssPlantillaTests(TxtssBase):
             'poste_form_widget': {'tipo_estructura': 'HA', 'altura': '11,5 m', 'tension': 'Baja', 'luminaria': True}})
         ctx = reporte.contexto(r, {})
         self.assertEqual([s['nombre'] for s in ctx['despues']], ['poste'])
-        self.assertEqual([f[0] for f in ctx['geo_filas']], ['Mandato', 'Inspección'])
+        self.assertEqual([f[0] for f in ctx['geo_filas']], ['Referencia', 'Inspección'])
         self.assertIn('Dentro de tolerancia', ctx['desfase']['estado'])
         self.assertIn(('Luminaria', 'Sí'), ctx['despues'][0]['bloques'][1]['filas'])
         self.assertTrue(reporte.generar(r, {}).startswith(b'%PDF'))

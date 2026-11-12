@@ -18,7 +18,7 @@ from ..models import RegTxtss
 
 PRIMEROS = ('mandato', 'desfase')
 PASOS_INSPECCION = ('poste', 'sitio')   # paso cuya ubicación es la «inspección» (poste / torre)
-TITULOS = {'mandato': 'Punto de Mandato', 'desfase': 'Desfase Mandato — Inspección', 'poste': 'Datos del Poste',
+TITULOS = {'mandato': 'Punto de Referencia', 'desfase': 'Desfase Referencia — Inspección', 'poste': 'Datos del Poste',
            'imagenes': 'Imágenes de Cobertura'}
 ETIQUETA_FOTOS = {'poste': 'Registro Fotográfico del Poste', 'imagenes': 'Imágenes de Cobertura'}
 COLOR_1, COLOR_2 = '#3b82f6', '#e74c3c'
@@ -162,7 +162,7 @@ def contexto(registro, columnas, user=None):
         insp = mapas.coordenada_de_paso(registro, nombre)
         if insp[0] is not None:
             break
-    filas_geo = [_fila_geo('Mandato', *man)]
+    filas_geo = [_fila_geo('Referencia', *man)]
     if insp[0] is not None:
         filas_geo.append(_fila_geo('Inspección', *insp))
     desfase = None

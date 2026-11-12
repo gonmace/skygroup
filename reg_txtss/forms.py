@@ -9,6 +9,12 @@ from reg_base.alcance import responsables_posibles
 from .models import ALTERNATIVAS, RegTxtss
 
 
+class ListaProyectosWidget(forms.CheckboxSelectMultiple):
+    """Casillas con buscador: un `select multiple` con cientos de proyectos es inmanejable (y DaisyUI lo deforma)."""
+    template_name = 'reg_txtss/widgets/lista_proyectos.html'
+    option_template_name = 'reg_txtss/widgets/lista_proyectos_opcion.html'
+
+
 class ActivarTxtssForm(EstiloMixin, forms.Form):
     proyectos = forms.ModelMultipleChoiceField(label='Proyectos', queryset=Proyecto.objects.none())
     fecha = forms.DateField(label='Fecha', initial=date.today, widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'))
@@ -18,9 +24,10 @@ class ActivarTxtssForm(EstiloMixin, forms.Form):
     def __init__(self, *args, empresa, usuario, puede_elegir_responsable, **kwargs):
         super().__init__(*args, **kwargs)
         self.empresa, self.usuario = empresa, usuario
+        # El widget va primero: al asignar el queryset, Django le copia las opciones (si no, el select sale vacío).
+        self.fields['proyectos'].widget = ListaProyectosWidget()
         self.fields['proyectos'].queryset = Proyecto.objects.de_empresa(empresa).activos().select_related('tipo')
-        self.fields['proyectos'].widget = forms.SelectMultiple(attrs={'size': 10})
-        self.fields['proyectos'].help_text = 'Mantén Ctrl (o Cmd) para elegir varios.'
+        self.fields['proyectos'].help_text = 'Marca uno o varios.'
         self.fields['fecha'].input_formats = ['%Y-%m-%d']
         if puede_elegir_responsable:
             self.fields['user'].queryset = responsables_posibles(usuario, empresa)

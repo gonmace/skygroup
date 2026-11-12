@@ -1,4 +1,6 @@
 {% extends "shell.html" %}
+{% load static %}
+{% block extra_scripts %}<script src="{% static 'js/filtro-lista.js' %}" defer></script>{% endblock %}
 {% block page_title %}Activar registros TX/TSS{% endblock %}
 {% block content_main %}
 <form method="post" class="card max-w-3xl bg-base-100"><div class="card-body gap-4">

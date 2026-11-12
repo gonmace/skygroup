@@ -432,16 +432,14 @@ class MarcacionTests(JornadasBase):
         self.assertEqual(j.precision_inicio, 5)
         self.assertEqual(j.verificacion['inicio']['n_lecturas'], 4)
 
-    def test_sin_ubicacion_no_se_inicia_ni_se_finaliza(self):
-        p = self.perfil(self.emp)
+    def test_sin_ubicacion_se_inicia_y_finaliza_igual(self):
         for malas in ([], [{'lat': 'x'}], 'basura', [{'lat': 999, 'lon': 0, 'accuracy': 5, 'timestamp': 1}]):
-            with self.assertRaises(servicios.ErrorJornada) as e:
-                self.ini(p, lecturas=malas)
-            self.assertTrue(e.exception.extra.get('ubicacion_requerida'))
-        j = self.ini(p)
-        with self.assertRaises(servicios.ErrorJornada) as e:
-            self.fin(j.pk, p, 'Hice varias tareas de obra durante la jornada de hoy', 'Haré la revisión mañana', lecturas=[])
-        self.assertTrue(e.exception.extra.get('ubicacion_requerida'))
+            p = self.perfil(self.emp)
+            j = self.ini(p, lecturas=malas)
+            self.assertEqual((j.lat_inicio, j.precision_inicio, j.estado_verificacion), (None, None, 'verificada'))
+            j = self.fin(j.pk, p, 'Hice varias tareas de obra durante la jornada de hoy', 'Haré la revisión mañana', lecturas=malas)
+            self.assertEqual((j.estado, j.lat_fin, j.estado_verificacion), ('completada', None, 'verificada'))
+            j.delete()
 
     def test_finalizar_registra_la_ubicacion_y_el_origen(self):
         p = self.perfil(self.emp)
@@ -713,9 +711,10 @@ class VistasMarcacionTests(JornadasBase):
         self.assertEqual(Jornada.objects.get().estado, 'en_curso')
         self.assertEqual(self.ir(self.emp, 'finalizar/', datos).status_code, 200)
 
-    def test_sin_ubicacion_no_marca(self):
+    def test_sin_ubicacion_marca_igual(self):
         r = self.ir(self.emp, 'iniciar/', {}, lecturas=[])
-        self.assertEqual((r.status_code, r.json()['ubicacion_requerida']), (400, True))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(Jornada.objects.get().lat_inicio, None)
 
     def test_json_mal_formado(self):
         self.client.force_login(self.emp)

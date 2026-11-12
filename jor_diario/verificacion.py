@@ -1,7 +1,7 @@
 """Captura de la ubicación al marcar jornada: función pura (sin HTTP ni base de datos), fácil de probar.
 
 No hay geocerca ni validación: se queda con la lectura de GPS más precisa que envía el navegador y la guarda para
-auditoría y para el mapa. Sin ninguna lectura legible no se marca."""
+auditoría y para el mapa. La ubicación es opcional: sin ninguna lectura legible se marca igual, sin coordenadas."""
 import math
 
 # Etiquetas de los motivos que quedan en `Jornada.verificacion`. Las de ubicación y passkey son históricas

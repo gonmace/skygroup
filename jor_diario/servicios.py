@@ -35,12 +35,12 @@ def _texto_motivos(motivos):
 
 
 def _ubicacion(lecturas):
-    """Ubicación obligatoria: la lectura más precisa, sin validar contra ninguna sede."""
-    res = mejor_lectura(lecturas)
-    if res is None:
-        raise ErrorJornada('No se pudo leer tu ubicación. Revisa el permiso del navegador e inténtalo de nuevo.',
-                           ubicacion_requerida=True)
-    return res
+    """Ubicación opcional: la lectura más precisa (sin validar contra ninguna sede) o un valor vacío si no hay ninguna."""
+    return mejor_lectura(lecturas) or {'lat': None, 'lon': None, 'precision_m': None, 'n_lecturas': 0}
+
+
+def _coord(v):
+    return None if v is None else round(v, 6)
 
 
 def _exigir_dispositivo_permitido(perfil, movil, accion):
@@ -58,7 +58,7 @@ def _exigir_motivo_cambio(equipo, cambio_equipo, motivo):
 
 
 def iniciar(perfil, lecturas, proyecto=None, motivo='', ip=None, movil=False, equipo=None, cambio_equipo=False):
-    """Se inicia con la sesión de la persona y su ubicación (obligatoria, sin geocerca). Desde un celular solo si
+    """Se inicia con la sesión de la persona y su ubicación (opcional, sin geocerca). Desde un celular solo si
     `perfil.puede_movil`. Marcar desde un equipo distinto al habitual queda pendiente de revisión."""
     if not perfil.activo or not perfil.membresia.activa:
         raise ErrorJornada('Tu acceso a Asistencia está deshabilitado.')
@@ -74,7 +74,7 @@ def iniciar(perfil, lecturas, proyecto=None, motivo='', ip=None, movil=False, eq
         with transaction.atomic():
             j = Jornada.objects.create(
                 empresa_id=perfil.empresa_id, perfil=perfil, proyecto=proyecto, inicio=timezone.now(),
-                lat_inicio=round(res['lat'], 6), lon_inicio=round(res['lon'], 6), precision_inicio=res['precision_m'],
+                lat_inicio=_coord(res['lat']), lon_inicio=_coord(res['lon']), precision_inicio=res['precision_m'],
                 ip_inicio=ip or None, equipo_inicio=equipo, estado_verificacion=estado_v,
                 motivo_excepcion=motivo if motivos else '',
                 verificacion={'inicio': {'motivos': motivos, 'avisos': [], 'precision_m': res['precision_m'],
@@ -121,7 +121,7 @@ MIN_PALABRAS_REALIZADO, MIN_PALABRAS_PLANIFICADO = 10, 3  # con reporte obligato
 @transaction.atomic
 def finalizar(jornada_id, perfil, lecturas, realizado='', planificado='', ip=None, movil=False, equipo=None,
               cambio_equipo=False, motivo=''):
-    """Cierra la jornada con la sesión de la persona y su ubicación (obligatoria, sin geocerca). Desde un celular
+    """Cierra la jornada con la sesión de la persona y su ubicación (opcional, sin geocerca). Desde un celular
     solo si `perfil.puede_movil`. Cerrar desde un equipo distinto al habitual manda la jornada a revisión."""
     realizado, planificado = (realizado or '').strip(), (planificado or '').strip()
     _exigir_dispositivo_permitido(perfil, movil, 'finalizar')
@@ -145,7 +145,7 @@ def finalizar(jornada_id, perfil, lecturas, realizado='', planificado='', ip=Non
     fin = timezone.now()
     jornada.fin, jornada.estado = fin, Jornada.Estado.COMPLETADA
     jornada.duracion_min = int((fin - jornada.inicio).total_seconds() // 60)
-    jornada.lat_fin, jornada.lon_fin = round(res['lat'], 6), round(res['lon'], 6)
+    jornada.lat_fin, jornada.lon_fin = _coord(res['lat']), _coord(res['lon'])
     jornada.precision_fin, jornada.ip_fin, jornada.equipo_fin = res['precision_m'], ip or None, equipo
     jornada.verificacion = {**jornada.verificacion, 'fin': {
         'motivos': motivos, 'avisos': [], 'precision_m': res['precision_m'], 'n_lecturas': res['n_lecturas'],

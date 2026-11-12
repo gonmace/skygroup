@@ -1,4 +1,4 @@
-// Marcación de jornada: sesión + ubicación (lo más precisa posible, sin geocerca) + equipo habitual. CSP-safe: sin inline.
+// Marcación de jornada: sesión + ubicación opcional (lo más precisa posible, sin geocerca) + equipo habitual. CSP-safe: sin inline.
 (function () {
   'use strict';
   var raiz = document.querySelector('[data-marcar-raiz]');
@@ -22,27 +22,24 @@
   }
 
   // Ubicación lo más precisa posible: se observa el GPS hasta ~10 s o hasta una lectura de ≤ 20 m; el servidor se queda
-  // con la mejor. Sin ninguna lectura no se marca.
+  // con la mejor. La ubicación es opcional: sin lecturas (permiso denegado, GPS apagado) se marca igual.
   var MAX_MS = 10000, OBJETIVO_M = 20;
   function lecturas() {
-    return new Promise(function (resolve, reject) {
-      if (!navigator.geolocation) return reject(new Error('Este navegador no permite leer la ubicación.'));
+    return new Promise(function (resolve) {
+      if (!navigator.geolocation) return resolve([]);
       var out = [], terminado = false, id = null, tope = null;
-      function fin(err) {
+      function fin() {
         if (terminado) return;
         terminado = true;
         navigator.geolocation.clearWatch(id);
         clearTimeout(tope);
-        if (out.length) return resolve(out);
-        reject(new Error(err && err.code === 1
-          ? 'Permite el acceso a tu ubicación en el navegador para poder marcar.'
-          : 'No se pudo leer tu ubicación. Revisa que esté activada e inténtalo de nuevo.'));
+        resolve(out);
       }
       id = navigator.geolocation.watchPosition(function (p) {
         out.push({ lat: p.coords.latitude, lon: p.coords.longitude, accuracy: p.coords.accuracy, timestamp: p.timestamp });
         if (p.coords.accuracy <= OBJETIVO_M) fin();
       }, function (err) {
-        if (err && err.code === 1) fin(err);   // denegado: no tiene sentido seguir esperando
+        if (err && err.code === 1) fin();   // denegado: no tiene sentido seguir esperando
       }, { enableHighAccuracy: true, timeout: MAX_MS, maximumAge: 0 });
       tope = setTimeout(fin, MAX_MS);
     });

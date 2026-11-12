@@ -65,7 +65,7 @@
               <select id="proyecto" name="proyecto" class="select select-bordered w-full"><option value="">Sin {{ termino_proyecto|lower }}</option>{% for p in proyectos %}<option value="{{ p.pk }}">{{ p.nombre }}</option>{% endfor %}</select></div>
           {% endif %}
           <button type="submit" class="btn btn-primary btn-lg w-full gap-2"{% if es_movil and not puede_movil %} disabled{% endif %}>{% include "components/icon.html" with name="clock" cls="size-5" %}Iniciar jornada</button>
-          <p class="text-xs text-base-content/60">Se registrará tu ubicación: el navegador te pedirá permiso. Usa siempre el mismo equipo para marcar; si cambias de equipo, tu jornada quedará pendiente de revisión.</p>
+          <p class="text-xs text-base-content/60">Si lo permites, se registrará tu ubicación (es opcional: puedes marcar sin ella). Usa siempre el mismo equipo para marcar; si cambias de equipo, tu jornada quedará pendiente de revisión.</p>
         </div>
         {# Solo aparece al marcar desde un equipo distinto al habitual: la jornada queda pendiente de revisión. #}
         <div class="hidden" data-motivo>

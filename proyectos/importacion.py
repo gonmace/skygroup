@@ -4,6 +4,7 @@ Se valida todo el archivo antes de guardar: si alguna fila tiene errores no se i
 El código identifica el registro: si ya existe uno activo con ese código se actualiza (las celdas vacías no
 borran datos); sin código, o con uno nuevo, se crea."""
 from decimal import Decimal, InvalidOperation
+import zipfile
 from io import BytesIO
 
 from django.db import transaction
@@ -17,6 +18,7 @@ from .models import Proyecto, ProyectoUbicacion
 
 MAX_BYTES = 5 * 1024 * 1024
 MAX_FILAS = 2000
+MAX_DESCOMPRIMIDO = 50 * 1024 * 1024   # un .xlsx es un zip: se limita lo que ocupa abierto, no solo lo subido
 ETIQUETA_UBICACION = 'Principal'
 
 # (encabezado, ancho, clave interna)
@@ -25,7 +27,7 @@ COLUMNAS = [
     ('Tipo', 16, 'tipo'), ('Estado', 16, 'estado'), ('Región', 18, 'region'), ('Comuna', 18, 'comuna'),
     ('Ciudad', 18, 'ciudad'), ('Descripción', 40, 'descripcion'), ('Latitud', 12, 'lat'), ('Longitud', 12, 'lon'),
 ]
-LARGOS = {'codigo': 40, 'nombre': 160, 'codigo_operador': 60, 'region': 80, 'comuna': 80, 'ciudad': 80}
+LARGOS = {'codigo': 40, 'nombre': 160, 'codigo_operador': 60, 'region': 80, 'comuna': 80, 'ciudad': 80, 'descripcion': 5000}
 
 
 class ErrorArchivo(Exception):
@@ -94,9 +96,16 @@ def leer(archivo, empresa):
     if not archivo.name.lower().endswith('.xlsx'):
         raise ErrorArchivo('Sube un archivo Excel (.xlsx). Puedes partir de la plantilla.')
     try:
+        with zipfile.ZipFile(archivo) as z:
+            if sum(i.file_size for i in z.infolist()) > MAX_DESCOMPRIMIDO:
+                raise ErrorArchivo('El archivo es demasiado grande al abrirlo. Reduce las filas o el contenido.')
+        archivo.seek(0)
+    except zipfile.BadZipFile:
+        raise ErrorArchivo('No se pudo leer el archivo: no parece un Excel .xlsx válido.')
+    try:
         wb = load_workbook(archivo, read_only=True, data_only=True)
         ws = wb['Proyectos'] if 'Proyectos' in wb.sheetnames else wb.worksheets[0]
-        filas = list(ws.iter_rows(values_only=True, max_row=MAX_FILAS + 2))
+        filas = list(ws.iter_rows(values_only=True, max_row=MAX_FILAS + 2, max_col=len(COLUMNAS) + 10))
     except Exception:
         raise ErrorArchivo('No se pudo leer el archivo: no parece un Excel .xlsx válido.')
     if not filas:

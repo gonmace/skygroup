@@ -305,6 +305,19 @@ class ImportarExcelTests(TestCase):
         r = self.subir([], nombre='datos.csv')
         self.assertIn('.xlsx', r.context['error_archivo'])
 
+    def test_zip_que_no_es_excel_o_demasiado_grande_al_abrirse(self):
+        from unittest import mock
+
+        from proyectos import importacion
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.client.force_login(self.pmo)
+        r = self.client.post('/tekon/proyectos/importar/', {'archivo': SimpleUploadedFile('x.xlsx', b'no es zip')})
+        self.assertIn('.xlsx', r.context['error_archivo'])
+        with mock.patch.object(importacion, 'MAX_DESCOMPRIMIDO', 10):
+            r = self.subir([['A-1', 'Uno', '', '', '', '', '', '', '', '', '']])
+        self.assertIn('demasiado grande', r.context['error_archivo'])
+        self.assertEqual(Proyecto.objects.count(), 0)
+
     def test_sin_permiso_no_importa(self):
         for u in (self.lector, self.coord):    # el coordinador gestiona proyectos pero no es administrador
             self.client.force_login(u)

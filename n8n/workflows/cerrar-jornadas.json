@@ -1,0 +1,71 @@
+{
+  "name": "Skygroup · Cerrar jornadas abiertas — 00:00",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Cron 00:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SKYGROUP_URL || 'https://skygroup.redlinegs.com' }}/api/jor/interno/cerrar-vencidas/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http",
+      "name": "Cerrar jornadas abiertas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "skygroup-interno",
+          "name": "skygroup interno"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron 00:00": {
+      "main": [
+        [
+          {
+            "node": "Cerrar jornadas abiertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/La_Paz"
+  }
+}

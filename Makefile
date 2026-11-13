@@ -45,6 +45,10 @@ n8n-export:
 n8n-import:
 	bash docker/n8n-import.sh
 
+# Importa los workflows de n8n/workflows al n8n de desarrollo (docker-compose.dev.yml).
+n8n-import-dev:
+	docker compose -f docker-compose.dev.yml exec -T n8n n8n import:workflow --separate --input=/home/node/.n8n/workflows-import/
+
 # Actualizar n8n: pull nueva imagen + restart del contenedor
 # Los datos (workflows, credenciales) se preservan en el volumen ./volumes/n8n
 n8n-update:
@@ -72,7 +76,7 @@ dev: dev-up
 	python manage.py migrate
 	@trap 'kill $$(jobs -p) 2>/dev/null' EXIT INT TERM; \
 	python manage.py tailwind start & \
-	python manage.py runserver
+	python manage.py runserver 0.0.0.0:$${APP_PORT:-8000}
 
 tailwind:
 	python manage.py tailwind start
@@ -158,6 +162,6 @@ logs:
 down:
 	docker compose --profile postgres --profile n8n --profile n8n-mcp down
 
-.PHONY: setup dev-up dev-down dev-logs dev-check n8n-export n8n-import n8n-update install dev tailwind \
+.PHONY: setup dev-up dev-down dev-logs dev-check n8n-export n8n-import n8n-import-dev n8n-update install dev tailwind \
         migrate migrations shell superuser collect sync-media media-cdn axes-reset db-shell db-reset \
         deploy nginx check-ports backup restore rollback ps restart logs down

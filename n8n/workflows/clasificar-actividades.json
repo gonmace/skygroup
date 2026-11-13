@@ -1,0 +1,307 @@
+{
+  "name": "Skygroup · Clasificar actividades (LLM) — 00:05",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "5 0 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Cron 00:05",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "manual",
+      "name": "Ejecutar (manual)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Slugs de las empresas cuyas actividades se clasifican cada noche. EDITAR según el entorno.\nconst EMPRESAS = ['tekon'];\nreturn EMPRESAS.map(e => ({ json: { empresa: e } }));"
+      },
+      "id": "empresas",
+      "name": "Empresas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        400
+      ],
+      "notes": "Lista de slugs de empresa. Editar el arreglo EMPRESAS."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SKYGROUP_URL || 'https://skygroup.redlinegs.com' }}/api/jor/interno/actividades/pendientes/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "empresa",
+              "value": "={{ $json.empresa }}"
+            },
+            {
+              "name": "limite",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "pendientes",
+      "name": "Obtener pendientes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        400
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "skygroup-interno",
+          "name": "skygroup interno"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const empresa = $('Empresas').item.json.empresa;\nconst r = $input.item.json;\nconst items = r.items || [];\nif (!items.length) return [];\nconst cats = r.categorias || [];\nconst system = 'Clasificas actividades laborales en una de estas categorías (usa solo el código):\\n' +\n  cats.map(c => `- ${c.codigo}: ${c.nombre}`).join('\\n') +\n  '\\nResponde únicamente con JSON {\"results\":[{\"id\":<id>,\"categoria\":\"<código>\"}]}, un elemento por actividad. ' +\n  'Si ninguna categoría aplica, omite esa actividad.';\nconst user = items.map(i => `${i.id}: ${i.texto}`).join('\\n');\nreturn { json: { empresa, system_prompt: system, user_prompt: user, ids: items.map(i => i.id) } };"
+      },
+      "id": "preparar",
+      "name": "Preparar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.user_prompt }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "={{ $json.system_prompt }}"
+        }
+      },
+      "id": "agent",
+      "name": "Clasificar (Agent)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1120,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "id": "llm",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1080,
+        620
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-account",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"results\": [\n    { \"id\": 123, \"categoria\": \"riesgos\" }\n  ]\n}"
+      },
+      "id": "parser",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1260,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const empresa = $('Preparar').item.json.empresa;\nlet out = $input.item.json.output;\nif (typeof out === 'string') { try { out = JSON.parse(out); } catch (e) { out = {}; } }\nconst lista = Array.isArray(out) ? out : (out.results || []);\nconst asignaciones = lista.filter(a => a && Number.isInteger(a.id) && a.categoria).map(a => ({ id: a.id, categoria: a.categoria }));\nreturn { json: { empresa, asignaciones } };"
+      },
+      "id": "armar",
+      "name": "Armar asignaciones",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SKYGROUP_URL || 'https://skygroup.redlinegs.com' }}/api/jor/interno/actividades/clasificar/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "guardar",
+      "name": "Guardar clasificación",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        400
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "skygroup-interno",
+          "name": "skygroup interno"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron 00:05": {
+      "main": [
+        [
+          {
+            "node": "Empresas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ejecutar (manual)": {
+      "main": [
+        [
+          {
+            "node": "Empresas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Empresas": {
+      "main": [
+        [
+          {
+            "node": "Obtener pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener pendientes": {
+      "main": [
+        [
+          {
+            "node": "Preparar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar": {
+      "main": [
+        [
+          {
+            "node": "Clasificar (Agent)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Clasificar (Agent)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Clasificar (Agent)",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clasificar (Agent)": {
+      "main": [
+        [
+          {
+            "node": "Armar asignaciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar asignaciones": {
+      "main": [
+        [
+          {
+            "node": "Guardar clasificación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/La_Paz"
+  }
+}

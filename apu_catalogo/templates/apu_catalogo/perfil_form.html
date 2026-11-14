@@ -1,0 +1,153 @@
+{% extends "shell.html" %}
+{% block page_title %}{% if perfil %}Editar {{ perfil.nombre }}{% else %}Nuevo perfil{% endif %}{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+{% url 'apu_catalogo:inicio' as url_inicio %}
+<div>
+  <a href="{% if perfil %}{% url 'apu_catalogo:perfil_detalle' perfil.pk %}{% else %}{{ url_inicio }}{% endif %}" class="inline-flex items-center gap-1 text-sm text-base-content/60 hover:text-base-content">{% include "components/icon.html" with name="chevron-left" cls="size-4" %} {% if perfil %}{{ perfil.nombre }}{% else %}Perfiles de cálculo{% endif %}</a>
+  <h1 class="mt-1 text-2xl font-semibold">{% if perfil %}Editar perfil{% else %}Nuevo perfil{% endif %}</h1>
+  <p class="mt-1 max-w-3xl text-sm text-base-content/60">Cada tarjeta es un concepto del APU. Elige sobre qué líneas se aplica y prueba el resultado con montos de ejemplo antes de guardar. Los presupuestos ya hechos conservan su propia copia.</p>
+</div>
+
+<form method="post" class="space-y-6">{% csrf_token %}
+  <button name="accion" value="probar" class="hidden" tabindex="-1" aria-hidden="true"></button>{# Enter no debe disparar «Quitar» ni «Subir» #}
+  <input type="hidden" name="n" value="{{ filas|length }}">
+  {% if errores %}
+  <div role="alert" class="alert alert-warning alert-soft items-start text-sm">
+    <ul class="list-inside list-disc space-y-0.5">{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <section class="card bg-base-100"><div class="card-body gap-4 p-5">
+    <h2 class="font-semibold">Datos generales</h2>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {% for campo in form %}
+      <label class="flex flex-col gap-1 {% if campo.name == 'nombre' %}sm:col-span-2 lg:col-span-1{% endif %}">
+        <span class="text-xs font-medium text-base-content/70">{{ campo.label }}</span>
+        {{ campo }}
+        {% if campo.help_text %}<span class="text-xs text-base-content/50">{{ campo.help_text }}</span>{% endif %}
+        {% for e in campo.errors %}<span class="text-xs text-error">{{ e }}</span>{% endfor %}
+      </label>
+      {% endfor %}
+    </div>
+  </div></section>
+
+  <div class="space-y-3">
+    {% for f in filas %}
+      {% ifchanged f.seccion %}
+      <h2 class="{% if not forloop.first %}pt-3 {% endif %}text-xs font-semibold uppercase tracking-wide text-base-content/60">{% if f.seccion == "insumos" %}Insumos{% elif f.seccion == "presupuesto" %}Al final del presupuesto{% else %}En cada APU{% endif %}</h2>
+      {% endifchanged %}
+      <article class="card bg-base-100 border-l-4 {% if f.es_suma %}border-base-300{% elif f.tipo == 'porcentaje' %}border-primary{% else %}border-info{% endif %}">
+        <div class="card-body gap-3 p-4">
+          <input type="hidden" name="cod_{{ f.i }}" value="{{ f.cod }}"><input type="hidden" name="tipo_{{ f.i }}" value="{{ f.tipo }}"><input type="hidden" name="grupo_{{ f.i }}" value="{{ f.grupo }}">
+
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="badge badge-ghost font-mono">{{ f.cod }}</span>
+            <input name="nombre_{{ f.i }}" value="{{ f.nombre }}" maxlength="100" class="input input-bordered input-sm min-w-48 flex-1" aria-label="Concepto de la línea {{ f.cod }}">
+            {% if f.es_resultado %}<span class="badge badge-primary">{% if f.nivel == "presupuesto" %}Total del presupuesto{% else %}Precio unitario{% endif %}</span>{% endif %}
+            {% if not f.es_suma %}
+            <select name="nivel_{{ f.i }}" class="select select-bordered select-sm w-auto" aria-label="Dónde se aplica {{ f.nombre }}">
+              <option value="apu" {% if f.nivel == "apu" %}selected{% endif %}>En cada APU</option>
+              <option value="presupuesto" {% if f.nivel == "presupuesto" %}selected{% endif %}>Al final del presupuesto</option>
+            </select>
+            {% endif %}
+            <div class="ml-auto flex items-center gap-0.5">
+              {% if f.puede_subir %}<button name="accion" value="subir:{{ f.i }}" class="btn btn-ghost btn-square btn-sm" title="Subir" aria-label="Subir">{% include "components/icon.html" with name="arrow-up" cls="size-4" %}</button>{% endif %}
+              {% if f.puede_bajar %}<button name="accion" value="bajar:{{ f.i }}" class="btn btn-ghost btn-square btn-sm" title="Bajar" aria-label="Bajar">{% include "components/icon.html" with name="arrow-down" cls="size-4" %}</button>{% endif %}
+              {% if not f.es_suma %}<button name="accion" value="quitar:{{ f.i }}" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Quitar" aria-label="Quitar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>{% endif %}
+            </div>
+          </div>
+
+          {% if f.es_suma %}
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <span class="text-base-content/70">Suma de {{ f.etiqueta_grupo }} ×</span>
+            <input name="valor_{{ f.i }}" value="{{ f.valor }}" inputmode="decimal" class="input input-bordered input-sm w-24" aria-label="Factor de {{ f.nombre }}">
+            <span class="text-xs text-base-content/50">Factor 1 = sin cambio. Úsalo si la hora ya incluye cargas sociales (p. ej. 1,55).</span>
+          </div>
+          {% else %}
+          <div class="space-y-2 text-sm">
+            <div class="flex flex-wrap items-center gap-2">
+              {% if f.tipo == "porcentaje" %}
+              <input name="valor_{{ f.i }}" value="{{ f.valor }}" inputmode="decimal" class="input input-bordered input-sm w-24 text-right" aria-label="Porcentaje de {{ f.nombre }}">
+              <span class="text-base-content/70">% de</span>
+              {% else %}<span class="text-base-content/70">Suma de</span>{% endif %}
+            </div>
+            <div class="flex flex-wrap gap-x-4 gap-y-2 rounded-box bg-base-content/5 px-3 py-2">
+              {% for c in f.candidatas %}
+              <label class="flex cursor-pointer items-center gap-1.5"><input type="checkbox" class="checkbox checkbox-sm" name="sobre_{{ f.i }}" value="{{ c.cod }}" {% if c.marcada %}checked{% endif %}>{{ c.nombre }}</label>
+              {% empty %}<span class="text-xs text-base-content/50">No hay líneas anteriores.</span>{% endfor %}
+            </div>
+            {% if f.tipo == "porcentaje" %}
+            <label class="flex cursor-pointer items-center gap-1.5 text-xs text-base-content/70"><input type="checkbox" class="checkbox checkbox-xs" name="modo_{{ f.i }}" {% if f.sobre_precio %}checked{% endif %}>Sobre el precio de venta (base ÷ (1 − %))</label>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </article>
+    {% endfor %}
+
+    <div class="flex flex-wrap gap-2 pt-1">
+      <button name="accion" value="agregar_recargo" class="btn btn-sm btn-outline gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar recargo</button>
+      <button name="accion" value="agregar_subtotal" class="btn btn-sm btn-outline gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar subtotal</button>
+    </div>
+  </div>
+
+  <section class="card bg-base-100"><div class="card-body gap-4 p-5">
+    <h2 class="font-semibold">Resultado</h2>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <label class="flex flex-col gap-1">
+        <span class="text-xs font-medium text-base-content/70">Línea que da el precio unitario</span>
+        <select name="total_apu" class="select select-bordered select-sm w-full">
+          <option value="">— elige una —</option>
+          {% for f in resultados_apu %}<option value="{{ f.cod }}" {% if f.cod == estado.total_apu %}selected{% endif %}>{{ f.nombre|default:f.cod }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="flex flex-col gap-1">
+        <span class="text-xs font-medium text-base-content/70">Línea que da el total del presupuesto <span class="font-normal text-base-content/50">(opcional)</span></span>
+        <select name="total_presupuesto" class="select select-bordered select-sm w-full">
+          <option value="">— ninguna —</option>
+          {% for f in resultados_presupuesto %}<option value="{{ f.cod }}" {% if f.cod == estado.total_presupuesto %}selected{% endif %}>{{ f.nombre|default:f.cod }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+  </div></section>
+
+  <section class="card bg-base-100"><div class="card-body gap-4 p-5">
+    <div>
+      <h2 class="font-semibold">Probar con montos de ejemplo</h2>
+      <p class="mt-0.5 text-sm text-base-content/60">Escribe el total de materiales, mano de obra y equipos de un APU real y compara con su resultado.</p>
+    </div>
+    <div class="flex flex-wrap items-end gap-3">
+      {% for g, etiqueta, valor in prueba %}
+      <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">{{ etiqueta|capfirst }}</span><input name="prueba_{{ g }}" value="{{ valor }}" inputmode="decimal" class="input input-bordered input-sm w-32 text-right"></label>
+      {% endfor %}
+      <button name="accion" value="probar" class="btn btn-sm gap-1">{% include "components/icon.html" with name="calculator" cls="size-4" %} Probar</button>
+    </div>
+    {% if vista_previa %}
+    <div class="grid gap-4 lg:grid-cols-2">
+      <div class="overflow-hidden rounded-box border border-base-300">
+        <h3 class="border-b border-base-300 bg-base-content/5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-base-content/60">En cada APU</h3>
+        <table class="table table-sm">
+          {% for nombre, valor, es_total in vista_previa.apu %}<tr {% if es_total %}class="font-semibold"{% endif %}><td>{{ nombre }}</td><td class="text-right tabular-nums">{{ valor|floatformat:2 }}</td></tr>{% endfor %}
+          <tr class="bg-primary/10 font-semibold"><td>Precio unitario (redondeado)</td><td class="text-right tabular-nums">{{ vista_previa.total_apu|floatformat:2 }}</td></tr>
+        </table>
+      </div>
+      {% if vista_previa.presupuesto %}
+      <div class="overflow-hidden rounded-box border border-base-300">
+        <h3 class="border-b border-base-300 bg-base-content/5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-base-content/60">Presupuesto <span class="font-normal normal-case">(los montos son el total de la obra)</span></h3>
+        <table class="table table-sm">
+          {% for nombre, valor, es_total in vista_previa.presupuesto %}<tr {% if es_total %}class="font-semibold"{% endif %}><td>{{ nombre }}</td><td class="text-right tabular-nums">{{ valor|floatformat:2 }}</td></tr>{% endfor %}
+          <tr class="bg-primary/10 font-semibold"><td>Total (redondeado)</td><td class="text-right tabular-nums">{{ vista_previa.total_presupuesto|floatformat:2 }}</td></tr>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+    {% else %}<p class="rounded-box bg-base-content/5 px-4 py-3 text-sm text-base-content/60">Completa las líneas pendientes (ver el aviso de arriba) para ver el resultado.</p>{% endif %}
+  </div></section>
+
+  <div class="flex gap-2">
+    <button name="accion" value="guardar" class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="check" cls="size-4" %} Guardar</button>
+    <a href="{% if perfil %}{% url 'apu_catalogo:perfil_detalle' perfil.pk %}{% else %}{{ url_inicio }}{% endif %}" class="btn btn-sm">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

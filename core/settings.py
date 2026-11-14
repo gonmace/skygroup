@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'panel',
     'notificaciones',
     'mje_mensajes',
+    'apu_catalogo',
     'tar_tickets',
     'tar_adjuntos',
     'reg_base',
@@ -179,6 +180,11 @@ WHITENOISE_MANIFEST_STRICT = not DEBUG  # True en prod: rechaza archivos sin ent
 S3_URL_EXPIRE = config('S3_URL_EXPIRE', default=300, cast=int)  # segundos de las URLs firmadas (privados)
 # Token de los endpoints internos (n8n/cron, cabecera X-Internal-Token). Vacío = deshabilitados.
 INTERNAL_API_TOKEN = config('INTERNAL_API_TOKEN', default='')
+
+# Webhooks de n8n a los que llama skygroup (APU con IA). Token opcional en una cabecera.
+N8N_BASE_URL = config('N8N_BASE_URL', default='http://n8n:5678')
+N8N_WEBHOOK_TOKEN = config('N8N_WEBHOOK_TOKEN', default='')
+N8N_WEBHOOK_TOKEN_HEADER = config('N8N_WEBHOOK_TOKEN_HEADER', default='X-Webhook-Token')
 DISK_ALERT_PERCENT = config('DISK_ALERT_PERCENT', default=85, cast=int)
 
 FOTO_MAX_SIZE = config('FOTO_MAX_SIZE', default=25 * 1024 * 1024, cast=int)  # 25 MB por foto (Registros)

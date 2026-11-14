@@ -1,0 +1,62 @@
+{% extends "shell.html" %}
+{% block page_title %}APU IA{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+  {% for icono, etiqueta, valor in resumen %}
+  <div class="card bg-base-100"><div class="card-body flex-row items-center gap-4 p-4">
+    <span class="grid size-11 shrink-0 place-items-center rounded-box bg-primary/10 text-primary-text">{% include "components/icon.html" with name=icono cls="size-5" %}</span>
+    <div>
+      <p class="text-3xl font-semibold leading-none tabular-nums">{{ valor }}</p>
+      <p class="mt-1 text-xs text-base-content/60">{{ etiqueta }}</p>
+    </div>
+  </div></div>
+  {% endfor %}
+</div>
+
+<section class="table-card">
+  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 px-5 py-4">
+    <div class="max-w-2xl">
+      <h2 class="text-base font-semibold">Perfiles de cálculo</h2>
+      <p class="mt-0.5 text-sm text-base-content/60">Los recargos de cada país o entidad contratante. Copia una plantilla y ajústala, o crea un perfil desde cero.</p>
+    </div>
+    {% if puede_perfiles %}<a href="{% url 'apu_catalogo:perfil_nuevo' %}" class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Nuevo perfil</a>{% endif %}
+  </div>
+  <table class="table">
+    <thead><tr><th>Nombre</th><th>País</th><th>Moneda</th><th class="text-right">Líneas</th><th class="w-px"></th></tr></thead>
+    <tbody>
+    {% for p in perfiles %}
+      <tr class="hover:bg-base-content/5">
+        <td>
+          <a class="font-medium hover:underline" href="{% url 'apu_catalogo:perfil_detalle' p.pk %}">{{ p.nombre }}</a>
+          {% if p.es_plantilla %}<span class="badge badge-ghost badge-sm ml-1">Plantilla</span>{% endif %}
+        </td>
+        <td>{% if p.pais %}<span class="badge badge-outline badge-sm font-mono">{{ p.pais }}</span>{% else %}<span class="text-base-content/40">—</span>{% endif %}</td>
+        <td class="font-mono text-sm">{{ p.moneda }}</td>
+        <td class="text-right tabular-nums">{{ p.datos.lineas|length }}</td>
+        <td>
+          <div class="flex justify-end gap-1">
+            <a href="{% url 'apu_catalogo:perfil_detalle' p.pk %}" class="btn btn-ghost btn-square btn-sm text-info" title="Ver estructura" aria-label="Ver estructura">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+            {% if puede_perfiles %}
+            {% if not p.es_plantilla %}
+            <a href="{% url 'apu_catalogo:perfil_editar' p.pk %}" class="btn btn-ghost btn-square btn-sm text-primary-text" title="Editar" aria-label="Editar">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+            {% endif %}
+            <form method="post" action="{% url 'apu_catalogo:perfil_copiar' p.pk %}">{% csrf_token %}
+              <button class="btn btn-ghost btn-square btn-sm text-info" title="Copiar y editar" aria-label="Copiar y editar">{% include "components/icon.html" with name="copy" cls="size-5" %}</button>
+            </form>
+            {% if not p.es_plantilla %}
+            <form method="post" action="{% url 'apu_catalogo:perfil_eliminar' p.pk %}" data-confirmar="¿Eliminar el perfil «{{ p.nombre }}»? Los presupuestos ya hechos no cambian.">{% csrf_token %}
+              <button class="btn btn-ghost btn-square btn-sm text-error" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+            </form>
+            {% endif %}
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="py-8 text-center text-base-content/60">Todavía no hay perfiles.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

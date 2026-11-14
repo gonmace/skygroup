@@ -170,8 +170,116 @@ class ComprimirTests(ImagenesBase):
         """Una foto ya comprimida a esa calidad no se reduce más: se informa «ya optimizadas», no solo «0»."""
         self.post(self.admin, 'comprimir', [self.f1.pk], quality=40)
         d = self.post(self.admin, 'comprimir', [self.f1.pk], quality=95).json()   # más calidad que la de origen: no baja
-        self.assertEqual((d['comprimidas'], d['sin_ahorro'], d['no_jpeg']), (0, 1, 0))
+        self.assertEqual((d['comprimidas'], d['sin_ahorro']), (0, 1))
         self.assertIn('ya estaban optimizadas', d['message'])
+
+    def _con_metadata(self, formato='JPEG', **extra):
+        """Imagen con ruido (pesa) y toda la metadata: EXIF con GPS y fecha, perfil ICC y XMP."""
+        import random
+
+        from PIL import Image, ImageCms
+        from reg_fotos.tests import exif_con_gps_y_fecha
+        random.seed(11)
+        img = Image.new('RGB', (700, 500))
+        img.putdata([(random.randrange(256), random.randrange(256), random.randrange(256)) for _ in range(700 * 500)])
+        b = io.BytesIO()
+        icc = ImageCms.ImageCmsProfile(ImageCms.createProfile('sRGB')).tobytes()
+        xmp = b'<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">dron-test</rdf:RDF></x:xmpmeta>'
+        img.save(b, formato, exif=exif_con_gps_y_fecha(), icc_profile=icc, xmp=xmp, comment=b'nota de campo',
+                 quality=98, **extra)
+        return b.getvalue()
+
+    def test_conserva_toda_la_metadata_exif_gps_icc_xmp_y_comentario(self):
+        from PIL import Image
+
+        from .imagenes import _exif_valores
+        datos = self._con_metadata()
+        f = self.foto(self.r, 'general', datos)
+        lat, lon, fecha = f.exif_lat, f.exif_lon, f.exif_fecha
+        self.assertIsNotNone(lat)
+        with Image.open(io.BytesIO(datos)) as o:
+            exif0, icc0, xmp0, com0 = _exif_valores(o), o.info.get('icc_profile'), o.info.get('xmp'), o.info.get('comment')
+        d = self.post(self.admin, 'comprimir', [f.pk], quality=60).json()
+        self.assertEqual((d['comprimidas'], d['conservadas']), (1, 0))
+        f.refresh_from_db()
+        with f.imagen.open('rb') as fh, Image.open(fh) as n:
+            n.load()
+            self.assertEqual(_exif_valores(n), exif0)
+            self.assertEqual((n.info.get('icc_profile'), n.info.get('xmp'), n.info.get('comment')), (icc0, xmp0, com0))
+        self.assertEqual((f.exif_lat, f.exif_lon, f.exif_fecha), (lat, lon, fecha))   # la base no cambia
+
+    def test_convierte_una_png_a_jpeg_y_conserva_su_metadata(self):
+        """PNG (con ruido y transparencia) → JPEG .jpg: más liviana, misma resolución, y su eXIf/ICC/XMP/textos siguen ahí."""
+        import random
+
+        from PIL import Image, ImageCms
+        from PIL.PngImagePlugin import PngInfo
+
+        from reg_fotos.tests import exif_con_gps_y_fecha
+
+        from .imagenes import _exif_valores
+        random.seed(5)
+        im = Image.new('RGBA', (700, 500))
+        im.putdata([(random.randrange(256), random.randrange(256), random.randrange(256), 255 if i % 9 else 0)
+                    for i in range(700 * 500)])
+        texto = PngInfo()
+        texto.add_text('Description', 'Sur - panorámica')
+        buf = io.BytesIO()
+        im.save(buf, 'PNG', exif=exif_con_gps_y_fecha().tobytes(), pnginfo=texto,   # PNG exige bytes (con un objeto Exif no escribe el chunk)
+                
+                icc_profile=ImageCms.ImageCmsProfile(ImageCms.createProfile('sRGB')).tobytes())
+        f = self.foto(self.r, 'general', buf.getvalue(), nombre='captura.png')
+        self.assertTrue(f.imagen.name.endswith('.png'))
+        with Image.open(io.BytesIO(buf.getvalue())) as o:
+            o.load()
+            exif0, icc0 = _exif_valores(o), o.info.get('icc_profile')
+        self.assertTrue(exif0)
+        res = self.post(self.admin, 'comprimir', [f.pk], quality=40).json()     # PNG: se usa al menos CALIDAD_PNG
+        self.assertEqual((res['comprimidas'], res['omitidas'], res['conservadas']), (1, 0, 0))
+        f.refresh_from_db()
+        self.assertTrue(f.imagen.name.lower().endswith('.jpg'))
+        with f.imagen.open('rb') as fh, Image.open(fh) as out:
+            out.load()
+            self.assertEqual((out.format, out.size), ('JPEG', (700, 500)))
+            self.assertEqual(_exif_valores(out), exif0)
+            self.assertEqual(out.info.get('icc_profile'), icc0)
+            self.assertIn(b'Description: Sur', out.info.get('comment', b''))
+        self.assertLess(f.tamano, len(buf.getvalue()))
+
+    def test_una_png_pequena_que_pesa_menos_que_su_jpeg_queda_como_esta(self):
+        from PIL import Image, ImageDraw
+        im = Image.new('RGB', (900, 500), 'white')
+        ImageDraw.Draw(im).rectangle([100, 100, 800, 400], fill='navy')
+        buf = io.BytesIO()
+        im.save(buf, 'PNG')
+        f = self.foto(self.r, 'general', buf.getvalue(), nombre='dibujo.png')
+        nombre = f.imagen.name
+        d = self.post(self.admin, 'comprimir', [f.pk]).json()
+        self.assertEqual((d['comprimidas'], d['sin_ahorro']), (0, 1))
+        f.refresh_from_db()
+        self.assertEqual(f.imagen.name, nombre)
+
+    def test_no_recomprime_una_foto_que_ya_esta_en_esa_calidad(self):
+        f = self.foto(self.r, 'general', self._con_metadata())
+        self.post(self.admin, 'comprimir', [f.pk], quality=60)
+        f.refresh_from_db()
+        nombre, tam = f.imagen.name, f.tamano
+        d = self.post(self.admin, 'comprimir', [f.pk], quality=60).json()
+        self.assertEqual((d['comprimidas'], d['sin_ahorro']), (0, 1))
+        f.refresh_from_db()
+        self.assertEqual((f.imagen.name, f.tamano), (nombre, tam))                  # intacta, sin reescribir
+
+    def test_si_no_puede_conservar_la_metadata_deja_la_foto_intacta(self):
+        from unittest import mock
+        f = self.foto(self.r, 'general', self._con_metadata())
+        nombre = f.imagen.name
+        with mock.patch.object(imagenes, '_verificar', side_effect=imagenes.MetadataNoConservable('prueba')):
+            d = self.post(self.admin, 'comprimir', [f.pk], quality=40).json()
+        self.assertEqual((d['comprimidas'], d['conservadas']), (0, 1))
+        self.assertIn('metadata', d['message'])
+        f.refresh_from_db()
+        self.assertEqual(f.imagen.name, nombre)
+        self.assertTrue(f.imagen.storage.exists(nombre))
 
     def test_lote_maximo(self):
         self.assertEqual(self.post(self.admin, 'comprimir', list(range(1, imagenes.MAX_COMPRIMIR + 2))).status_code, 400)

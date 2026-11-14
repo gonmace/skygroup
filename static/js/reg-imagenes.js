@@ -67,7 +67,7 @@
 
   // Envía los ids por lotes, uno tras otro, mostrando el avance. `acumular` suma las cifras de cada respuesta.
   async function porLotes(url, ids, tam, extra, etiqueta) {
-    var total = { ok: 0, omitidas: 0, ahorro: 0, sinAhorro: 0, noJpeg: 0 };
+    var total = { ok: 0, omitidas: 0, ahorro: 0, sinAhorro: 0, conservadas: 0 };
     var hechos = 0, prog = progreso(etiqueta + '… 0 de ' + ids.length);
     try {
       for (var lote of lotes(ids, tam)) {
@@ -79,7 +79,7 @@
         total.omitidas += d.omitidas || 0;
         total.ahorro += d.ahorro || 0;
         total.sinAhorro += d.sin_ahorro || 0;
-        total.noJpeg += d.no_jpeg || 0;
+        total.conservadas += d.conservadas || 0;
         hechos += lote.length;
       }
     } finally { prog.quitar(); }
@@ -108,16 +108,16 @@
   }
 
   async function comprimir() {
-    var ids = seleccion(), cal = parseInt(document.getElementById('imagenes-calidad').value, 10) || 70;
+    var ids = seleccion(), cal = parseInt(document.getElementById('imagenes-calidad').value, 10) || 85;
     cal = Math.max(10, Math.min(95, cal));
-    if (!await window.confirmarUI('¿Comprimir ' + ids.length + ' foto(s) al ' + cal + ' % de calidad? Se conserva la resolución y el EXIF. ' +
-                 'Solo se comprimen las JPEG y nunca queda más pesada que la original.', { titulo: 'Comprimir', aceptar: 'Comprimir' })) return;
+    if (!await window.confirmarUI('¿Comprimir ' + ids.length + ' foto(s) al ' + cal + ' % de calidad? Se conserva la resolución y toda la metadata (EXIF, GPS, color, XMP). ' +
+                 'Las PNG se convierten a JPEG (la transparencia pasa a blanco); las que ya están en esa calidad no se tocan.', { titulo: 'Comprimir', aceptar: 'Comprimir' })) return;
     ocupado(true);
     try {
       var t = await porLotes(raiz.dataset.urlComprimir, ids, +raiz.dataset.maxComprimir, { quality: cal }, 'Comprimiendo');
       var texto = t.ok + ' foto(s) comprimida(s), ahorro ' + Math.round(t.ahorro / 1024) + ' KB.' +
-        (t.sinAhorro ? ' ' + t.sinAhorro + ' ya estaban optimizadas: recomprimir al ' + cal + ' % no las hace más livianas (prueba una calidad menor).' : '') +
-        (t.noJpeg ? ' ' + t.noJpeg + ' no son JPEG (PNG u otro formato): no se tocan.' : '') +
+        (t.sinAhorro ? ' ' + t.sinAhorro + ' ya estaban optimizadas: recomprimir al ' + cal + ' % no las reduce lo suficiente (prueba una calidad menor).' : '') +
+        (t.conservadas ? ' ' + t.conservadas + ' se dejaron intactas porque no se podía conservar toda su metadata.' : '') +
         (t.omitidas ? ' ' + t.omitidas + ' con error.' : '');
       if (t.ok) avisarTrasRecargar(texto, 'success');
       else { avisar(texto, 'warning'); ocupado(false); }   // sin cambios: no se recarga, el aviso queda visible

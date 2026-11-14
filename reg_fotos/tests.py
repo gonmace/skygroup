@@ -312,10 +312,9 @@ class EstadoYDetalleTests(FotosBase):
         self.subir(self.ito1, subida())
         r = self.client.get(f'/tekon/registros/txtss/{self.r.pk}/')
         self.assertEqual(r.context['fotos_total'], 1)
-        self.assertContains(r, 'Subir / ver')
-        self.assertContains(r, '/fotos/general/')
-        self.client.force_login(self.visita)
-        self.assertNotContains(self.client.get(f'/tekon/registros/txtss/{self.r.pk}/'), 'Subir / ver')
+        self.assertEqual(r.context['fotos_etapas'], [{'etapa': 'general', 'nombre': 'General', 'n': 1}])
+        self.assertContains(r, '/fotos/general/')   # enlace a la galería de cada etapa que tiene fotos
+        self.assertNotContains(r, 'Subir / ver')
 
     def test_la_lista_refleja_el_color(self):
         self.subir(self.ito1, subida())

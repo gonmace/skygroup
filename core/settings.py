@@ -119,6 +119,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'empresas.context_processors.marca_empresa',
                 'empresas.context_processors.selector_empresas',
+                'empresas.context_processors.papel_plataforma',
                 'panel.menu.menu_lateral',
                 'notificaciones.context_processors.campana',
                 'mje_mensajes.context_processors.mensajeria',

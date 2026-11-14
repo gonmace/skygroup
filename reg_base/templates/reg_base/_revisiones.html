@@ -1,7 +1,7 @@
 {# Panel de revisiones de un registro. Contexto: r, revisiones, tipo_rev, puede_revisar, puede_elegir. #}
+{% load reg_ui %}
 {% if revisiones %}
-<section class="card bg-base-100"><div class="card-body gap-3">
-  <h2 class="card-title text-base">Revisiones</h2>
+{% reg_tarjeta "Revisiones" %}
   <p class="text-sm text-base-content/70">Cada revisión conserva sus propios datos y fotos. La <strong>vigente</strong> es la que cuenta para el {{ termino_proyecto|lower }}; puedes elegir otra cuando mejor se acomode.</p>
   <ul class="divide-y divide-base-300">
     {% for v in revisiones %}
@@ -32,5 +32,5 @@
     <div class="text-right"><button class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="copy" cls="size-4" %} Crear revisión</button></div>
   </form>
   {% endif %}
-</div></section>
+{% endreg_tarjeta %}
 {% endif %}

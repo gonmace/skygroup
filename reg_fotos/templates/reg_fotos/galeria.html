@@ -2,59 +2,69 @@
 {% load static %}
 {% block page_title %}{% if r.proyecto.codigo %}{{ r.proyecto.codigo }} {% endif %}{{ r.proyecto.nombre }} - Imágenes{% endblock %}
 {% block content_main %}
-<div class="mb-4 flex flex-wrap items-center gap-2">
-  <span class="text-sm text-base-content/60">{{ tipo.nombre }} · {{ r.proyecto.codigo|default:"—" }} · {{ r.fecha|date:"d/m/Y" }}</span>
-  <a href="{% url url_detalle r.pk %}" class="btn btn-ghost btn-sm ml-auto">← Volver al registro</a>
+<div class="mb-4 grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1">
+  <a href="{% url url_detalle r.pk %}" class="btn btn-ghost btn-sm -ml-2 min-h-11 justify-self-start">← Volver al registro</a>
+  {% if minimo_fotos %}<span class="badge badge-lg h-9 px-4 text-base font-semibold tabular-nums {% if total_fotos >= minimo_fotos %}badge-success{% else %}badge-warning{% endif %}" title="Imágenes tomadas / mínimo">{{ total_fotos }}/{{ minimo_fotos }}</span>{% endif %}
+  <span class="col-span-full truncate text-sm text-base-content/60">{{ tipo.nombre }} · {{ r.proyecto.codigo|default:"—" }} · {{ r.fecha|date:"d/m/Y" }}</span>
 </div>
+
+{% if pedidas %}
+<datalist id="descripciones-pedidas">{% for d in pedidas %}<option value="{{ d.texto }}">{% endfor %}</datalist>
+<ul class="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0" aria-label="Descripciones pedidas">
+  {% for d in pedidas %}
+    <li class="shrink-0"><a href="?descripcion={{ d.texto|urlencode }}" class="badge badge-lg h-10 gap-1 whitespace-nowrap px-4 {% if d.hecha %}badge-success{% else %}badge-outline{% endif %}{% if request.GET.descripcion == d.texto %} ring-2 ring-primary{% endif %}">{% if d.hecha %}✓ {% endif %}{{ d.texto }}</a></li>
+  {% endfor %}
+</ul>
+{% endif %}
 
 {% if puede_escribir %}
 <form method="post" action="{% url 'reg_fotos:subir' tipo.clave r.pk etapa %}" enctype="multipart/form-data" class="card mb-4 bg-base-100">
-  <div class="card-body gap-4">{% csrf_token %}
+  <div class="card-body gap-3 p-4 sm:gap-4 sm:p-6">{% csrf_token %}
     {# Cada ficha abre su origen y sube al elegir (reg-fotos.js). `capture` abre la cámara del celular; donde se exigen metadatos no hay galería. #}
-    <div class="grid gap-3 {% if not exigir_metadatos %}sm:grid-cols-2{% endif %}">
-      <label class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-box border-2 border-dashed border-primary/40 bg-primary/5 px-4 py-7 text-center transition hover:border-primary hover:bg-primary/10 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary">
+    <div class="grid gap-3 {% if not exigir_metadatos %}grid-cols-2{% endif %}">
+      <label class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-box border-2 border-dashed border-primary/40 bg-primary/5 px-3 py-5 text-center sm:px-4 sm:py-7 transition hover:border-primary hover:bg-primary/10 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary">
         <span class="grid size-14 place-items-center rounded-full bg-primary text-primary-content shadow">{% include "components/icon.html" with name="camera" cls="size-7" %}</span>
-        <span class="text-base font-semibold">Capturar Imágenes</span>
+        <span class="text-sm font-semibold sm:text-base">Capturar Imágenes</span>
         <input type="file" name="fotos" accept="image/*" capture="environment" class="sr-only" data-fotos-auto>
       </label>
       {% if not exigir_metadatos %}
-      <label class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-box border-2 border-dashed border-base-content/20 bg-base-200/60 px-4 py-7 text-center transition hover:border-base-content/40 hover:bg-base-200 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary">
+      <label class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-box border-2 border-dashed border-base-content/20 bg-base-200/60 px-3 py-5 text-center sm:px-4 sm:py-7 transition hover:border-base-content/40 hover:bg-base-200 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary">
         <span class="grid size-14 place-items-center rounded-full bg-base-300 text-base-content/70">{% include "components/icon.html" with name="layers" cls="size-7" %}</span>
-        <span class="text-base font-semibold">Elegir de la galería</span>
+        <span class="text-sm font-semibold sm:text-base">Elegir de la galería</span>
         <input type="file" name="fotos" multiple accept="image/*" class="sr-only" data-fotos-auto>
       </label>
       {% endif %}
     </div>
     <label class="text-sm"><span class="mb-1 block text-base-content/60">Descripción (opcional)</span>
-      <input type="text" name="descripcion" maxlength="128" value="{{ request.GET.descripcion|default:'' }}" placeholder="Se agrega a las imágenes que subas ahora" class="input input-bordered w-full"></label>
+      <input type="text" name="descripcion" {% if pedidas %}list="descripciones-pedidas" autocomplete="off" {% endif %}maxlength="128" value="{{ request.GET.descripcion|default:'' }}" placeholder="Se agrega a las imágenes que subas ahora" class="input input-bordered h-12 w-full text-base"></label>
     <noscript><button class="btn btn-primary">Subir</button></noscript>
   </div>
 </form>
 {% elif r.concluido %}<p class="mb-4 text-sm text-base-content/60">El registro está concluido: las fotos son de solo lectura.</p>{% endif %}
 
-<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4" data-fotos-grid data-puede-escribir="{{ puede_escribir|yesno:'1,0' }}"
+<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4" data-fotos-grid data-puede-escribir="{{ puede_escribir|yesno:'1,0' }}"
      data-orden-url="{% url 'reg_fotos:orden' tipo.clave r.pk etapa %}">
   {% for f in fotos %}
     <figure class="card bg-base-100" data-foto-id="{{ f.pk }}">
-      <a href="{% url 'reg_fotos:imagen' f.pk %}" target="_blank" rel="noopener">
+      <a href="{% url 'reg_fotos:imagen' f.pk %}">
         <img src="{% url 'reg_fotos:miniatura' f.pk %}" alt="{{ f.descripcion|default:'Foto' }}" loading="lazy" class="aspect-[4/3] w-full rounded-t-box object-cover">
       </a>
-      <figcaption class="space-y-1 p-2 text-xs">
+      <figcaption class="space-y-2 p-2 text-xs">
         <div class="flex items-center gap-1 text-base-content/60">
           {% if puede_escribir %}<span data-foto-asa class="cursor-grab select-none" title="Arrastra para reordenar">⠿</span>{% endif %}
           {% if f.exif_fecha %}<span>{{ f.exif_fecha|date:"d/m/Y H:i" }}</span>{% endif %}
           {% if f.exif_lat is not None %}<span class="badge badge-ghost badge-xs" title="{{ f.exif_lat|floatformat:5 }}, {{ f.exif_lon|floatformat:5 }}">GPS</span>{% endif %}
+          {% if puede_escribir %}
+            <form method="post" action="{% url 'reg_fotos:eliminar' tipo.clave r.pk etapa f.pk %}" data-confirmar="¿Eliminar esta foto?" class="ml-auto shrink-0">{% csrf_token %}
+              <button class="btn btn-ghost btn-square size-10 min-h-10 text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+            </form>
+          {% endif %}
         </div>
         {% if puede_escribir %}
-          <div class="flex items-center gap-1">
-            <form method="post" action="{% url 'reg_fotos:descripcion' tipo.clave r.pk etapa f.pk %}" class="flex min-w-0 flex-1 gap-1">{% csrf_token %}
-              <input type="text" name="descripcion" value="{{ f.descripcion }}" maxlength="128" placeholder="Descripción" class="input input-bordered input-xs min-w-0 flex-1">
-              <button class="btn btn-xs">OK</button>
-            </form>
-            <form method="post" action="{% url 'reg_fotos:eliminar' tipo.clave r.pk etapa f.pk %}" data-confirmar="¿Eliminar esta foto?" class="shrink-0">{% csrf_token %}
-              <button class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
-            </form>
-          </div>
+          <form method="post" action="{% url 'reg_fotos:descripcion' tipo.clave r.pk etapa f.pk %}" class="flex min-w-0 items-center gap-1">{% csrf_token %}
+            <input type="text" name="descripcion" {% if pedidas %}list="descripciones-pedidas" autocomplete="off" {% endif %}value="{{ f.descripcion }}" maxlength="128" placeholder="Descripción" class="input input-bordered h-10 min-h-10 min-w-0 flex-1 text-base sm:text-sm">
+            <button class="btn h-10 min-h-10 shrink-0 rounded-lg px-3 text-sm">OK</button>
+          </form>
         {% elif f.descripcion %}<p>{{ f.descripcion }}</p>{% endif %}
       </figcaption>
     </figure>

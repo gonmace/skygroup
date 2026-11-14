@@ -290,7 +290,7 @@ class MotorTests(MotorBase):
 class PasosVistasTests(MotorBase):
     def test_vista_general_lista_los_pasos_con_su_color(self):
         self.client.force_login(self.ito1)
-        r = self.client.get(self.url('pasos/'))
+        r = self.client.get(self.url())
         self.assertEqual([p['paso'].nombre for p in r.context['pasos']], ['datos', 'medidas', 'fotos'])
         self.assertContains(r, 'Medidas')
 
@@ -298,7 +298,7 @@ class PasosVistasTests(MotorBase):
         self.plantilla.activa = False
         self.plantilla.save()
         self.client.force_login(self.ito1)
-        r = self.client.get(self.url('pasos/'))
+        r = self.client.get(self.url())
         self.assertFalse(r.context['hay_plantilla'])
         self.assertContains(r, 'aún no tiene una plantilla')
 
@@ -374,8 +374,8 @@ class PasosVistasTests(MotorBase):
         PasoAsignado.objects.create(plantilla=torre, paso=solo, orden=1)
         r_torre = RegTxtss.objects.create(empresa=self.a, proyecto=self.t1, user=self.ito1)
         self.client.force_login(self.ito1)
-        self.assertEqual([p['paso'].nombre for p in self.client.get(self.url('pasos/', r_torre)).context['pasos']], ['solo_torre'])
-        self.assertEqual(len(self.client.get(self.url('pasos/')).context['pasos']), 3)         # el poste usa la general
+        self.assertEqual([p['paso'].nombre for p in self.client.get(self.url('', r_torre)).context['pasos']], ['solo_torre'])
+        self.assertEqual(len(self.client.get(self.url()).context['pasos']), 3)         # el poste usa la general
 
     def test_el_detalle_enlaza_a_los_pasos(self):
         self.client.force_login(self.ito1)
@@ -534,7 +534,7 @@ class RecorridoCompletoTests(MotorBase):
         servicios.sembrar_ejemplo(self.a)
         r = RegTxtss.objects.create(empresa=self.a, proyecto=self.t1, user=self.ito1)
         self.client.force_login(self.ito1)
-        pasos = self.client.get(f'/tekon/registros/txtss/{r.pk}/pasos/').context['pasos']
+        pasos = self.client.get(f'/tekon/registros/txtss/{r.pk}/').context['pasos']
         self.assertEqual([p['paso'].nombre for p in pasos], ['sitio', 'inspeccion'])
 
         self.client.post(f'/tekon/registros/txtss/{r.pk}/paso/inspeccion/guardar/', {
@@ -556,7 +556,7 @@ class RecorridoCompletoTests(MotorBase):
         servicios.sembrar_ejemplo(self.a)
         v = RegConstruccion.objects.create(empresa=self.a, proyecto=self.t1, user=self.ito1)
         self.client.force_login(self.ito1)
-        pasos = self.client.get(f'/tekon/registros/construccion/{v.pk}/pasos/').context['pasos']
+        pasos = self.client.get(f'/tekon/registros/construccion/{v.pk}/').context['pasos']
         self.assertEqual([p['paso'].nombre for p in pasos], ['obra_objetivos', 'obra_avance', 'obra_electrico', 'obra_comentarios'])
         # El libro de obras (en «Actividades») y el paso Eléctrico son opcionales: no cambian el color de la visita.
         self.client.post(f'/tekon/registros/construccion/{v.pk}/fotos/obra_libro/subir/', {'fotos': [subida()]})
@@ -594,13 +594,17 @@ class PasosMovilTests(TestCase):
         self.client.force_login(self.user)
 
     def test_pasos_muestra_un_boton_por_componente(self):
-        r = self.client.get(f'/tekon/registros/txtss/{self.reg.pk}/pasos/')
+        r = self.client.get(f'/tekon/registros/txtss/{self.reg.pk}/')
         self.assertEqual(r.status_code, 200)
         botones = r.context['pasos'][0]['botones']
         self.assertEqual([b['slug'] for b in botones], ['ubicacion_widget', 'comentario_widget', 'camera_widget'])
         self.assertEqual([b['estado'] for b in botones], ['rojo', 'opcional', 'rojo'])
         self.assertEqual(botones[2]['galeria'], 'sitio')
         self.assertContains(r, '?w=ubicacion_widget')
+
+    def test_la_antigua_pantalla_de_pasos_redirige_al_detalle(self):
+        r = self.client.get(f'/tekon/registros/txtss/{self.reg.pk}/pasos/')
+        self.assertRedirects(r, f'/tekon/registros/txtss/{self.reg.pk}/', fetch_redirect_response=False)
 
     def test_componente_suelto_y_guardado_parcial(self):
         from .models import DatoPaso
@@ -612,7 +616,7 @@ class PasosMovilTests(TestCase):
         self.client.post(base + 'guardar/', {'comentario_widget__comentario': 'hola'})
         r = self.client.post(base + 'guardar/', {'w': 'ubicacion_widget', 'ubicacion_widget__lat': '-33.4',
                                                 'ubicacion_widget__lon': '-70.6'})
-        self.assertRedirects(r, f'/tekon/registros/txtss/{self.reg.pk}/pasos/', fetch_redirect_response=False)
+        self.assertRedirects(r, f'/tekon/registros/txtss/{self.reg.pk}/', fetch_redirect_response=False)
         datos = DatoPaso.objects.get(paso_nombre='sitio').datos
         self.assertEqual(datos['ubicacion_widget']['lat'], -33.4)
         self.assertEqual(datos['comentario_widget']['comentario'], 'hola')

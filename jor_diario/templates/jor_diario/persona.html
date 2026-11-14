@@ -6,13 +6,13 @@
   {# ── Cabecera de la persona ── #}
   <section class="card bg-base-100 shadow-sm"><div class="card-body gap-4 p-5">
     <div class="flex flex-wrap items-start gap-4">
-      <span class="avatar-iniciales badge-rol-{{ m.rol.jerarquia }} tono-{{ m.rol.tono }} !size-16 !text-xl" aria-hidden="true">{{ m.user.iniciales }}</span>
+      <span class="avatar-iniciales {{ m.clase_avatar }} !size-16 !text-xl" aria-hidden="true">{{ m.user.iniciales }}</span>
       <div class="min-w-0 flex-1">
         <a href="{% url 'jor_diario:equipo' %}" class="text-xs text-base-content/60 hover:underline">← Equipo</a>
         <h1 class="truncate text-2xl font-bold leading-tight">{{ m.user }}</h1>
-        <p class="truncate text-sm text-base-content/70">{{ perfil.cargo_completo|default:m.rol.nombre }} · {{ m.user.email }}</p>
+        <p class="truncate text-sm text-base-content/70">{{ perfil.cargo_completo|default:m.cargo_visible }} · {{ m.user.email }}</p>
         <div class="mt-2 flex flex-wrap gap-1.5">
-          <span class="badge badge-outline">{{ m.rol.nombre }}</span>
+          <span class="badge badge-outline">{{ m.cargo_visible }}</span>
           {% if not perfil.activo %}<span class="badge badge-error badge-outline">No ficha jornadas</span>{% endif %}
           {% if perfil.exige_reporte %}<span class="badge badge-info badge-outline">Reporte obligatorio</span>{% endif %}
         </div>

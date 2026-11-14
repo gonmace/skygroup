@@ -88,7 +88,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const empresa = $('Empresas').item.json.empresa;\nconst r = $input.item.json;\nconst items = r.items || [];\nif (!items.length) return [];\nconst cats = r.categorias || [];\nconst system = 'Clasificas actividades laborales en una de estas categorías (usa solo el código):\\n' +\n  cats.map(c => `- ${c.codigo}: ${c.nombre}`).join('\\n') +\n  '\\nResponde únicamente con JSON {\"results\":[{\"id\":<id>,\"categoria\":\"<código>\"}]}, un elemento por actividad. ' +\n  'Si ninguna categoría aplica, omite esa actividad.';\nconst user = items.map(i => `${i.id}: ${i.texto}`).join('\\n');\nreturn { json: { empresa, system_prompt: system, user_prompt: user, ids: items.map(i => i.id) } };"
+        "jsCode": "const empresa = $('Empresas').item.json.empresa;\nconst r = $input.item.json;\nconst items = r.items || [];\nif (!items.length) return null;\nconst cats = r.categorias || [];\nconst system = 'Clasificas actividades laborales en una de estas categorías (usa solo el código):\\n' +\n  cats.map(c => `- ${c.codigo}: ${c.nombre}`).join('\\n') +\n  '\\nResponde únicamente con JSON {\"results\":[{\"id\":<id>,\"categoria\":\"<código>\"}]}, un elemento por actividad. ' +\n  'Si ninguna categoría aplica, omite esa actividad.';\nconst user = items.map(i => `${i.id}: ${i.texto}`).join('\\n');\nreturn { json: { empresa, system_prompt: system, user_prompt: user, ids: items.map(i => i.id) } };"
       },
       "id": "preparar",
       "name": "Preparar",

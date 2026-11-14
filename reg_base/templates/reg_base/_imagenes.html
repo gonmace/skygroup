@@ -1,0 +1,12 @@
+{# Tarjeta de imágenes del registro (la misma en todos los tipos). Contexto: tipo, r, fotos_total, fotos_recientes, fotos_etapas. #}
+{% load reg_ui %}
+{% reg_tarjeta "Imágenes" contador=fotos_total %}
+  {% if fotos_etapas %}
+    <div class="flex flex-wrap gap-2">{% for e in fotos_etapas %}<a href="{% url 'reg_fotos:galeria' tipo.clave r.pk e.etapa %}" class="btn btn-sm btn-outline">{{ e.nombre }} <span class="badge badge-ghost tabular-nums">{{ e.n }}</span></a>{% endfor %}</div>
+  {% endif %}
+  {% if fotos_total %}
+    <div class="grid grid-cols-3 gap-2 sm:grid-cols-6">
+      {% for f in fotos_recientes %}<a href="{% url 'reg_fotos:imagen' f.pk %}"><img src="{% url 'reg_fotos:miniatura' f.pk %}" alt="{{ f.descripcion|default:'Imagen' }}" loading="lazy" class="aspect-square w-full rounded-lg object-cover"></a>{% endfor %}
+    </div>
+  {% else %}<p class="text-sm text-base-content/60">Todavía no hay imágenes. Se suben desde cada paso del registro.</p>{% endif %}
+{% endreg_tarjeta %}

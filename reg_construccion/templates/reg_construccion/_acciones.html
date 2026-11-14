@@ -1,22 +1,5 @@
-{# Acciones del registro; se muestran en la franja inferior del recuadro de la leyenda de colores (compactas para el celular). #}
-<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-  {% if puede_concluir %}
-  <form method="post" action="{% url 'reg_construccion:concluir' r.pk %}" class="shrink-0">{% csrf_token %}
-    <label class="flex h-7 cursor-pointer items-center gap-1.5 rounded-full border border-base-content/10 bg-base-100 pl-2.5 pr-1.5 text-xs shadow-sm" title="{% if r.concluido %}Solo lectura. Apágalo para reabrir.{% else %}Al concluir queda de solo lectura.{% endif %}">
-      <span class="font-medium">Concluido</span>
-      <input type="checkbox" class="toggle toggle-success toggle-xs shrink-0" {% if r.concluido %}checked{% endif %}
-             aria-label="{% if r.concluido %}Reabrir{% else %}Concluir{% endif %}"
-             data-autoenviar="{% if r.concluido %}¿Reabrir la visita?{% else %}¿Concluir la visita? Quedará de solo lectura.{% endif %}">
-    </label>
-  </form>
-  {% endif %}
-  <div class="flex items-center gap-0.5">
-    <a href="{% url 'reg_construccion:pdf' r.pk %}" target="_blank" rel="noopener" class="btn btn-ghost btn-square btn-sm text-red-600 hover:bg-red-600/10"
-       title="{% if r.concluido %}Generar PDF{% else %}Generar PDF (borrador){% endif %}" aria-label="Generar PDF">{% include "components/icon.html" with name="pdf" cls="size-6" %}</a>
-    {% if request.user.is_superuser and not r.concluido %}
-    <form method="post" action="{% url 'reg_construccion:eliminar' r.pk %}" data-confirmar="¿Eliminar esta visita?">{% csrf_token %}
-      <button class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
-    </form>
-    {% endif %}
-  </div>
-</div>
+{# Acciones del registro bajo los pasos: la franja es la compartida (reg_base/_acciones.html). #}
+{% if puede_concluir %}{% url 'reg_construccion:concluir' r.pk as u_concluir %}{% endif %}
+{% if request.user.is_superuser and not r.concluido %}{% url 'reg_construccion:eliminar' r.pk as u_eliminar %}{% endif %}
+{% url 'reg_construccion:pdf' r.pk as u_pdf %}
+{% include "reg_base/_acciones.html" with tg_url=u_concluir tg_on=r.concluido tg_titulo=r.concluido|yesno:"Visita concluida,Concluir visita" tg_sub=r.concluido|yesno:"Apágalo para reabrir,Pasa a solo lectura" tg_ayuda="Al concluir queda de solo lectura." tg_confirmar=r.concluido|yesno:"¿Reabrir la visita?,¿Concluir la visita? Quedará de solo lectura." pdf_url=u_pdf eliminar_url=u_eliminar eliminar_confirmar="¿Eliminar esta visita?" %}

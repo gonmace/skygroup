@@ -1,12 +1,63 @@
-<div data-ubicacion class="space-y-3">
-  <div class="grid gap-3 sm:grid-cols-3">
-    <label class="text-sm"><span class="mb-1 block text-base-content/60">Latitud</span><input type="text" inputmode="decimal" name="{{ b.campo_lat }}" value="{{ b.lat }}" data-lat {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full"></label>
-    <label class="text-sm"><span class="mb-1 block text-base-content/60">Longitud</span><input type="text" inputmode="decimal" name="{{ b.campo_lon }}" value="{{ b.lon }}" data-lon {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full"></label>
-    <label class="text-sm"><span class="mb-1 block text-base-content/60">Precisión (m)</span><input type="text" inputmode="decimal" name="{{ b.campo_acc }}" value="{{ b.accuracy }}" data-acc {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full"></label>
+<div data-ubicacion class="space-y-4">
+  {# Lectura: lo que quedó registrado, grande y de un vistazo. #}
+  <div class="flex items-center gap-3 rounded-box bg-base-200/60 p-3 ring-1 ring-base-300 sm:gap-4 sm:p-4">
+    <span class="grid size-12 shrink-0 place-items-center rounded-full sm:size-14 {% if b.lat %}bg-success/15 text-success{% else %}bg-base-300 text-base-content/50{% endif %}" data-lectura-icono>
+      {% include "components/icon.html" with name="map-pin" cls="size-7" %}
+    </span>
+    <div class="min-w-0 flex-1">
+      <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60" data-lectura-titulo>{% if b.lat %}Ubicación registrada{% else %}Sin ubicación{% endif %}</p>
+      <p class="break-words font-mono text-base font-semibold tabular-nums sm:text-2xl" data-lectura>{% if b.lat %}{{ b.lat }}, {{ b.lon }}{% else %}—{% endif %}</p>
+      <div class="mt-2 flex flex-wrap items-center gap-2 text-sm">
+        <span class="badge gap-1 {{ b.precision_clase }}{% if not b.precision_texto %} hidden{% endif %}" data-precision-chip>{{ b.precision_texto }}</span>
+        {% if b.distancia %}<span class="badge gap-1 {{ b.tolerancia_clase }}" title="Distancia entre esta ubicación y la Referencia del sitio">A {{ b.distancia }} de la Referencia{% if b.tolerancia_texto %} · {{ b.tolerancia_texto }}{% endif %}</span>{% endif %}
+      </div>
+    </div>
+    <a class="btn btn-ghost btn-sm hidden shrink-0 gap-1 sm:inline-flex{% if not b.mapa_url %} invisible{% endif %}" href="{{ b.mapa_url|default:'#' }}" target="_blank" rel="noopener noreferrer" data-mapa-enlace data-modo="invisible">{% include "components/icon.html" with name="map" cls="size-4" %}Google Maps</a>
   </div>
-  <div class="flex flex-wrap items-center gap-3 text-sm">
-    {% if puede_escribir %}<button type="button" class="btn btn-primary btn-lg w-full sm:w-auto" data-usar-gps>Usar mi ubicación</button><span class="text-xs text-base-content/50" data-gps-estado></span>{% endif %}
-    {% if b.mapa_url %}<a class="link" href="{{ b.mapa_url }}" target="_blank" rel="noopener noreferrer">Ver en el mapa</a>{% endif %}
-    {% if b.distancia %}<span class="badge badge-ghost">A {{ b.distancia }} de {{ b.referencia }}</span>{% endif %}
-  </div>
+  <a class="btn btn-ghost btn-sm w-full gap-1 sm:hidden{% if not b.mapa_url %} hidden{% endif %}" href="{{ b.mapa_url|default:'#' }}" target="_blank" rel="noopener noreferrer" data-mapa-enlace data-modo="hidden">{% include "components/icon.html" with name="map" cls="size-4" %}Ver en Google Maps</a>
+
+  {% if puede_escribir %}
+    <div class="space-y-2">
+      <button type="button" class="btn btn-outline btn-primary w-full gap-2" data-usar-gps>
+        <span data-gps-icono>{% include "components/icon.html" with name="map-pin" cls="size-5" %}</span><span class="loading loading-spinner loading-sm hidden" data-gps-spinner aria-hidden="true"></span>Usar mi ubicación
+      </button>
+      <p class="min-h-5 text-center text-sm text-base-content/60" role="status" aria-live="polite" data-gps-estado></p>
+    </div>
+  {% endif %}
+
+  {# Los campos siguen en el formulario (se envían aunque estén plegados); se abren solo para corregir a mano. #}
+  <details class="rounded-box border border-base-300"{% if b.errores %} open{% endif %}>
+    <summary class="cursor-pointer select-none px-4 py-2 text-sm text-base-content/70">Coordenadas{% if puede_escribir %} (editar a mano){% endif %}</summary>
+    <div class="space-y-4 border-t border-base-300 p-3 sm:p-4">
+      {% if puede_escribir %}
+        <div class="join" role="group" aria-label="Formato de las coordenadas">
+          <button type="button" class="btn btn-sm join-item btn-neutral" data-modo-coord="dec" aria-pressed="true">Decimal</button>
+          <button type="button" class="btn btn-sm join-item" data-modo-coord="dms" aria-pressed="false">Grados, min, seg</button>
+        </div>
+      {% endif %}
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3" data-panel-dec>
+        <label class="block text-sm"><span class="mb-1 block font-medium text-base-content/70">Latitud</span>
+          <input type="text" inputmode="decimal" name="{{ b.campo_lat }}" value="{{ b.lat }}" placeholder="-36.865644" data-lat {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full min-w-0 font-mono tabular-nums"></label>
+        <label class="block text-sm"><span class="mb-1 block font-medium text-base-content/70">Longitud</span>
+          <input type="text" inputmode="decimal" name="{{ b.campo_lon }}" value="{{ b.lon }}" placeholder="-73.041530" data-lon {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full min-w-0 font-mono tabular-nums"></label>
+        <label class="col-span-2 block text-sm sm:col-span-1"><span class="mb-1 block font-medium text-base-content/70">Precisión (m)</span>
+          <input type="text" inputmode="decimal" name="{{ b.campo_acc }}" value="{{ b.accuracy }}" placeholder="—" data-acc {% if not puede_escribir %}disabled{% endif %} class="input input-bordered w-full min-w-0 font-mono tabular-nums"></label>
+      </div>
+      {% if puede_escribir %}
+        <div class="hidden space-y-3" data-panel-dms>
+          {% for eje, titulo, opciones in b.ejes_dms %}
+            <fieldset class="text-sm">
+              <legend class="mb-1 font-medium text-base-content/70">{{ titulo }}</legend>
+              <div class="grid grid-cols-3 items-start gap-2 sm:grid-cols-[1fr_1fr_1.4fr_auto]">
+                <label><span class="sr-only">Grados</span><input type="text" inputmode="numeric" placeholder="36" data-dms="{{ eje }}-g" class="input input-bordered w-full min-w-0 font-mono tabular-nums"><span class="mt-1 block text-center text-xs text-base-content/50">grados °</span></label>
+                <label><span class="sr-only">Minutos</span><input type="text" inputmode="numeric" placeholder="51" data-dms="{{ eje }}-m" class="input input-bordered w-full min-w-0 font-mono tabular-nums"><span class="mt-1 block text-center text-xs text-base-content/50">minutos ′</span></label>
+                <label><span class="sr-only">Segundos</span><input type="text" inputmode="decimal" placeholder="56.0" data-dms="{{ eje }}-s" class="input input-bordered w-full min-w-0 font-mono tabular-nums"><span class="mt-1 block text-center text-xs text-base-content/50">segundos ″</span></label>
+                <label class="col-span-3 sm:col-span-1"><span class="sr-only">Hemisferio</span><select data-dms="{{ eje }}-h" class="select select-bordered w-full font-mono">{% for letra, nombre in opciones %}<option value="{{ letra }}">{{ letra }} ({{ nombre }})</option>{% endfor %}</select></label>
+              </div>
+            </fieldset>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </details>
 </div>

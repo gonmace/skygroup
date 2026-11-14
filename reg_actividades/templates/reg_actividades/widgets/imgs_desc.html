@@ -3,9 +3,20 @@
     <div class="rounded-box p-2 ring-1 ring-base-300">
       <p class="mb-2 text-sm font-medium">{{ e.descripcion }}</p>
       {% if e.foto %}
-        <a href="{% url 'reg_fotos:imagen' e.foto.pk %}" target="_blank" rel="noopener"><img src="{% url 'reg_fotos:miniatura' e.foto.pk %}" alt="{{ e.descripcion }}" loading="lazy" class="aspect-[4/3] w-full rounded-lg object-cover"></a>
+        <a href="{% url 'reg_fotos:imagen' e.foto.pk %}"><img src="{% url 'reg_fotos:miniatura' e.foto.pk %}" alt="{{ e.descripcion }}" loading="lazy" class="aspect-[4/3] w-full rounded-lg object-cover"></a>
       {% else %}<div class="grid aspect-[4/3] place-items-center rounded-lg bg-base-200 text-xs text-base-content/50">Sin foto</div>{% endif %}
       {% if puede_escribir %}<a class="btn btn-soft mt-2 w-full" href="{% url 'reg_fotos:galeria' tipo.clave r.pk b.etapa %}?descripcion={{ e.descripcion|urlencode }}">{% if e.foto %}Gestionar{% else %}Subir foto{% endif %}</a>{% endif %}
     </div>
   {% endfor %}
 </div>
+{% if b.extras %}
+  <p class="mb-2 mt-4 text-sm font-medium">Otras fotos ({{ b.extras|length }})</p>
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    {% for f in b.extras %}
+      <div class="rounded-box p-2 ring-1 ring-base-300">
+        <p class="mb-2 text-sm font-medium">{{ f.descripcion|default:"Sin descripción" }}</p>
+        <a href="{% url 'reg_fotos:imagen' f.pk %}"><img src="{% url 'reg_fotos:miniatura' f.pk %}" alt="{{ f.descripcion }}" loading="lazy" class="aspect-[4/3] w-full rounded-lg object-cover"></a>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}

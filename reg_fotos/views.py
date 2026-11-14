@@ -56,8 +56,13 @@ def _exige_metadatos(registro, clave, etapa):
 @_acceso
 def galeria(request, clave, pk, etapa):
     t, registro = _registro(request, clave, pk)
+    from reg_actividades.servicios import descripciones_pedidas, minimo_fotos
+    fotos = list(_fotos(registro, etapa))
+    con_foto = {f.descripcion for f in fotos}
+    pedidas = [{'texto': d, 'hecha': d in con_foto} for d in descripciones_pedidas(registro, t.clave, etapa)]
     return render(request, 'reg_fotos/galeria.html', {
-        'tipo': t, 'r': registro, 'etapa': etapa, 'fotos': _fotos(registro, etapa),
+        'tipo': t, 'r': registro, 'etapa': etapa, 'fotos': fotos,
+        'total_fotos': len(fotos), 'pedidas': pedidas, 'minimo_fotos': minimo_fotos(registro, t.clave, etapa),
         'puede_escribir': puede_escribir(request.user, registro),
         'url_detalle': t.url_detalle,
         'exigir_metadatos': _exige_metadatos(registro, t.clave, etapa),

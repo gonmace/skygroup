@@ -1,13 +1,13 @@
 {# Una sección (paso) del PDF: datos de sus widgets y fotos. Contexto: s, desfase. #}
-<article class="paso-widget-section" id="seccion-{{ s.nombre }}">
-  <h2>{{ s.titulo }}</h2>
+<article{% if not s.propia %} class="paso-widget-section"{% endif %} id="seccion-{{ s.nombre }}">
+  {% if s.bloques or s.grupos.0.etiqueta != s.titulo %}<h2>{{ s.titulo }}</h2>{% endif %}{# sin repetirlo cuando la sección es solo un grupo de fotos del mismo nombre #}
   {% for b in s.bloques %}
     {% if b.tipo == 'mapa' %}
     <table class="mapa-table"><tr>
       <td class="mapa-img-cell"><img src="{{ b.src }}" alt="Mapa"></td>
       <td class="mapa-leyenda-cell">
         {% for l in b.leyenda %}{% include "reg_txtss/pdf/_leyenda.html" with color=l.color nombre=l.nombre %}{% endfor %}
-        {% if b.distancia %}<p class="mapa-leyenda-nota">Distancia: {{ b.distancia }}</p>{% endif %}
+        {% if b.nota.0 %}<p class="mapa-leyenda-nota">{% for l in b.nota %}{{ l }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</p>{% endif %}
       </td>
     </tr></table>
     {% elif b.tipo == 'ubicacion' %}
@@ -15,6 +15,13 @@
       <th>{{ b.etiqueta }}:</th>
       <td>{{ b.coords }}{% if b.precision %} (±{{ b.precision }} m){% endif %}<br><span style="color:#555; font-size:9.5pt;">{{ b.dms }}</span></td>
     </tr></table>
+    {% elif b.tipo == 'poste_ubic' %}
+    <h3>Ubicación GPS</h3>
+    <table class="datos-2col">
+      <tr><th>Latitud:</th><td>{{ b.lat_dms }}<br><span style="color:#555; font-size:9.5pt;">{{ b.lat }}°</span>{% if b.precision %}&nbsp;<span style="color:#888; font-size:9pt;">(±{{ b.precision }} m)</span>{% endif %}</td></tr>
+      <tr><th>Longitud:</th><td>{{ b.lon_dms }}<br><span style="color:#555; font-size:9.5pt;">{{ b.lon }}°</span></td></tr>
+      {% if b.desfase %}<tr><th>Referencia → Poste:</th><td><strong>{{ b.desfase.texto }}</strong>&nbsp;<svg width="10" height="10" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><circle cx="6" cy="6" r="6" fill="{{ b.desfase.color }}"/></svg></td></tr>{% endif %}
+    </table>
     {% elif b.tipo == 'tabla' %}
     {% if b.etiqueta %}<h3>{{ b.etiqueta }}</h3>{% endif %}
     <table class="datos-2col">{% for k, v in b.filas %}<tr><th>{{ k }}:</th><td>{{ v|linebreaksbr }}</td></tr>{% endfor %}</table>

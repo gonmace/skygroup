@@ -30,7 +30,7 @@
   <section class="card bg-base-100"><div class="card-body gap-2">
     <div class="flex items-center justify-between gap-2"><h2 class="card-title text-base">Fotos</h2>
       <a href="{% url 'reg_fotos:galeria' tipo.clave h.visita_id h.etapa_fotos %}" class="btn btn-sm btn-primary">{% if puede_editar %}Subir / ver{% else %}Ver{% endif %}</a></div>
-    {% if fotos %}<div class="grid grid-cols-3 gap-2 sm:grid-cols-4">{% for f in fotos %}<a href="{% url 'reg_fotos:imagen' f.pk %}" target="_blank" rel="noopener"><img src="{% url 'reg_fotos:miniatura' f.pk %}" alt="{{ f.descripcion|default:'Foto' }}" loading="lazy" class="aspect-square w-full rounded-lg object-cover"></a>{% endfor %}</div>
+    {% if fotos %}<div class="grid grid-cols-3 gap-2 sm:grid-cols-4">{% for f in fotos %}<a href="{% url 'reg_fotos:imagen' f.pk %}"><img src="{% url 'reg_fotos:miniatura' f.pk %}" alt="{{ f.descripcion|default:'Foto' }}" loading="lazy" class="aspect-square w-full rounded-lg object-cover"></a>{% endfor %}</div>
     {% else %}<p class="text-sm text-base-content/60">Sin fotos.</p>{% endif %}
   </div></section>
 

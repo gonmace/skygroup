@@ -12,7 +12,7 @@
     {% for u in lista %}
       <tr>
         <td><div class="font-medium">{{ u.get_full_name|default:u.email }}{% if not u.is_active %} <span class="badge badge-error badge-sm">Bloqueado</span>{% endif %}</div><div class="text-xs text-base-content/60">{{ u.email }}</div></td>
-        <td>{% if u.is_superuser %}<span class="badge badge-primary badge-sm">Superusuario</span>{% else %}<span class="badge badge-ghost badge-sm">Administrador</span>{% endif %}</td>
+        <td>{% if u.is_superuser %}<span class="badge badge-sm badge-outline badge-plat-super">Superusuario</span>{% else %}<span class="badge badge-sm badge-outline badge-plat-admin">Administrador</span>{% endif %}</td>
         <td>{% if u.is_superuser %}<span class="text-base-content/60">Todas</span>{% else %}{% for e in u.empresas_administradas.all %}{{ e.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</td>
         <td class="text-right whitespace-nowrap">
           {% if request.user.is_superuser and not request.impersonador and u.is_active and not u.is_superuser %}

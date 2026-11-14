@@ -26,8 +26,25 @@ COLOR_1, COLOR_2 = '#e74c3c', '#0054ff'
 _HEX = re.compile(r'^#[0-9a-fA-F]{6}$')
 
 
+def clave_google():
+    """Clave de Google Maps: Plataforma → Credenciales y, si no hay, GOOGLE_MAPS_API_KEY del .env."""
+    from cuentas.models import CredencialesPlataforma
+    return CredencialesPlataforma.clave_google_maps()
+
+
 def hay_clave():
-    return bool(getattr(settings, 'GOOGLE_MAPS_API_KEY', ''))
+    return bool(clave_google())
+
+
+def probar_clave(clave):
+    """(ok, mensaje): pide a Google un mapa mínimo con esa clave para comprobar que es válida y tiene la Static Maps API."""
+    try:
+        r = requests.get(URL_STATIC_MAPS, params={'center': '0,0', 'zoom': '1', 'size': '1x1', 'key': clave}, timeout=15)
+    except requests.RequestException:
+        return False, 'No se pudo conectar con Google Maps. Revisa la conexión del servidor.'
+    if r.status_code == 200 and r.headers.get('content-type', '').startswith('image'):
+        return True, 'La clave funciona: Google Maps devolvió un mapa.'
+    return False, f'Google rechazó la clave (HTTP {r.status_code}). Revisa que sea correcta y que tenga habilitada la «Maps Static API».'
 
 
 def _sin_acentos(texto):
@@ -56,7 +73,7 @@ def coordenada_de_paso(registro, nombre_paso):
     if not nombre:
         return None, None
     ct = ContentType.objects.get_for_model(type(registro))
-    dato = DatoPaso.objects.filter(content_type=ct, object_id=registro.pk, paso_nombre=nombre).first()
+    dato = DatoPaso.objects.filter(content_type=ct, object_id=registro.pk, paso_nombre__iexact=nombre).first()
     for bloque in ((dato.datos if dato else None) or {}).values():
         if isinstance(bloque, dict):
             lat, lon = _numero(bloque.get('lat')), _numero(bloque.get('lon'))
@@ -64,9 +81,10 @@ def coordenada_de_paso(registro, nombre_paso):
                 return lat, lon
     proyecto = getattr(registro, 'proyecto', None)
     if proyecto is not None:
-        objetivo = _sin_acentos(nombre)
+        # «mandato» es la clave interna del paso; la ubicación del proyecto se llama ahora «Referencia».
+        objetivos = {_sin_acentos(nombre)} | ({'referencia'} if _sin_acentos(nombre) == 'mandato' else set())
         for u in proyecto.ubicaciones.all():
-            if _sin_acentos(u.etiqueta) == objetivo:
+            if _sin_acentos(u.etiqueta) in objetivos:
                 return float(u.lat), float(u.lon)
     return None, None
 
@@ -150,15 +168,32 @@ def calcular_zoom_optimo(puntos, tamano=TAMANO, margen_px=60):
     return max(1, min(ajuste(ph, lat_frac), ajuste(pw, lon_frac), 21))
 
 
+def zoom_de(puntos, tamano=TAMANO):
+    """Zoom de la imagen: con un solo punto, 20 (como el original reg.tekon-rl.cl); con varios, el máximo que los deja
+    a todos dentro de la imagen."""
+    return 20 if len(puntos) == 1 else calcular_zoom_optimo(puntos, tamano)
+
+
+def misma_geometria(a, b):
+    """True si dos listas de puntos son la misma (lat/lon/etiqueta/color); ignora campos extra como `size`, que traen
+    las imágenes importadas del sistema anterior."""
+    clave = lambda ps: [(round(float(p['lat']), 6), round(float(p['lon']), 6), str(p.get('label', '')).upper(),
+                         str(p.get('color', '')).lower()) for p in (ps or [])]
+    try:
+        return clave(a) == clave(b)
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 def descargar_imagen(puntos, zoom=None, maptype='hybrid', scale=2, tamano=TAMANO):
     """Bytes PNG de la imagen estática con un marcador por punto; None si no hay clave, no hay puntos o Google falla."""
-    clave = getattr(settings, 'GOOGLE_MAPS_API_KEY', '')
+    clave = clave_google()
     if not clave:
-        logger.warning('GOOGLE_MAPS_API_KEY no está configurada: no se genera la imagen del mapa.')
+        logger.warning('No hay clave de Google Maps (Plataforma → Credenciales): no se genera la imagen del mapa.')
         return None
     if not puntos:
         return None
-    zoom = zoom or calcular_zoom_optimo(puntos, tamano)
+    zoom = zoom or zoom_de(puntos, tamano)
     lats, lons = [p['lat'] for p in puntos], [p['lon'] for p in puntos]
     params = [('center', f'{(min(lats) + max(lats)) / 2},{(min(lons) + max(lons)) / 2}'), ('zoom', str(zoom)),
               ('size', tamano), ('maptype', maptype), ('scale', str(scale)), ('key', clave)]
@@ -194,7 +229,7 @@ def guardar_imagen(registro, etapa, puntos):
     contenido = descargar_imagen(puntos)
     if not contenido:
         return None
-    zoom = calcular_zoom_optimo(puntos)
+    zoom = zoom_de(puntos)
     total, desfase = distancias(puntos)
     ct = ContentType.objects.get_for_model(type(registro))
     with transaction.atomic():
@@ -230,6 +265,38 @@ def regenerar_afectados(registro, clave, paso_cambiado):
                 continue
             existente = imagen_de(registro, a.paso.nombre)
             puntos = puntos_de_widget('mapa_2_puntos', cfg, registro, a.paso)
-            if existente is None or not puntos or existente.coordenadas == puntos:
+            if existente is None or not puntos or misma_geometria(existente.coordenadas, puntos):
                 continue
             guardar_imagen(registro, a.paso.nombre, puntos)
+
+
+# Tipos de registro cuyos mapas se generan solos (sin que la persona pulse «Guardar imagen»), como en reg.tekon-rl.cl:
+# TX/TSS lleva siempre sus dos imágenes (mandato y desfase). Los demás tipos siguen pidiéndola la persona.
+AUTOMATICOS = ('txtss',)
+
+
+def generar_automaticas(registro, clave):
+    """Genera (o regenera si cambiaron las coordenadas) la imagen de cada widget de mapa del registro cuyos puntos
+    estén completos. No hace nada si el tipo no es automático o no hay clave de Google. Un fallo de Google nunca
+    propaga: devuelve cuántas imágenes se generaron."""
+    if clave not in AUTOMATICOS or not hay_clave():
+        return 0
+    from .servicios import asignados_de
+    hechas = 0
+    for a in asignados_de(registro, clave):
+        for pw in a.paso.widgets.all():
+            if pw.widget_slug not in ('mapa_1p', 'mapa_2_puntos'):
+                continue
+            esperados = 2 if pw.widget_slug == 'mapa_2_puntos' else 1
+            puntos = puntos_de_widget(pw.widget_slug, pw.config, registro, a.paso)
+            if len(puntos) < esperados:
+                continue
+            existente = imagen_de(registro, a.paso.nombre)
+            if existente is not None and misma_geometria(existente.coordenadas, puntos):
+                continue
+            try:
+                if guardar_imagen(registro, a.paso.nombre, puntos):
+                    hechas += 1
+            except Exception:
+                logger.exception('No se pudo generar el mapa «%s» del registro %s', a.paso.nombre, registro.pk)
+    return hechas

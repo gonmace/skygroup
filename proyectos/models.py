@@ -94,7 +94,7 @@ class Proyecto(models.Model):
 
 
 class ProyectoUbicacion(models.Model):
-    """Ubicaciones adicionales de un proyecto (mandato, ingeniería, construcción…)."""
+    """Ubicaciones adicionales de un proyecto (referencia, ingeniería, construcción…)."""
 
     proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='ubicaciones')
     etiqueta = models.CharField(max_length=60)

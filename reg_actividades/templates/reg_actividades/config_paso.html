@@ -15,6 +15,7 @@
         <div class="flex items-center gap-2"><h3 class="font-semibold">{{ pw.widget_slug }}</h3>
           <label class="ml-auto flex items-center gap-1 text-xs">Orden <input type="number" name="orden" value="{{ pw.orden }}" min="0" class="input input-bordered input-xs w-16"></label></div>
         <textarea name="config" rows="5" class="textarea textarea-bordered w-full font-mono text-xs">{{ pw.config_json }}</textarea>
+        {% include "reg_actividades/_selector_icono.html" with actual=pw.config.icono %}
         <div class="flex justify-end gap-2">
           <button class="btn btn-sm">Guardar</button>
           <button type="submit" formaction="{% url 'reg_actividades:widget_eliminar' paso.pk pw.pk %}" class="btn btn-ghost btn-sm text-error" formnovalidate>Quitar</button>
@@ -25,6 +26,7 @@
     <form method="post" action="{% url 'reg_actividades:widget_agregar' paso.pk %}" class="card bg-base-100"><div class="card-body gap-3">{% csrf_token %}
       <h3 class="card-title text-base">Agregar elemento</h3>
       {% include "components/campos.html" with form=form_widget %}
+      {% include "reg_actividades/_selector_icono.html" with actual="" %}
       <details class="text-xs text-base-content/60"><summary class="cursor-pointer">Ayuda de configuración</summary>
         <ul class="mt-2 list-disc space-y-1 pl-5">
           <li><code>comentario_widget</code>: <code>{"label": "Comentarios", "max_length": 500}</code></li>

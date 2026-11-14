@@ -54,7 +54,24 @@ class UbicacionWidget(WidgetBase):
         plat, plon = proyecto.coordenada_principal if proyecto else (None, None)
         if datos.get('lat') is not None and plat is not None:
             distancia = distancia_m(plat, plon, datos['lat'], datos['lon'])
+        # Calidad de la precisión del GPS y tolerancia del desfase (mismos umbrales que el informe: 150 / 200 m).
+        acc = datos.get('accuracy')
+        precision_texto, precision_clase = '', ''
+        if acc is not None:
+            precision_texto, precision_clase = (
+                ('Precisión buena', 'badge-success') if acc <= 20 else
+                ('Precisión media', 'badge-warning') if acc <= 50 else ('Precisión baja', 'badge-ghost'))
+            precision_texto += f' (±{acc:.0f} m)'
+        tolerancia_texto, tolerancia_clase = '', 'badge-ghost'
+        if distancia is not None:
+            tolerancia_texto, tolerancia_clase = (
+                ('dentro de tolerancia', 'badge-success') if distancia <= 150 else
+                ('revisar', 'badge-warning') if distancia <= 200 else ('fuera de tolerancia', 'badge-warning'))
         return {
+            'ejes_dms': (('lat', 'Latitud', (('S', 'Sur'), ('N', 'Norte'))),
+                         ('lon', 'Longitud', (('W', 'Oeste'), ('E', 'Este')))),
+            'precision_texto': precision_texto, 'precision_clase': precision_clase,
+            'tolerancia_texto': tolerancia_texto, 'tolerancia_clase': tolerancia_clase,
             'campo_lat': self.nombre_campo('lat'), 'campo_lon': self.nombre_campo('lon'),
             'campo_acc': self.nombre_campo('accuracy'),
             'lat': texto_numero(datos.get('lat')), 'lon': texto_numero(datos.get('lon')),

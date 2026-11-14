@@ -19,7 +19,7 @@ usuario; si la empresa tiene el módulo pero aún no hay entradas, se muestra «
 """
 from django.urls import NoReverseMatch, reverse
 
-from cuentas.capacidades import tiene_capacidad
+from cuentas.capacidades import solo_coordinador, tiene_capacidad
 
 # El color de cada módulo (pastel fijo) vive en theme/static_src/src/styles.css: `.mod-chip` + `.mod-<código>`.
 # El orden de este diccionario es el del selector de aplicaciones y el del lanzador de Inicio.
@@ -81,13 +81,21 @@ def _url(url_name):
         return None
 
 
-def _item(request, nombre, url_name, icono, exacto=False, grupo='general', seccion='', activo_en=()):
+def _nivel_item(capacidad=None, solo_super=False):
+    """Quién accede a la entrada, para el contorno de la barra lateral: 'superusuario' (ámbar) · 'coordinador'
+    (violeta, lo que el Ejecutor no tiene) · '' (accesos comunes, sin contorno)."""
+    if solo_super:
+        return 'superusuario'
+    return 'coordinador' if solo_coordinador(capacidad) else ''
+
+
+def _item(request, nombre, url_name, icono, exacto=False, grupo='general', seccion='', activo_en=(), nivel=''):
     url = _url(url_name)
     if url is None:
         return None
     activo = request.path == url if exacto else request.path.startswith(url)
     activo = activo or any(u and request.path.startswith(u) for u in map(_url, activo_en))
-    return {'nombre': nombre, 'url': url, 'icono': icono, 'activo': activo, 'grupo': grupo, 'seccion': seccion or ''}
+    return {'nombre': nombre, 'url': url, 'icono': icono, 'activo': activo, 'grupo': grupo, 'seccion': seccion or '', 'nivel': nivel}
 
 
 def app_activa_codigo(request):
@@ -122,7 +130,8 @@ def _items_modulo(request, codigo):
             item = _item(request, _terminos(i['nombre'], empresa), i['url_name'], i['icono'], exacto=i.get('exacto', False),
                          grupo='superusuario' if i.get('solo_superusuario') else 'general',
                          seccion=_terminos(i.get('seccion') or '', empresa),
-                         activo_en=i.get('activo_en', ()))
+                         activo_en=i.get('activo_en', ()),
+                         nivel=_nivel_item(i['capacidad'], i.get('solo_superusuario')))
             if item:
                 salida.append(item)
             continue
@@ -133,7 +142,7 @@ def _items_modulo(request, codigo):
         for t in tipos:
             salida.append({'nombre': f"{i['nombre']} {t.nombre}", 'url': f'{base}?tipo={t.pk}', 'icono': i['icono'],
                            'activo': request.path.startswith(base) and elegido == str(t.pk), 'grupo': 'general',
-                           'seccion': i.get('seccion') or ''})
+                           'seccion': i.get('seccion') or '', 'nivel': _nivel_item(i['capacidad'], i.get('solo_superusuario'))})
     return salida
 
 
@@ -141,28 +150,30 @@ def _items_config(request):
     """Entradas de configuración de la empresa, agrupadas en secciones del menú lateral."""
     user, empresa = request.user, request.empresa
     candidatos = []
+    cap = lambda c: _nivel_item(c)   # noqa: E731 — nivel por capacidad (coordinador si el Ejecutor no la tiene)
     if tiene_capacidad(user, 'cuentas.usuarios.manage', empresa):
-        candidatos.append(('Usuarios', 'panel:miembros', 'users', False, 'general', 'Usuarios y accesos'))
-        candidatos.append(('Sedes', 'panel:sedes', 'map-pin', False, 'general', 'Usuarios y accesos'))
-        candidatos.append(('Alta por dominio', 'panel:acceso', 'lock', False, 'general', 'Usuarios y accesos'))
+        n = cap('cuentas.usuarios.manage')
+        candidatos.append(('Usuarios', 'panel:miembros', 'users', False, 'general', 'Usuarios y accesos', (), n))
+        candidatos.append(('Sedes', 'panel:sedes', 'map-pin', False, 'general', 'Usuarios y accesos', (), n))
+        candidatos.append(('Alta por dominio', 'panel:acceso', 'lock', False, 'general', 'Usuarios y accesos', (), n))
         if user.is_superuser:    # el servidor y el cliente OAuth deciden quién entra: solo el superusuario
-            candidatos.append(('Nextcloud', 'panel:nextcloud', 'cloud', False, 'general', 'Usuarios y accesos'))
+            candidatos.append(('Nextcloud', 'panel:nextcloud', 'cloud', False, 'general', 'Usuarios y accesos', (), 'superusuario'))
     if tiene_capacidad(user, 'cuentas.roles.manage', empresa):
-        candidatos.append(('Cargos y permisos', 'panel:roles', 'shield', False, 'general', 'Usuarios y accesos'))
+        candidatos.append(('Cargos y permisos', 'panel:roles', 'shield', False, 'general', 'Usuarios y accesos', (), cap('cuentas.roles.manage')))
     if tiene_capacidad(user, 'empresas.marca.manage', empresa):
-        candidatos.append(('Marca', 'panel:marca', 'palette', False, 'general', 'Empresa'))
+        candidatos.append(('Marca', 'panel:marca', 'palette', False, 'general', 'Empresa', (), cap('empresas.marca.manage')))
     return [x for x in (_item(request, *c) for c in candidatos) if x]
 
 
 def _items_plataforma(request):
     # La lista de empresas vive en /panel/, prefijo de todas las demás rutas de plataforma: solo se marca en su URL
     # exacta y en las de crear/editar empresa (/panel/empresas/…).
-    empresas = _item(request, 'Empresas', 'panel:empresas', 'building', exacto=True)
+    empresas = _item(request, 'Empresas', 'panel:empresas', 'building', exacto=True, nivel='superusuario')
     if empresas and request.path.startswith(empresas['url'] + 'empresas/'):
         empresas['activo'] = True
     candidatos = [('Administradores', 'panel:administradores', 'shield'), ('Almacenamiento', 'panel:almacenamiento', 'database'),
-                  ('Correo', 'panel:correo', 'mail')]
-    return [x for x in [empresas, *(_item(request, *c) for c in candidatos)] if x]
+                  ('Correo', 'panel:correo', 'mail'), ('Credenciales', 'panel:credenciales', 'lock')]
+    return [x for x in [empresas, *(_item(request, *c, nivel='superusuario') for c in candidatos)] if x]
 
 
 def construir_menu(request):
@@ -184,11 +195,11 @@ def construir_menu(request):
         inicio = _item(request, 'Módulos', 'home', 'home', exacto=True)
         items_inicio = [inicio] if inicio else []
         if tiene_capacidad(user, 'proyectos.view', empresa):
-            proyectos = _item(request, empresa.termino_proyecto_plural, 'proyectos:lista', 'folder')
+            proyectos = _item(request, empresa.termino_proyecto_plural, 'proyectos:lista', 'folder', nivel=_nivel_item('proyectos.view'))
             if proyectos:
                 items_inicio.append(proyectos)
         if tiene_capacidad(user, 'empresas.contratistas.manage', empresa):
-            contratistas = _item(request, 'Contratistas', 'panel:contratistas', 'hardhat')
+            contratistas = _item(request, 'Contratistas', 'panel:contratistas', 'hardhat', nivel=_nivel_item('empresas.contratistas.manage'))
             if contratistas:
                 items_inicio.append(contratistas)
         items_inicio += _items_config(request)

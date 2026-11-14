@@ -3,7 +3,8 @@ import re
 from django import forms
 from django.db import models
 
-from cuentas.models import CorreoBloqueado, CorreoConfig, DominioPermitido, NextcloudConfig, RolEmpresa
+from cuentas.models import (CorreoBloqueado, CorreoConfig, CredencialesPlataforma, DominioPermitido, NextcloudConfig,
+                            RolEmpresa)
 from cuentas.roles import RolBase
 from empresas.models import Contratista, Empresa, Modulo, Sede
 
@@ -355,6 +356,31 @@ class NextcloudForm(EstiloMixin, forms.ModelForm):
         if d.get('activo') and not (d.get('servidor_url') and d.get('client_id') and d.get('client_secret')):
             raise forms.ValidationError('Para activarlo indica la URL, el Client ID y el Client secret.')
         return d
+
+
+class CredencialesForm(EstiloMixin, forms.ModelForm):
+    """Credenciales de la plataforma. La clave no se muestra: vacía conserva la guardada; «Quitar» la borra."""
+
+    google_maps_api_key = forms.CharField(
+        label='Clave de Google Maps (Static Maps API)', required=False, max_length=255,
+        widget=forms.PasswordInput(render_value=False, attrs={'autocomplete': 'off', 'placeholder': 'AIza…'}),
+        help_text='Se guarda en la base de datos. Déjala vacía para conservar la actual. Debe tener habilitada la «Maps Static API».')
+    quitar_google_maps = forms.BooleanField(label='Quitar la clave guardada', required=False)
+
+    class Meta:
+        model = CredencialesPlataforma
+        fields = ('google_maps_api_key',)
+
+    def clean_google_maps_api_key(self):
+        clave = self.cleaned_data['google_maps_api_key'].strip()
+        if clave and any(c.isspace() for c in clave):
+            raise forms.ValidationError('La clave no puede tener espacios.')
+        return clave or self.instance.google_maps_api_key
+
+    def save(self, commit=True):
+        if self.cleaned_data.get('quitar_google_maps'):
+            self.instance.google_maps_api_key = ''
+        return super().save(commit)
 
 
 class CorreoForm(EstiloMixin, forms.ModelForm):

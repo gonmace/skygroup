@@ -64,6 +64,14 @@ def todas():
     return dict(_REGISTRO)
 
 
+def solo_coordinador(capacidad):
+    """True si ninguna de las capacidades (clave o tupla) la tiene por defecto el Ejecutor (MIEMBRO): son accesos
+    propios de la coordinación. Sin capacidad (None) o desconocida → False."""
+    claves_ = capacidad if isinstance(capacidad, (tuple, list)) else (capacidad,)
+    caps = [_REGISTRO[c] for c in claves_ if c in _REGISTRO]
+    return bool(caps) and all(str(RolBase.MIEMBRO) not in c.roles_default for c in caps)
+
+
 def claves():
     return frozenset(_REGISTRO)
 

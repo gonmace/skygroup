@@ -1,0 +1,2 @@
+{# Encabezado de columna ordenable. Pasar `col` (de core.ordenar.ordenar), `texto` y, opcional, `clase`. #}
+<th aria-sort="{{ col.aria }}"{% if clase %} class="{{ clase }}"{% endif %}><a href="{{ col.url }}" class="inline-flex items-center gap-1 hover:underline" title="Ordenar por {{ texto }}">{{ texto }}<span aria-hidden="true" class="text-[10px]{% if not col.activo %} opacity-30{% endif %}">{{ col.flecha|default:"↕" }}</span></a></th>

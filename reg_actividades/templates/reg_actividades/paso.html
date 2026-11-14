@@ -4,7 +4,7 @@
 {% block content_main %}
 <div class="mx-auto max-w-2xl">
 <div class="mb-4 flex items-center gap-3">
-  <a href="{% url 'reg_actividades:pasos' tipo.clave r.pk %}" class="btn btn-circle btn-ghost size-12" aria-label="Volver a los pasos">{% include "components/icon.html" with name="chevron-left" cls="size-6" %}</a>
+  <a href="{% url url_detalle r.pk %}" class="btn btn-circle btn-ghost size-12" aria-label="Volver al registro">{% include "components/icon.html" with name="chevron-left" cls="size-6" %}</a>
   <span class="inline-block size-4 shrink-0 rounded-full {% if color == 'verde' %}bg-success{% elif color == 'amarillo' %}bg-warning{% else %}bg-error{% endif %}"></span>
   <div class="min-w-0">
     <p class="truncate font-semibold">{{ paso.titulo }}</p>

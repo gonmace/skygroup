@@ -2,7 +2,7 @@
 from django.urls import reverse
 
 from .models import Modulo
-from .tenancy import empresas_de
+from .tenancy import es_admin_de, empresas_de
 
 PRODUCTO = 'SkyGroup'
 
@@ -35,6 +35,25 @@ def marca_empresa(request):
         'termino_certificado': empresa.nombre_certificado,
         'modulos_activos': [m for m in Modulo.values if empresa.tiene_modulo(m)],
     }
+
+
+def papel_plataforma(request):
+    """Papel de plataforma del usuario para la cabecera: 'super', 'admin' (de la empresa activa) o ''."""
+    user = getattr(request, 'user', None)
+    if not user or not user.is_authenticated:
+        return {'papel_plataforma': '', 'mi_cargo': None}
+    empresa = getattr(request, 'empresa', None)
+    mi_cargo = None   # cargo (RolEmpresa) del usuario en la empresa activa, si es miembro
+    if empresa is not None:
+        m = user.membresias.filter(empresa=empresa, activa=True).select_related('rol').first()
+        mi_cargo = m.rol if m and not user.is_superuser else None   # el superusuario se identifica como tal, no por su cargo
+    if user.is_superuser:
+        papel = 'super'
+    elif empresa is not None and es_admin_de(user, empresa):
+        papel = 'admin'
+    else:
+        papel = ''
+    return {'papel_plataforma': papel, 'mi_cargo': mi_cargo}
 
 
 def selector_empresas(request):

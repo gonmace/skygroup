@@ -236,6 +236,9 @@ a.mod-card:active { transform: translateY(-1px) scale(.985); }
   background: var(--pin, var(--color-primary)); color: var(--pin-ink, #fff);
   border: 2px solid #fff; box-shadow: 0 2px 4px rgb(0 0 0 / .4); font-size: 13px; font-weight: 700;
 }
+/* Mapa de un punto: marcador en gota (como el de Google Maps de la imagen del informe); la letra gira de vuelta. */
+.reg-mapa-pin--gota { border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+.reg-mapa-pin--gota > span { transform: rotate(45deg); }
 .leaflet-container { font-family: inherit; }
 
 /* Colores fijos de los estados de proyecto/obra. Ingeniería (violeta) y Construcción (azul) no usan los del tema:
@@ -284,6 +287,11 @@ a.mod-card:active { transform: translateY(-1px) scale(.985); }
 [data-theme="dark"] .badge-rol-1 { --tipo-texto: #dbeafe; }
 [data-theme="dark"] .badge-rol-2 { --tipo-texto: #d1fae5; }
 [data-theme="dark"] .badge-rol-3 { --tipo-texto: #e7e5e4; }
+/* Papeles de plataforma (no son cargos): ámbar = superusuario, rosa = administrador. */
+.badge-plat-super { --tipo-borde: #f59e0b; --tipo-texto: #78350f; }
+.badge-plat-admin { --tipo-borde: #f472b6; --tipo-texto: #831843; }
+[data-theme="dark"] .badge-plat-super { --tipo-texto: #fde68a; }
+[data-theme="dark"] .badge-plat-admin { --tipo-texto: #fbcfe8; }
 /* Tono del avatar dentro del color de su rol base: cargos distintos del mismo nivel se distinguen por intensidad, no por color. */
 .tono-0 { --tipo-relleno: 14%; --tipo-contorno: 30%; --tipo-ancho: 1px; }
 .tono-1 { --tipo-relleno: 32%; --tipo-contorno: 60%; --tipo-ancho: 2px; }
@@ -291,7 +299,10 @@ a.mod-card:active { transform: translateY(-1px) scale(.985); }
 .tono-3 { --tipo-relleno: 70%; --tipo-contorno: 100%; --tipo-ancho: 4px; }
 /* Fila de tabla distinguida por su tipo solo con una franja fina a la izquierda (sin pintar la fila). Va junto a `.badge-tipo-N`. */
 .fila-tipo > td:first-child { box-shadow: inset 3px 0 0 var(--tipo-borde); }
-.badge-outline[class*="badge-tipo-"], .badge-outline[class*="badge-rol-"] { border-color: var(--tipo-borde); color: var(--tipo-texto); }
+.badge-outline[class*="badge-tipo-"], .badge-outline[class*="badge-rol-"], .badge-outline[class*="badge-plat-"] { border-color: var(--tipo-borde); color: var(--tipo-texto); }
+/* Entradas de la barra lateral con acceso restringido: contorno suave del color del nivel (violeta = coordinación,
+   ámbar = superusuario). Va con `.badge-rol-0` / `.badge-plat-super`, que fijan --tipo-borde. */
+.nav-nivel { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tipo-borde) 55%, transparent); }
 .select[class*="badge-rol-"] { border-color: var(--tipo-borde); border-width: 2px; }
 
 /* Tabla con encabezado fijo dentro de un contenedor con scroll: el fondo debe ser opaco para tapar las filas. */

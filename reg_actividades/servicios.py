@@ -39,6 +39,27 @@ def exige_metadatos(registro, clave, etapa):
     return False
 
 
+def minimo_fotos(registro, clave, etapa):
+    """Mínimo de fotos que pide el botón que gobierna `etapa` (0 si no hay botón o no pide mínimo); para el contador
+    «tomadas/mínimo» de la galería."""
+    for a in asignados_de(registro, clave):
+        ctx = Contexto(registro=registro, paso=a.paso, clave=clave)
+        for pw, w in widgets_de(a.paso):
+            if pw.widget_slug in FOTOS_SLUGS and w.etapa(pw.config, ctx) == etapa:
+                return w.contexto({}, pw.config, ctx).get('minimo') or 0
+    return 0
+
+
+def descripciones_pedidas(registro, clave, etapa):
+    """Descripciones que pide el widget de fotos con descripción que gobierna `etapa` ([] si no es de ese tipo)."""
+    for a in asignados_de(registro, clave):
+        ctx = Contexto(registro=registro, paso=a.paso, clave=clave)
+        for pw, w in widgets_de(a.paso):
+            if pw.widget_slug == 'imgs_desc_widget' and w.etapa(pw.config, ctx) == etapa:
+                return w.descripciones(pw.config)
+    return []
+
+
 def _datos_por_paso(registro):
     ct = ContentType.objects.get_for_model(type(registro))
     return {d.paso_nombre: d for d in DatoPaso.objects.filter(content_type=ct, object_id=registro.pk)}
@@ -83,7 +104,8 @@ def resumen(registro, clave, user, puede_escribir):
     for a in asignados_de(registro, clave):
         bloques, color = construir_paso(registro, clave, a.paso, datos.get(a.paso.nombre), user, puede_escribir)
         salida.append({'paso': a.paso, 'color': color, 'n_widgets': len(widgets_de(a.paso)),
-                       'botones': [_boton(b) for b in bloques]})
+                       'botones': (botones := [_boton(b) for b in bloques]),
+                       'con_imagenes': any(x['galeria'] for x in botones)})
     return salida
 
 
@@ -98,7 +120,7 @@ def contexto_pasos(request, registro, clave, escribe):
 # Icono (components/icon.html) de cada tipo de widget, para el botón táctil de la vista de pasos.
 ICONOS = {
     'camera_widget': 'camera', 'imgs_desc_widget': 'camera', 'camera_libro_widget': 'book',
-    'ubicacion_widget': 'map-pin', 'mapa_1p': 'map', 'mapa_2_puntos': 'map', 'distancia_widget': 'ruler',
+    'ubicacion_widget': 'map-pin', 'mapa_1p': 'map-pin', 'mapa_2_puntos': 'desfase', 'distancia_widget': 'ruler',
     'lista_widget': 'list', 'comentario_widget': 'chat', 'form_dinamico_widget': 'clipboard',
     'poste_form_widget': 'clipboard', 'tabla_avance_widget': 'chart',
 }
@@ -116,7 +138,14 @@ def _boton(b):
     # Texto fijo en la esquina (p. ej. «Libro de Obras»): por configuración del botón o por tipo de widget.
     texto = b['pw'].config.get('insignia') or getattr(b['widget'], 'insignia_texto', '')
     slug = b['pw'].widget_slug
-    return {'slug': slug, 'galeria': b.get('etapa', '') if slug in ('camera_widget', 'camera_libro_widget') else '', 'icono': ICONOS.get(slug) or b['widget'].icono or 'clipboard', 'estado': estado,
+    # Icono: el de la configuración del botón (clave `icono`, p. ej. «drone»), si no el de su tipo de widget.
+    icono = b['pw'].config.get('icono') or ICONOS.get(slug) or b['widget'].icono or 'clipboard'
+    imagen = b.get('imagen')
+    if slug == 'mapa_2_puntos' and imagen is not None and imagen.desfase_metros is not None:
+        from reg_base.geo import formatear_distancia   # desfase ya guardado: la esquina del botón dice los metros (p. ej. «180 m»)
+        conteo = formatear_distancia(imagen.desfase_metros)
+    return {'slug': slug, 'galeria': b.get('etapa', '') if slug in FOTOS_SLUGS else '', 'icono': icono, 'estado': estado,
+            'icono_clase': 'size-8' if icono in ('desfase', 'drone') else 'size-6',   # el desfase (dos marcadores y regla) necesita más tamaño para leerse
             'etiqueta': b.get('etiqueta') or b['widget'].nombre, 'insignia': texto or conteo,
             'insignia_texto': bool(texto), 'conteo': conteo}
 
@@ -150,9 +179,12 @@ def guardar_paso(registro, paso, post, files, user=None, solo=None):
     dato.datos = nuevos
     dato.tiene_datos = any(_lleno(v) for bloque in nuevos.values() for v in bloque.values())
     dato.save()
-    if t is not None:   # un mapa de 2 puntos que use este paso como origen se regenera si sus coordenadas cambiaron
+    if t is not None:
         from . import mapas
-        transaction.on_commit(lambda: mapas.regenerar_afectados(registro, t.clave, paso.nombre))
+        if t.clave in mapas.AUTOMATICOS:   # TX/TSS: sus mapas se generan solos en cuanto hay coordenadas
+            transaction.on_commit(lambda: mapas.generar_automaticas(registro, t.clave))
+        else:   # un mapa de 2 puntos que use este paso como origen se regenera si sus coordenadas cambiaron
+            transaction.on_commit(lambda: mapas.regenerar_afectados(registro, t.clave, paso.nombre))
     return True, {}
 
 

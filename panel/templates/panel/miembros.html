@@ -16,6 +16,11 @@
   <span class="flex flex-wrap items-center gap-1"><span class="text-xs text-base-content/60">Sede</span>{% for n, c in resumen.por_sede %}<span class="badge badge-ghost">{{ n }} <strong class="ml-1">{{ c }}</strong></span>{% endfor %}</span>
 </div>
 
+{% if administradores %}<div class="mb-3 flex shrink-0 flex-wrap items-center gap-1 text-sm">
+  <span class="text-xs text-base-content/60">Administradores sin cargo en la empresa</span>
+  {% for u in administradores %}<span class="badge badge-outline badge-plat-admin" title="{{ u.email }} · {% if u.is_superuser %}ve todas las empresas{% else %}administra esta empresa{% endif %}">{{ u.email }}</span>{% endfor %}
+</div>{% endif %}
+
 {# Móvil: tarjetas con la edición rápida (rol, contratista, activo); la tabla de 7 columnas obliga a desplazarse de lado #}
 <div class="flex shrink-0 flex-col xl:hidden">
   <div class="mb-2 flex shrink-0 items-center justify-between text-sm text-base-content/70">
@@ -32,7 +37,7 @@
     <li class="rounded-box bg-base-100 p-3 shadow-sm {% if not m.activa %}opacity-60{% endif %}">
       <div class="flex items-start justify-between gap-3">
         <div class="flex min-w-0 items-center gap-3">
-          <span class="avatar-iniciales badge-rol-{{ m.rol.jerarquia }} tono-{{ m.rol.tono }}" aria-hidden="true">{{ m.user.iniciales }}</span>
+          <span class="avatar-iniciales {{ m.clase_avatar }}" aria-hidden="true">{{ m.user.iniciales }}</span>
           <div class="min-w-0">
             <div class="truncate font-medium">{{ m.user.get_full_name|default:m.user.email }}{% if not m.user.is_active %} <span class="badge badge-error badge-sm">Bloqueado</span>{% endif %}</div>
             <div class="truncate text-xs text-base-content/60">{{ m.user.email }}</div>
@@ -48,6 +53,8 @@
         </form>
       </div>
       <div class="mt-2 space-y-2">
+        {% if m.user.is_superuser %}<div><div class="mb-0.5 text-xs text-base-content/60">Cargo</div><div class="select select-bordered select-md badge-plat-admin pointer-events-none w-full items-center" title="Superusuario: se muestra como administrador"><span>Administrador</span></div></div>
+        {% else %}
         <form method="post" data-ajax action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
           <label class="mb-0.5 flex items-center gap-2 text-xs text-base-content/60">Cargo {% if m.rol.nombre != m.rol.get_rol_base_display %}{% include "panel/_badge_rol_base.html" with rol=m.rol %}{% endif %}</label>
           <select name="rol" class="select select-bordered select-md badge-rol-{{ m.rol.jerarquia }} w-full" data-autoenviar-select aria-label="Cargo de {{ m.user.email }}">
@@ -56,6 +63,7 @@
             {% if not m.rol.activo %}<option value="{{ m.rol_id }}" selected disabled>{{ m.rol.nombre }} (inactivo)</option>{% endif %}
           </select>
         </form>
+        {% endif %}
         {% if con_puesto %}<form method="post" data-ajax action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
           <label class="mb-0.5 block text-xs text-base-content/60">Puesto</label>
           <input type="text" name="puesto" list="puestos" maxlength="150" value="{{ m.perfil_jor.cargo }}" class="input input-bordered input-md w-full" data-autoenviar-select aria-label="Puesto de {{ m.user.email }}" placeholder="Ej. Supervisor Civil">
@@ -115,9 +123,11 @@
     <tbody>
     {% for m in lista %}
       <tr class="hover {% if not m.activa %}opacity-60{% endif %}">
-        <td><div class="flex items-center gap-3"><span class="avatar-iniciales badge-rol-{{ m.rol.jerarquia }} tono-{{ m.rol.tono }}" aria-hidden="true">{{ m.user.iniciales }}</span><div class="min-w-0 max-w-[11rem] min-[1850px]:max-w-[16rem]"><div class="truncate font-medium" title="{{ m.user.get_full_name|default:m.user.email }}">{{ m.user.get_full_name|default:m.user.email }}{% if not m.user.is_active %} <span class="badge badge-error badge-sm">Bloqueado</span>{% endif %}</div><div class="truncate text-xs text-base-content/60" title="{{ m.user.email }}">{{ m.user.email }}</div>{% if m.user.telefono %}<div class="truncate text-xs text-base-content/60 min-[1850px]:hidden">{{ m.user.telefono }}</div>{% endif %}</div></div></td>
+        <td><div class="flex items-center gap-3"><span class="avatar-iniciales {{ m.clase_avatar }}" aria-hidden="true">{{ m.user.iniciales }}</span><div class="min-w-0 max-w-[11rem] min-[1850px]:max-w-[16rem]"><div class="truncate font-medium" title="{{ m.user.get_full_name|default:m.user.email }}">{{ m.user.get_full_name|default:m.user.email }}{% if not m.user.is_active %} <span class="badge badge-error badge-sm">Bloqueado</span>{% endif %}</div><div class="truncate text-xs text-base-content/60" title="{{ m.user.email }}">{{ m.user.email }}</div>{% if m.user.telefono %}<div class="truncate text-xs text-base-content/60 min-[1850px]:hidden">{{ m.user.telefono }}</div>{% endif %}</div></div></td>
         <td class="hidden whitespace-nowrap text-sm text-base-content/70 min-[1850px]:table-cell">{{ m.user.telefono|default:"—" }}</td>
         <td class="text-center">
+          {% if m.user.is_superuser %}<span class="badge badge-outline badge-plat-admin" title="Superusuario: se muestra como administrador">Administrador</span>
+          {% else %}
           <form method="post" data-ajax class="indicator" action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
             <select name="rol" class="select select-sm badge-rol-{{ m.rol.jerarquia }} mx-auto w-28 rounded-full font-medium min-[1850px]:w-40 [text-align-last:center]" title="{{ m.rol.nombre }}" data-autoenviar-select aria-label="Cargo de {{ m.user.email }}">
               {% if request.user.is_superuser and m.user_id != request.user.pk %}<option value="" data-confirmar="¿Convertir a {{ m.user.email|escapejs }} en administrador de sistema? Dejará de ser miembro de esta empresa.">— Administrador —</option>{% endif %}
@@ -127,6 +137,7 @@
             {# Burbuja en la esquina superior derecha del campo: no suma altura a la fila #}
             {% if m.rol.nombre != m.rol.get_rol_base_display %}{% include "panel/_badge_rol_base.html" with rol=m.rol tam="badge-xs" extra="indicator-item bg-base-100" %}{% endif %}
           </form>
+          {% endif %}
         </td>
         {% if con_puesto %}<td>
           <form method="post" data-ajax action="{% url 'panel:miembro_rapido' m.pk %}">{% csrf_token %}
@@ -194,7 +205,7 @@
       {% for m in eliminados %}
         <tr class="hover opacity-70">
           <td><div class="font-medium">{{ m.user.get_full_name|default:m.user.email }}</div><div class="text-xs text-base-content/60">{{ m.user.email }}</div></td>
-          <td>{{ m.rol.nombre }}</td>
+          <td>{{ m.cargo_visible }}</td>
           <td class="text-center text-sm">{{ m.user.eliminado_en|date:"d/m/Y H:i" }}</td>
           <td class="whitespace-nowrap text-right">
             <form method="post" action="{% url 'panel:miembro_restaurar' m.pk %}" class="inline" data-confirmar="¿Restaurar la cuenta de {{ m.user.email }}?">{% csrf_token %}

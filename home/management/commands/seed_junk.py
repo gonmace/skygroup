@@ -197,7 +197,7 @@ class Command(BaseCommand):
                     self.tick(Proyecto)
                     proy.equipo.set(rng.sample(miembros, min(len(miembros), 3)))
                 self.proyectos[e.pk].append(proy)
-                for etiqueta in (['Construcción', 'Ingeniería'] if tipo is self.tipos[e.pk][1] else ['Mandato'])[:2]:
+                for etiqueta in (['Construcción', 'Ingeniería'] if tipo is self.tipos[e.pk][1] else ['Referencia'])[:2]:
                     self.get_or_create(ProyectoUbicacion, proyecto=proy, etiqueta=etiqueta, defaults=dict(
                         lat=Decimal(f'{lat + rng.uniform(-.01, .01):.6f}'), lon=Decimal(f'{lon + rng.uniform(-.01, .01):.6f}')))
 

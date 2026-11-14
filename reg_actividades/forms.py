@@ -5,6 +5,7 @@ from django import forms
 from panel.forms import EstiloMixin, _estilizar
 from reg_base import tipos
 
+from .iconos import NOMBRES_ICONO
 from .models import Paso, PasoWidget, Plantilla
 from .widgets import todos
 
@@ -59,6 +60,14 @@ class PasoWidgetForm(EstiloMixin, forms.Form):
     def clean(self):
         data = super().clean()
         slug = data.get('widget_slug') or (self.instance.widget_slug if self.instance else None)
+        if 'config' in data and 'icono' in self.data:   # el selector de iconos manda sobre la clave `icono` del JSON
+            icono = self.data.get('icono', '').strip()
+            if icono:
+                data['config']['icono'] = icono
+            else:
+                data['config'].pop('icono', None)
+        if 'config' in data and data['config'].get('icono') not in (None, '') and data['config']['icono'] not in NOMBRES_ICONO:
+            self.add_error('config', 'icono no es uno de los iconos disponibles.')
         if slug and 'config' in data:
             if self.instance is None and PasoWidget.objects.filter(paso=self.paso, widget_slug=slug).exists():
                 raise forms.ValidationError('Este paso ya tiene un widget de ese tipo.')

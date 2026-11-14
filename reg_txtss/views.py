@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from core.ordenar import ordenar
 from cuentas.capacidades import tiene_capacidad
 from reg_base.acceso import acceso_tipo
 from reg_base import acciones
@@ -65,6 +66,13 @@ def _resumen_datos(pagina):
         r.n_fotos, r.n_mapas, r.n_pasos = fotos.get(r.pk, 0), mapas.get(r.pk, 0), pasos.get(r.pk, 0)
 
 
+# Columnas ordenables de las tablas (clave → campo): la lista y la papelera de borrados.
+COLUMNAS = {
+    'proyecto': ('proyecto__codigo', 'proyecto__nombre'), 'tipo': 'proyecto__tipo__nombre', 'alt': 'alternativa',
+    'fecha': 'fecha', 'responsable': ('user__first_name', 'user__last_name', 'user__email'),
+}
+
+
 @_acceso()
 def lista(request):
     empresa, user = request.empresa, request.user
@@ -77,12 +85,13 @@ def lista(request):
     estado = request.GET.get('estado', '')
     if estado in ESTADOS:
         qs = qs.filter(orden_estado=ESTADOS[estado])
-    pagina = Paginator(qs.order_by('orden_estado', '-fecha', '-id'), POR_PAGINA).get_page(request.GET.get('page'))
+    qs, orden = ordenar(request, qs, COLUMNAS, defecto=('orden_estado', '-fecha', '-id'))
+    pagina = Paginator(qs, POR_PAGINA).get_page(request.GET.get('page'))
     for r in pagina:
         r.color = color_estado(r)
     es_super = user.is_superuser
     contexto = {
-        'pagina': pagina, 'tabs': tabs, 'tipo': tipo, 'q': q, 'estado': estado,
+        'pagina': pagina, 'orden': orden, 'tabs': tabs, 'tipo': tipo, 'q': q, 'estado': estado,
         'puede_activar': tiene_capacidad(user, 'reg.activar', empresa),
         'puede_copiar': tiene_capacidad(user, 'reg.cargar_datos', empresa),
         'puede_editar': tiene_capacidad(user, 'reg.cambiar_responsable', empresa),
@@ -94,7 +103,9 @@ def lista(request):
         _resumen_datos(pagina)
         borrados = _filtrar(RegTxtss.objects.filter(empresa=empresa, is_deleted=True)
                             .select_related('proyecto', 'proyecto__tipo', 'user'), tipo, q)
-        contexto['borrados'] = Paginator(borrados.order_by('-updated_at', '-id'), POR_PAGINA).get_page(request.GET.get('pb'))
+        borrados, contexto['orden_b'] = ordenar(request, borrados, {**COLUMNAS, 'borrado': 'updated_at'}, defecto=('-updated_at', '-id'),
+                                                param='ordb', param_dir='dirb', param_pagina='pb')
+        contexto['borrados'] = Paginator(borrados, POR_PAGINA).get_page(request.GET.get('pb'))
     return render(request, 'reg_txtss/lista.html', contexto)
 
 
@@ -135,8 +146,12 @@ def detalle(request, pk):
     user, empresa = request.user, request.empresa
     qs = RegTxtss.objects.filter(pk=r.pk).with_estado()
     r.color = color_estado(qs.get())
+    from .pdf.reporte import COLUMNAS_DEFECTO
+    ctx_pasos = contexto_pasos(request, r, 'txtss', puede_escribir(user, r))
+    for p in ctx_pasos['pasos']:
+        p['cols_defecto'] = COLUMNAS_DEFECTO.get(p['paso'].nombre, 2)   # imágenes por fila que propone el PDF
     return render(request, 'reg_txtss/detalle.html', {
-        'r': r, **_fotos_ctx(r), **contexto_pasos(request, r, 'txtss', puede_escribir(user, r)),
+        'r': r, **_fotos_ctx(r), **ctx_pasos,
         'puede_escribir': puede_escribir(user, r),
         'puede_concluir': tiene_capacidad(user, 'reg.reabrir' if r.concluido else 'reg.concluir', empresa),
         'puede_cambiar_responsable': tiene_capacidad(user, 'reg.cambiar_responsable', empresa) and not r.concluido,
@@ -248,9 +263,7 @@ def formatear(request, pk):
 
 
 def _fotos_ctx(registro):
-    from reg_fotos.servicios import fotos_de
-    fotos = fotos_de(registro)
-    return {'fotos_total': fotos.count(), 'fotos_recientes': list(fotos.order_by('-id')[:6])}
+    return acciones.contexto_imagenes(registro, 6, por_etapa=True)
 
 
 @_acceso()

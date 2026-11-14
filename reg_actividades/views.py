@@ -10,6 +10,7 @@ from reg_base import acciones, tipos
 from reg_base.alcance import puede_escribir
 
 from . import servicios
+from .iconos import ICONOS_ELEGIBLES
 from .models import DatoPaso
 
 _acceso = acceso_modulo('reg')
@@ -24,13 +25,10 @@ def _registro(request, clave, pk):
 
 @_acceso
 def pasos(request, clave, pk):
+    """Antigua pantalla solo de pasos: ahora el detalle del registro ya la muestra. Se conserva la URL (marcadores,
+    enlaces viejos) y manda al detalle; `_registro` mantiene el 404 de registros ajenos o de tipos desconocidos."""
     t, registro = _registro(request, clave, pk)
-    escribe = puede_escribir(request.user, registro)
-    return render(request, 'reg_actividades/pasos.html', {
-        'tipo': t, 'r': registro, 'pasos': servicios.resumen(registro, clave, request.user, escribe),
-        'hay_plantilla': servicios.plantilla_de(registro, clave) is not None,
-        'puede_configurar': tiene_capacidad(request.user, 'reg.config.manage', request.empresa),
-    })
+    return redirect(t.url_detalle, pk=registro.pk)
 
 
 def _asignado(registro, clave, nombre):
@@ -100,8 +98,8 @@ def guardar(request, clave, pk, nombre):
                                          solo={solo} if solo else None)
     if ok:
         messages.success(request, 'Guardado.' if solo else 'Paso guardado.')
-        # Un componente suelto vuelve a la lista de pasos (como el original); el paso completo se queda en su página.
-        return redirect('reg_actividades:pasos', clave=clave, pk=pk) if solo else redirect(
+        # Un componente suelto vuelve al detalle del registro (donde están los pasos); el paso completo se queda en su página.
+        return redirect(tipos.tipo(clave).url_detalle, pk=pk) if solo else redirect(
             'reg_actividades:paso', clave=clave, pk=pk, nombre=nombre)
     # Con errores no se guardó nada: se vuelve a pintar el formulario con lo que el usuario escribió.
     from django.contrib.contenttypes.models import ContentType
@@ -158,7 +156,7 @@ def paso_editar(request, pk):
     return render(request, 'reg_actividades/config_paso.html', {
         'paso': paso, 'form': form, 'widgets': paso.widgets.all(),
         'form_widget': PasoWidgetForm(paso=paso, initial={'orden': paso.widgets.count() + 1}),
-        'tipos_widget': tipos_de_widget(),
+        'tipos_widget': tipos_de_widget(), 'iconos': ICONOS_ELEGIBLES,
     })
 
 

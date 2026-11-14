@@ -1,0 +1,13 @@
+/* Ajustes propios del informe TX/TSS, para que quede igual al de reg.tekon-rl.cl (se carga después del CSS base). */
+
+/* Logo de la derecha: el original lo fijaba en 42px de alto. */
+.header-logo.right img {
+  height: 42px;
+  max-height: none;
+}
+
+/* Logo de la izquierda: el original era un SVG de 40px de alto (caja fija, imagen contenida). */
+.header-logo.left img {
+  height: 40px;
+  object-fit: contain;
+}

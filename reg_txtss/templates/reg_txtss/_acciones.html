@@ -1,30 +1,43 @@
 {# Acciones del registro; se muestran dentro del recuadro de la leyenda de colores (compactas para el celular). #}
-<div class="flex items-stretch gap-2">
-  {% if puede_concluir %}
-  <form method="post" action="{% url 'reg_txtss:concluir' r.pk %}" class="min-w-0 flex-1">{% csrf_token %}
-    <label class="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-box bg-base-content/[0.07] px-3 py-1.5" title="{% if r.concluido %}Solo lectura. Apágalo para reabrir.{% else %}Al concluir queda de solo lectura.{% endif %}">
-      <span class="font-medium">Concluido</span>
-      <input type="checkbox" class="toggle toggle-success shrink-0" {% if r.concluido %}checked{% endif %}
-             aria-label="{% if r.concluido %}Reabrir{% else %}Concluir{% endif %}"
-             data-autoenviar="{% if r.concluido %}¿Reabrir el registro?{% else %}¿Concluir el registro? Quedará de solo lectura.{% endif %}">
-    </label>
-  </form>
-  {% endif %}
-  <a href="{% url 'reg_txtss:pdf' r.pk %}" target="_blank" rel="noopener" class="btn btn-ghost btn-square btn-sm self-center text-red-600 hover:bg-red-600/10"
-     title="{% if r.concluido %}Generar PDF{% else %}Generar PDF (borrador){% endif %}" aria-label="Generar PDF">{% include "components/icon.html" with name="pdf" cls="size-6" %}</a>
-  {% if request.user.is_superuser %}
-  {% if r.has_widgets and not r.concluido %}
-  <form method="post" action="{% url 'reg_txtss:formatear' r.pk %}" data-confirmar="¿Formatear? Se borrarán fotos, mapas y datos de todos los pasos. No se puede deshacer." class="{% if not puede_concluir %}ml-auto {% endif %}shrink-0">{% csrf_token %}
-    <button class="btn btn-soft btn-error btn-tactil btn-square size-12" title="Formatear todos los datos" aria-label="Formatear todos los datos">{% include "components/icon.html" with name="eraser" cls="size-5" %}</button>
-  </form>
-  {% endif %}
-  <form method="post" action="{% url 'reg_txtss:eliminar' r.pk %}" data-confirmar="¿Eliminar este registro?" class="{% if not puede_concluir and not r.has_widgets or r.concluido and not puede_concluir %}ml-auto {% endif %}shrink-0">{% csrf_token %}
-    <button class="btn btn-soft btn-error btn-tactil btn-square size-12" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
-  </form>
-  {% endif %}
-</div>
+{# Cada URL solo se define si la persona puede usar esa acción; sin URL, la franja compartida no la dibuja. #}
+{% if puede_concluir %}{% url 'reg_txtss:concluir' r.pk as u_concluir %}{% endif %}
+{% if request.user.is_superuser %}{% url 'reg_txtss:eliminar' r.pk as u_eliminar %}{% if r.has_widgets and not r.concluido %}{% url 'reg_txtss:formatear' r.pk as u_formatear %}{% endif %}{% endif %}
+{% include "reg_base/_acciones.html" with tg_url=u_concluir tg_on=r.concluido tg_titulo=r.concluido|yesno:"Registro concluido,Concluir registro" tg_sub=r.concluido|yesno:"Apágalo para reabrir,Pasa a solo lectura" tg_ayuda="Al concluir queda de solo lectura." tg_confirmar=r.concluido|yesno:"¿Reabrir el registro?,¿Concluir el registro? Quedará de solo lectura." pdf_modal="pdf-opciones" formatear_url=u_formatear eliminar_url=u_eliminar eliminar_confirmar="¿Eliminar este registro?" %}
 {% if siguiente and puede_escribir or siguiente and r.concluido %}
 <form method="post" action="{% url 'reg_txtss:copiar' r.pk %}" data-confirmar="¿Copiar con la alternativa {{ siguiente }}?">{% csrf_token %}
   <button class="btn btn-outline btn-tactil w-full">Copiar como alternativa {{ siguiente }}</button>
 </form>
 {% endif %}
+
+{# Opciones del PDF: imágenes por fila (1 o 2) en cada paso que tenga imágenes. Se abre sin JS con el checkbox del modal. #}
+<input type="checkbox" id="pdf-opciones" class="modal-toggle">
+<div class="modal modal-bottom sm:modal-middle" role="dialog" aria-labelledby="pdf-opciones-titulo">
+  <div class="modal-box">
+    <h3 id="pdf-opciones-titulo" class="text-lg font-semibold">Generar PDF{% if not r.concluido %} <span class="badge badge-ghost align-middle">borrador</span>{% endif %}</h3>
+    <form method="get" action="{% url 'reg_txtss:pdf' r.pk %}" target="_blank" data-pdf-opciones>
+      <p class="mt-1 text-sm text-base-content/60">Elige cuántas imágenes se ven por fila en cada paso.</p>
+      <ul class="mt-4 divide-y divide-base-content/10">
+        {% for p in pasos %}{% if p.con_imagenes %}
+        <li class="flex items-center justify-between gap-3 py-3">
+          <span class="min-w-0 truncate font-medium">{{ p.paso.titulo }}</span>
+          <span class="flex shrink-0 gap-1.5" role="radiogroup" aria-label="Imágenes por fila en {{ p.paso.titulo }}">
+            <label class="cursor-pointer">
+              <input type="radio" class="peer sr-only" name="cols_{{ p.paso.nombre }}" value="1"{% if p.cols_defecto == 1 %} checked{% endif %}>
+              <span class="flex h-10 items-center rounded-lg border border-base-content/20 px-3 text-sm font-medium transition peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-content peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary">1 columna</span>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" class="peer sr-only" name="cols_{{ p.paso.nombre }}" value="2"{% if p.cols_defecto != 1 %} checked{% endif %}>
+              <span class="flex h-10 items-center rounded-lg border border-base-content/20 px-3 text-sm font-medium transition peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-content peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary">2 columnas</span>
+            </label>
+          </span>
+        </li>
+        {% endif %}{% endfor %}
+      </ul>
+      <div class="modal-action">
+        <label for="pdf-opciones" class="btn btn-ghost">Cancelar</label>
+        <button class="btn btn-primary">Generar PDF</button>
+      </div>
+    </form>
+  </div>
+  <label class="modal-backdrop" for="pdf-opciones">Cerrar</label>
+</div>

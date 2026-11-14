@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% load reg_ui %}
 {% block page_title %}Construcción · {{ r.proyecto.codigo|default:"—" }} · visita #{{ r.numero_visita }}{% endblock %}
 {% block content_main %}
 <div class="mb-4 flex items-center gap-2">
@@ -37,23 +38,12 @@
   <section class="order-first"><div>
     {% include "reg_actividades/_linea_pasos.html" with acciones_template="reg_construccion/_acciones.html" %}
   </div></section>
-  <section class="card bg-base-100"><div class="card-body gap-2">
-    <h2 class="card-title text-base"><a class="link link-hover" href="{% url 'reg_fotos:galeria' 'construccion' r.pk 'general' %}">Imágenes</a></h2>
-    {% if fotos_total %}
-      <p class="text-sm text-base-content/60">{{ fotos_total }} {% if fotos_total == 1 %}imagen{% else %}imágenes{% endif %}</p>
-      <div class="grid grid-cols-3 gap-2 sm:grid-cols-4">
-        {% for f in fotos_recientes %}<a href="{% url 'reg_fotos:imagen' f.pk %}" target="_blank" rel="noopener"><img src="{% url 'reg_fotos:miniatura' f.pk %}" alt="{{ f.descripcion|default:'Imagen' }}" loading="lazy" class="aspect-square w-full rounded-lg object-cover"></a>{% endfor %}
-      </div>
-    {% else %}<p class="text-sm text-base-content/60">Todavía no hay imágenes.</p>{% endif %}
-  </div></section>
+  {% include "reg_base/_imagenes.html" %}
 
-  <div class="space-y-4">
-    <section class="card bg-base-100"><div class="card-body gap-2">
-      <h2 class="card-title text-base">Registros del {{ termino_proyecto|lower }}</h2>
-      <ul class="space-y-1 text-sm">
-        {% for v in visitas %}<li><a class="link {% if v.pk == r.pk %}font-bold{% endif %}" href="{% url 'reg_construccion:detalle' v.pk %}">{{ v.fecha|date:"d/m/Y" }}</a>{% if v.concluido %} <span class="badge badge-success badge-xs">concluida</span>{% endif %}</li>{% endfor %}
-      </ul>
-    </div></section>
-  </div>
+  {% with t=termino_proyecto|lower %}{% with titulo="Registros del "|add:t %}{% reg_tarjeta titulo %}
+    <ul class="space-y-1 text-sm">
+      {% for v in visitas %}<li><a class="link {% if v.pk == r.pk %}font-bold{% endif %}" href="{% url 'reg_construccion:detalle' v.pk %}">{{ v.fecha|date:"d/m/Y" }}</a>{% if v.concluido %} <span class="badge badge-success badge-xs">concluida</span>{% endif %}</li>{% endfor %}
+    </ul>
+  {% endreg_tarjeta %}{% endwith %}{% endwith %}
 </div>
 {% endblock %}

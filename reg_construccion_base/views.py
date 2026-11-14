@@ -123,8 +123,6 @@ def detalle(request, pk):
     r.color = color_estado(RegConstruccionBase.objects.filter(pk=r.pk).with_estado().get())
     escribe = puede_escribir(user, r)
     from reg_base.tipos import tipo
-    from reg_fotos.servicios import fotos_de
-    fotos = fotos_de(r)
     return render(request, 'reg_construccion_base/detalle.html', {
         'r': r, **contexto_pasos(request, r, CLAVE, escribe), 'puede_escribir': escribe,
         'form': DatosVisitaForm(instance=r, usuario=user,
@@ -134,7 +132,7 @@ def detalle(request, pk):
         'puede_reabrir': r.concluido and (user.is_superuser or tiene_capacidad(user, 'reg.reabrir', empresa)),
         'hallazgos': r.hallazgos.filter(is_deleted=False).order_by('numero'),
         'pendientes': servicios.pendientes_de_seguimiento(r).count(),
-        'fotos_total': fotos.count(), 'fotos_recientes': list(fotos.order_by('-id')[:8]),
+        **acciones.contexto_imagenes(r, 8),
         'visitas': _visibles(request).vigentes().filter(proyecto_id=r.proyecto_id).order_by('numero'),
         **revisiones.contexto(user, r, tipo(CLAVE)),
     })

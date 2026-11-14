@@ -1,29 +1,11 @@
-{# Acciones de la visita, en la franja inferior del recuadro de la leyenda de colores. #}
-<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-  {% if puede_emitir %}
-  <form method="post" action="{% url 'reg_construccion_base:emitir' r.pk %}" class="shrink-0">{% csrf_token %}
-    <label class="flex h-7 cursor-pointer items-center gap-1.5 rounded-full border border-base-content/10 bg-base-100 pl-2.5 pr-1.5 text-xs shadow-sm" title="Al emitir queda de solo lectura. Para corregirla se crea una revisión.">
-      <span class="font-medium">Emitir</span>
-      <input type="checkbox" class="toggle toggle-success toggle-xs shrink-0" aria-label="Emitir la visita"
-             data-autoenviar="¿Emitir la visita? Quedará de solo lectura; para corregirla crearás una revisión.">
-    </label>
-  </form>
-  {% elif puede_reabrir %}
-  <form method="post" action="{% url 'reg_construccion_base:reabrir' r.pk %}" class="shrink-0">{% csrf_token %}
-    <label class="flex h-7 cursor-pointer items-center gap-1.5 rounded-full border border-base-content/10 bg-base-100 pl-2.5 pr-1.5 text-xs shadow-sm" title="Emitida{% if r.emitido_en %} el {{ r.emitido_en|date:'d/m/Y H:i' }}{% endif %}. Apágalo para reabrirla y seguir editando.">
-      <span class="font-medium">Emitida</span>
-      <input type="checkbox" checked class="toggle toggle-success toggle-xs shrink-0" aria-label="Reabrir la visita"
-             data-autoenviar="¿Reabrir la visita emitida? Volverá a ser editable.">
-    </label>
-  </form>
-  {% elif r.concluido %}<span class="badge badge-success badge-sm">Emitida{% if r.emitido_en %} · {{ r.emitido_en|date:"d/m/Y H:i" }}{% endif %}</span>{% endif %}
-  <div class="flex items-center gap-0.5">
-    <a href="{% url 'reg_construccion_base:pdf' r.pk %}" target="_blank" rel="noopener" class="btn btn-ghost btn-square btn-sm text-red-600 hover:bg-red-600/10"
-       title="{% if r.concluido %}Generar PDF{% else %}Generar PDF (borrador){% endif %}" aria-label="Generar PDF">{% include "components/icon.html" with name="pdf" cls="size-6" %}</a>
-    {% if request.user.is_superuser and not r.concluido %}
-    <form method="post" action="{% url 'reg_construccion_base:eliminar' r.pk %}" data-confirmar="¿Eliminar esta visita?">{% csrf_token %}
-      <button class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
-    </form>
-    {% endif %}
-  </div>
-</div>
+{# Acciones de la visita bajo los pasos: la franja es la compartida (reg_base/_acciones.html). #}
+{% if puede_emitir %}{% url 'reg_construccion_base:emitir' r.pk as u_tg %}{% elif puede_reabrir %}{% url 'reg_construccion_base:reabrir' r.pk as u_tg %}{% endif %}
+{% if request.user.is_superuser and not r.concluido %}{% url 'reg_construccion_base:eliminar' r.pk as u_eliminar %}{% endif %}
+{% url 'reg_construccion_base:pdf' r.pk as u_pdf %}
+{% if puede_emitir %}
+{% include "reg_base/_acciones.html" with tg_url=u_tg tg_on=False tg_titulo="Emitir visita" tg_sub="Pasa a solo lectura; se corrige con una revisión" tg_ayuda="Al emitir queda de solo lectura. Para corregirla se crea una revisión." tg_confirmar="¿Emitir la visita? Quedará de solo lectura; para corregirla crearás una revisión." pdf_url=u_pdf eliminar_url=u_eliminar eliminar_confirmar="¿Eliminar esta visita?" %}
+{% elif puede_reabrir %}
+{% include "reg_base/_acciones.html" with tg_url=u_tg tg_on=True tg_titulo="Visita emitida" tg_sub="Apágalo para reabrir" tg_ayuda="Emitida. Apágalo para reabrirla y seguir editando." tg_confirmar="¿Reabrir la visita emitida? Volverá a ser editable." pdf_url=u_pdf eliminar_url=u_eliminar eliminar_confirmar="¿Eliminar esta visita?" %}
+{% else %}
+{% include "reg_base/_acciones.html" with tg_texto=r.concluido|yesno:"Emitida,"|default:"" pdf_url=u_pdf eliminar_url=u_eliminar eliminar_confirmar="¿Eliminar esta visita?" %}
+{% endif %}

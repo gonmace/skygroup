@@ -172,7 +172,7 @@ class PanelTests(TestCase):
         self.assertNotIn('plataforma', [a['codigo'] for a in m['apps']])        # no está en la empresa
         m = self._menu(root, '/tekon/panel/', self.a)
         self.assertEqual(m['app_activa']['codigo'], 'plataforma')              # sí mientras se usa
-        self.assertEqual([i['nombre'] for i in m['items']], ['Empresas', 'Administradores', 'Almacenamiento', 'Correo'])
+        self.assertEqual([i['nombre'] for i in m['items']], ['Empresas', 'Administradores', 'Almacenamiento', 'Correo', 'Credenciales'])
         self.assertNotIn('plataforma', [a['codigo'] for a in self._menu(self.pmo, '/tekon/panel/', self.a)['apps']])
 
     def test_entradas_registradas_hacen_disponible_la_app(self):
@@ -219,7 +219,7 @@ class PanelTests(TestCase):
     def test_superusuario_ve_plataforma(self):
         m = self._menu(self.root, '/panel/')
         self.assertEqual(m['app_activa']['codigo'], 'plataforma')
-        self.assertEqual([i['nombre'] for i in m['items']], ['Empresas', 'Administradores', 'Almacenamiento', 'Correo'])
+        self.assertEqual([i['nombre'] for i in m['items']], ['Empresas', 'Administradores', 'Almacenamiento', 'Correo', 'Credenciales'])
 
     def test_lanzador_de_inicio_muestra_las_apps(self):
         self.vaciar_modulo('jor')
@@ -873,3 +873,45 @@ class MiembrosAjaxTests(TestCase):
         self.m_otro.save()
         r = self.client.get('/tekon/config/miembros/').context['resumen']
         self.assertEqual(dict(r['por_sede']), {'Central': 1, 'Sin sede': 1})
+
+
+@override_settings(**AJUSTES)
+class CredencialesTests(TestCase):
+    """Plataforma → Credenciales: la clave de Google Maps (solo superusuario; vacía conserva; cae al .env)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from cuentas.models import CredencialesPlataforma
+        cls.Cred = CredencialesPlataforma
+        cls.a = crear_empresa(nombre='Cred SA', slug='cred-sa')
+        cls.su = User.objects.create_superuser(email='su@cred.cl', password='x')
+        cls.coord = User.objects.create_user(email='c@cred.cl', password='x')
+        agregar_miembro(cls.coord, cls.a, rol_por_base(cls.a, RolBase.COORDINADOR))
+
+    def test_solo_superusuario(self):
+        self.client.force_login(self.coord)
+        self.assertEqual(self.client.get('/cred-sa/panel/credenciales/').status_code, 403)
+
+    def test_guarda_conserva_y_quita_la_clave(self):
+        self.client.force_login(self.su)
+        url = '/cred-sa/panel/credenciales/'
+        self.client.post(url, {'google_maps_api_key': 'AIzaABCD'})
+        self.assertEqual(self.Cred.de().google_maps_api_key, 'AIzaABCD')
+        self.client.post(url, {'google_maps_api_key': ''})            # vacía conserva
+        self.assertEqual(self.Cred.de().google_maps_api_key, 'AIzaABCD')
+        self.assertNotContains(self.client.get(url), 'AIzaABCD')      # nunca se muestra entera
+        self.client.post(url, {'google_maps_api_key': '', 'quitar_google_maps': 'on'})
+        self.assertEqual(self.Cred.de().google_maps_api_key, '')
+
+    @override_settings(GOOGLE_MAPS_API_KEY='del-env')
+    def test_clave_guardada_manda_sobre_el_env(self):
+        self.assertEqual(self.Cred.clave_google_maps(), 'del-env')
+        self.Cred(google_maps_api_key='de-plataforma').save()
+        self.assertEqual(self.Cred.clave_google_maps(), 'de-plataforma')
+
+    def test_probar_clave_usa_google_sin_guardar(self):
+        self.client.force_login(self.su)
+        with mock.patch('reg_actividades.mapas.probar_clave', return_value=(True, 'ok')) as p:
+            self.client.post('/cred-sa/panel/credenciales/', {'google_maps_api_key': 'AIzaXYZ', 'accion': 'probar'})
+        p.assert_called_once_with('AIzaXYZ')
+        self.assertEqual(self.Cred.de().google_maps_api_key, '')

@@ -31,7 +31,7 @@ ROLES = {
     'SEARCHER': ('Buscador', 'MIEMBRO'),
     'VISITA': ('Observador', 'OBSERVADOR'),
 }
-UBICACIONES = (('Mandato', 'man'), ('Ingeniería', 'ing'), ('Construcción', 'con'))
+UBICACIONES = (('Referencia', 'man'), ('Ingeniería', 'ing'), ('Construcción', 'con'))
 CAMPOS_NUMERICOS = {'lat', 'lon', 'accuracy', 'lat1', 'lon1', 'lat2', 'lon2', 'distancia_metros'}
 
 

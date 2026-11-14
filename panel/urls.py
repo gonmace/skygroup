@@ -14,6 +14,7 @@ urlpatterns = [
     path('panel/administradores/<int:pk>/', views.administrador_editar, name='administrador_editar'),
     path('panel/administradores/<int:pk>/quitar/', views.administrador_quitar, name='administrador_quitar'),
     path('panel/correo/', views.correo, name='correo'),
+    path('panel/credenciales/', views.credenciales, name='credenciales'),
     path('panel/correo/probar/', views.correo_probar, name='correo_probar'),
     path('panel/almacenamiento/', views.almacenamiento, name='almacenamiento'),
     path('panel/almacenamiento/migrar/', views.almacenamiento_migrar, name='almacenamiento_migrar'),

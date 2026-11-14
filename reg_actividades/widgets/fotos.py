@@ -98,8 +98,13 @@ class ImgsDescWidget(_FotosBase):
         return 1 if llenas == 0 else (3 if llenas == len(pedidas) else 2)
 
     def contexto(self, datos, config, ctx):
-        por_desc = {}
-        for f in self._fotos(config, ctx):
+        por_desc, fotos = {}, list(self._fotos(config, ctx))
+        for f in fotos:
             por_desc.setdefault(f.descripcion, f)
+        espacios = [{'descripcion': d, 'foto': por_desc.get(d)} for d in self.descripciones(config)]
+        en_espacio = {e['foto'].pk for e in espacios if e['foto']}
+        extras = [f for f in fotos if f.pk not in en_espacio]   # descripción no pedida o repetida: no se pierden de vista
+        # Contador (p. ej. 8/5): todas las fotos tomadas, con o sin descripción, frente a las descripciones pedidas.
         return {'etiqueta': config.get('label', self.nombre), 'etapa': self.etapa(config, ctx),
-                'espacios': [{'descripcion': d, 'foto': por_desc.get(d)} for d in self.descripciones(config)]}
+                'total': len(fotos), 'minimo': len(espacios),
+                'espacios': espacios, 'extras': extras}

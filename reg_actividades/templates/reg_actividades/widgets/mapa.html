@@ -2,12 +2,17 @@
 <div data-mapa data-puntos="{{ b.puntos_json }}"{% if b.save_url and b.hay_clave and b.puntos %} data-save-url="{{ b.save_url }}"{% endif %} class="space-y-3">
   {% if b.puntos %}
     <div data-mapa-lienzo role="img" aria-label="Mapa con {{ b.puntos|length }} punto{{ b.puntos|length|pluralize }} del registro" class="reg-mapa-lienzo aspect-square w-full max-w-xl overflow-hidden rounded-box bg-base-200"></div>
+    {% if b.leyenda %}
+      <ul class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm" aria-label="Leyenda del mapa">
+        {% for l in b.leyenda %}<li class="flex items-center gap-2"><span class="reg-mapa-pin !size-6 !text-xs" data-leyenda-color="{{ l.color }}">{{ l.letra }}</span>{{ l.nombre|default:l.letra }}</li>{% endfor %}
+      </ul>
+    {% endif %}
   {% endif %}
   {% if b.faltantes %}
     <div class="flex min-h-20 max-w-xl items-center justify-center rounded-box border border-dashed border-base-content/25 p-4 text-center text-sm text-base-content/70">{{ b.faltantes }}</div>
   {% endif %}
   {% if b.puntos and not b.hay_clave %}
-    <p class="max-w-xl text-sm text-base-content/70">No hay una clave de Google Maps configurada: se muestran los puntos, pero no se puede generar la imagen del informe. Pídele al administrador que defina <code>GOOGLE_MAPS_API_KEY</code>.</p>
+    <p class="max-w-xl text-sm text-base-content/70">No hay una clave de Google Maps configurada: se muestran los puntos, pero no se puede generar la imagen del informe. Pídele al superusuario que la cargue en Plataforma → Credenciales.</p>
   {% endif %}
   {% if b.puntos %}
     <div class="flex flex-wrap items-center gap-3">

@@ -1,0 +1,10 @@
+{# Contenedor estándar bajo los pasos de un registro. Se usa con {% reg_tarjeta %} (reg_base/templatetags/reg_ui.py). #}
+<section class="card bg-base-100 shadow-sm {{ clase }}"><div class="card-body gap-3 p-4 sm:p-6">
+  {% if titulo %}
+  <div class="flex items-center justify-between gap-2">
+    <h2 class="card-title text-base">{{ titulo }}{% if contador is not None %} <span class="badge badge-ghost tabular-nums">{{ contador }}</span>{% endif %}</h2>
+    {% if enlace_url %}<a href="{{ enlace_url }}" class="link text-sm">{{ enlace_texto }}</a>{% endif %}
+  </div>
+  {% endif %}
+  {{ contenido }}
+</div></section>

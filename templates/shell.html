@@ -30,7 +30,8 @@ y rellenan `page_title` y `content_main`. El menú viene de panel.menu (context 
       {% for item in menu_lateral %}
         {% ifchanged item.grupo item.seccion %}{% if item.grupo == "superusuario" %}<div role="separator" class="!mt-3 mb-1 border-t border-base-content/10 px-3 pt-3 text-xs font-medium uppercase tracking-wider text-base-content/50">Administración</div>{% elif item.seccion %}<div role="separator" class="!mt-3 mb-1 border-t border-base-content/10 px-3 pt-3 text-xs font-medium uppercase tracking-wider text-base-content/50">{{ item.seccion }}</div>{% endif %}{% endifchanged %}
         <a href="{{ item.url }}" {% if item.activo %}aria-current="page"{% endif %}
-           class="flex min-h-9 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors {% if item.activo %}nav-activo font-medium{% else %}text-base-content/70 hover:bg-base-content/5 hover:text-base-content{% endif %}">
+           {% if item.nivel %}title="{% if item.nivel == 'superusuario' %}Solo superusuario{% else %}Solo coordinadores{% endif %}"{% endif %}
+           class="flex min-h-9 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors{% if item.nivel == 'superusuario' %} nav-nivel badge-plat-super{% elif item.nivel == 'coordinador' %} nav-nivel badge-rol-0{% endif %} {% if item.activo %}nav-activo font-medium{% else %}text-base-content/70 hover:bg-base-content/5 hover:text-base-content{% endif %}">
           {% include "components/icon.html" with name=item.icono %}
           <span>{{ item.nombre }}</span>
         </a>
@@ -114,9 +115,11 @@ y rellenan `page_title` y `content_main`. El menú viene de panel.menu (context 
           <span data-tema-icono="moon" class="hidden dark:inline">{% include "components/icon.html" with name="sun" %}</span>
         </button>
         <details class="dropdown dropdown-end">
-          <summary class="btn btn-ghost btn-sm max-w-24 sm:max-w-56"><span class="truncate">{{ request.user.get_short_name|default:request.user.email }}</span></summary>
+          <summary class="btn btn-ghost btn-sm h-auto max-w-28 py-1 sm:max-w-56"><span class="flex min-w-0 flex-col items-start leading-tight"><span class="max-w-full truncate">{{ request.user.get_short_name|default:request.user.email }}</span>{% if mi_cargo %}<span class="badge badge-xs badge-outline badge-rol-{{ mi_cargo.jerarquia }} max-w-full" title="Cargo"><span class="truncate">{{ mi_cargo.nombre }}</span></span>{% elif papel_plataforma %}<span class="badge badge-xs badge-outline badge-plat-{{ papel_plataforma }}">{% if papel_plataforma == 'super' %}Superusuario{% else %}Administrador{% endif %}</span>{% endif %}</span></summary>
           <ul class="menu dropdown-content z-10 bg-base-100 shadow-xl border border-base-content/10 mt-2 w-56 rounded-2xl p-2 max-sm:fixed max-sm:inset-x-2 max-sm:top-14 max-sm:mt-1 max-sm:w-auto">
             <li class="menu-title">{{ request.user.email }}</li>
+            {% if mi_cargo %}<li class="pointer-events-none -mt-1 px-3 pb-1"><span class="badge badge-sm badge-outline badge-rol-{{ mi_cargo.jerarquia }}" title="Cargo">{{ mi_cargo.nombre }}</span></li>
+            {% elif papel_plataforma %}<li class="pointer-events-none -mt-1 px-3 pb-1"><span class="badge badge-sm badge-outline badge-plat-{{ papel_plataforma }}">{% if papel_plataforma == 'super' %}Superusuario{% else %}Administrador{% endif %}</span></li>{% endif %}
             {% if request.user.is_superuser %}<li><a href="{% url 'panel:empresas' %}">Plataforma</a></li>{% endif %}
             {% if nc_disponible %}<li>
               {% if nc_vinculado %}<form method="post" action="{% url 'cuentas:nextcloud_desvincular' %}" data-confirmar="¿Desvincular tu cuenta de Nextcloud?">{% csrf_token %}<button type="submit" class="w-full text-left">Desvincular Nextcloud</button></form>

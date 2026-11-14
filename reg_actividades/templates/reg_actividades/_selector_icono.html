@@ -1,0 +1,17 @@
+{# Selector del icono del botón del componente. Contexto: iconos (lista de (nombre, etiqueta)), actual (nombre o vacío). #}
+<fieldset class="space-y-1">
+  <legend class="text-xs font-medium text-base-content/70">Icono del botón</legend>
+  <div class="flex flex-wrap gap-2">
+    <label class="cursor-pointer" title="Predeterminado (según el tipo de widget)">
+      <input type="radio" name="icono" value="" class="peer sr-only"{% if not actual %} checked{% endif %}>
+      <span class="grid h-11 min-w-11 place-items-center rounded-box border border-base-300 px-2 text-xs peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary">Auto</span>
+    </label>
+    {% for valor, nombre in iconos %}
+      <label class="cursor-pointer" title="{{ nombre }}">
+        <input type="radio" name="icono" value="{{ valor }}" class="peer sr-only"{% if valor == actual %} checked{% endif %}>
+        <span class="grid size-11 place-items-center rounded-box border border-base-300 peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary">{% include "components/icon.html" with name=valor cls="size-6" %}</span>
+        <span class="sr-only">{{ nombre }}</span>
+      </label>
+    {% endfor %}
+  </div>
+</fieldset>

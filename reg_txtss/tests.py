@@ -431,7 +431,7 @@ class PdfTxtssPlantillaTests(TxtssBase):
             PasoWidget.objects.create(paso=paso, widget_slug=slug, orden=i)
         PasoAsignado.objects.create(plantilla=pl, paso=paso)
         from proyectos.models import ProyectoUbicacion
-        ProyectoUbicacion.objects.create(proyecto=self.p1, etiqueta='Mandato', lat='-33.450000', lon='-70.660000')
+        ProyectoUbicacion.objects.create(proyecto=self.p1, etiqueta='Referencia', lat='-33.450000', lon='-70.660000')
         r = RegTxtss.objects.create(empresa=a, proyecto=self.p1, user=self.ito1, fecha=date(2026, 5, 1))
         DatoPaso.objects.create(empresa=a, content_type=ContentType.objects.get_for_model(RegTxtss), object_id=r.pk,
                                 paso_nombre='poste', tiene_datos=True, datos={
@@ -443,3 +443,52 @@ class PdfTxtssPlantillaTests(TxtssBase):
         self.assertIn('Dentro de tolerancia', ctx['desfase']['estado'])
         self.assertIn(('Luminaria', 'Sí'), ctx['despues'][0]['bloques'][1]['filas'])
         self.assertTrue(reporte.generar(r, {}).startswith(b'%PDF'))
+
+
+class PdfTxtssMapasComoElOriginalTests(TxtssBase):
+    """Las dos imágenes de Google Maps del informe: mismos títulos, leyendas y notas que reg.tekon-rl.cl."""
+
+    def test_titulos_leyendas_y_coordenadas_del_original(self):
+        import pymupdf
+        from django.contrib.contenttypes.models import ContentType
+        from django.core.files.base import ContentFile
+        from reg_actividades.models import ImagenMapa, Paso, PasoAsignado, PasoWidget, Plantilla
+        from .pdf import reporte
+        a = self.a
+        pl = Plantilla.objects.create(empresa=a, nombre='Mapas', tipo_registro='txtss', tipo_proyecto=self.poste)
+        for nombre, titulo, slug, cfg in (
+                ('mandato', 'Referencia', 'mapa_1p', {}),
+                ('desfase', 'Desfase', 'mapa_2_puntos', {'paso1': 'Mandato', 'paso2': 'Poste', 'label1': 'M', 'label2': 'P',
+                                                         'color1': '#3b82f6', 'color2': '#e74c3c'})):
+            paso = Paso.objects.create(empresa=a, nombre=nombre, titulo=titulo)
+            PasoWidget.objects.create(paso=paso, widget_slug=slug, config=cfg, orden=0)
+            PasoAsignado.objects.create(plantilla=pl, paso=paso)
+        r = RegTxtss.objects.create(empresa=a, proyecto=self.p1, user=self.ito1, fecha=date(2026, 5, 1))
+        png = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 20, 20)).tobytes('png')
+        ct = ContentType.objects.get_for_model(RegTxtss)
+        for etapa, pts in (('mandato', [{'lat': -17.868223, 'lon': -63.277012, 'label': 'M', 'color': '#3b82f6', 'size': 'mid'}]),
+                           ('desfase', [])):
+            m = ImagenMapa(empresa=a, content_type=ct, object_id=r.pk, etapa=etapa, zoom=20, coordenadas=pts)
+            m.imagen.save('m.png', ContentFile(png), save=True)
+        ctx = reporte.contexto(r, {})
+        secciones = {s['nombre']: s for s in ctx['antes'] + ctx['despues']}
+        self.assertEqual(secciones['mandato']['titulo'], 'Punto de Referencia')
+        self.assertEqual(secciones['desfase']['titulo'], 'Desfase Referencia — Inspección (Poste)')
+        mapa1 = secciones['mandato']['bloques'][0]
+        self.assertEqual([l['nombre'] for l in mapa1['leyenda']], ['Referencia'])
+        self.assertEqual(mapa1['nota'], ['Lat: -17,868223', 'Lon: -63,277012'])
+        mapa2 = secciones['desfase']['bloques'][0]
+        self.assertEqual([(l['nombre'], l['color']) for l in mapa2['leyenda']],
+                         [('Referencia', '#3b82f6'), ('Poste (Inspección)', '#e74c3c')])
+
+
+class PdfTxtssFormatosDelOriginalTests(TestCase):
+    """Coordenadas como las imprimía reg.tekon-rl.cl: decimal con punto y DMS «S 36° 51' 56.32''»."""
+
+    def test_dms_y_fila_geografica(self):
+        from .pdf import reporte
+        self.assertEqual(reporte._dms_orig(-36.865644, 'N', 'S'), "S 36° 51' 56.32''")
+        self.assertEqual(reporte._dms_orig(-73.041111, 'E', 'W'), "W 73° 2' 28.0''")
+        self.assertEqual(reporte._fila_geo('Referencia', -36.865556, -73.041111),
+                         ['Referencia', '-36.865556', "S 36° 51' 56.0''", '-73.041111', "W 73° 2' 28.0''"])
+        self.assertEqual(reporte._dms_orig(None, 'N', 'S'), 'N/A')

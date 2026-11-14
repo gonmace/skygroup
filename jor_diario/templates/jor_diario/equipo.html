@@ -34,7 +34,7 @@
     <li class="rounded-box bg-base-100 p-3 shadow-sm {% if f.perfil and not f.perfil.activo %}opacity-60{% endif %}">
       <div class="flex items-start justify-between gap-3">
         <div class="flex min-w-0 items-center gap-3">
-          <span class="avatar-iniciales badge-rol-{{ f.m.rol.jerarquia }} tono-{{ f.m.rol.tono }}" aria-hidden="true">{{ f.m.user.iniciales }}</span>
+          <span class="avatar-iniciales {{ f.m.clase_avatar }}" aria-hidden="true">{{ f.m.user.iniciales }}</span>
           <div class="min-w-0">
             <a class="block truncate font-medium" href="{% url 'jor_diario:persona' f.m.pk %}">{{ f.m.user }}</a>
             <div class="truncate text-xs text-base-content/60">{{ f.perfil.cargo_completo|default:f.m.user.email }}</div>
@@ -71,7 +71,7 @@
     <tbody>
     {% for f in filas %}
       <tr class="hover {% if f.perfil and not f.perfil.activo %}opacity-60{% endif %}">
-        <td><div class="flex items-center gap-3"><span class="avatar-iniciales badge-rol-{{ f.m.rol.jerarquia }} tono-{{ f.m.rol.tono }}" aria-hidden="true">{{ f.m.user.iniciales }}</span><div class="min-w-0 max-w-[13rem]"><a class="block truncate font-medium hover:underline" href="{% url 'jor_diario:persona' f.m.pk %}" title="{{ f.m.user }}">{{ f.m.user }}</a><div class="truncate text-xs text-base-content/60" title="{{ f.perfil.cargo_completo|default:f.m.user.email }}">{{ f.perfil.cargo_completo|default:f.m.user.email }}</div></div></div></td>
+        <td><div class="flex items-center gap-3"><span class="avatar-iniciales {{ f.m.clase_avatar }}" aria-hidden="true">{{ f.m.user.iniciales }}</span><div class="min-w-0 max-w-[13rem]"><a class="block truncate font-medium hover:underline" href="{% url 'jor_diario:persona' f.m.pk %}" title="{{ f.m.user }}">{{ f.m.user }}</a><div class="truncate text-xs text-base-content/60" title="{{ f.perfil.cargo_completo|default:f.m.user.email }}">{{ f.perfil.cargo_completo|default:f.m.user.email }}</div></div></div></td>
         <td class="text-center">{% include "jor_diario/_estado_jornada.html" %}</td>
         <td class="tabular-nums">{% if f.jornada %}{{ f.jornada.inicio|date:"H:i" }}{% else %}—{% endif %}</td>
         <td class="tabular-nums {% if f.jornada.fin %}text-success{% endif %}">{% if f.jornada.fin %}{{ f.jornada.fin|date:"H:i" }}{% else %}—{% endif %}</td>

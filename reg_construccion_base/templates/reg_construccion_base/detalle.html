@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% load reg_ui %}
 {% block page_title %}Supervisión Campo · {{ r.proyecto.codigo|default:"—" }} · visita {{ r.numero }}{% endblock %}
 {% block content_main %}
 <div class="mb-4 flex items-center gap-2">
@@ -35,9 +36,8 @@
     {% include "reg_actividades/_linea_pasos.html" with acciones_template="reg_construccion_base/_acciones.html" %}
   </div></section>
 
-  <section class="card bg-base-100"><div class="card-body gap-2">
-    <div class="flex items-center justify-between gap-2"><h2 class="card-title text-base">Hallazgos de esta visita</h2>
-      <a href="{% url 'reg_construccion_base:hallazgos' %}?proyecto={{ r.proyecto_id }}" class="link text-sm">Ver todos del {{ termino_proyecto|lower }}</a></div>
+  {% url 'reg_construccion_base:hallazgos' as url_hallazgos %}{% with pid=r.proyecto_id|stringformat:"s" %}{% with enlace=url_hallazgos|add:"?proyecto="|add:pid %}
+  {% reg_tarjeta "Hallazgos de esta visita" enlace_url=enlace enlace_texto="Ver todos" %}
     {% for h in hallazgos %}
       <a href="{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}" class="-mx-1 flex items-center gap-3 rounded-md border-t border-base-300 px-1 py-2 first:border-0 hover:bg-base-200/60">
         <div class="min-w-0 flex-1"><p class="truncate text-sm"><span class="font-semibold tabular-nums">{{ h.codigo }}</span> · {{ h.get_tipo_display }}</p><p class="truncate text-xs text-base-content/60">{{ h.descripcion }}</p></div>
@@ -45,23 +45,17 @@
       </a>
     {% empty %}<p class="text-sm text-base-content/60">Sin hallazgos en esta visita.</p>{% endfor %}
     {% if pendientes %}<p class="text-xs text-warning">Hay {{ pendientes }} observación{{ pendientes|pluralize:"es" }} de visitas anteriores por verificar.</p>{% endif %}
-  </div></section>
+  {% endreg_tarjeta %}
+  {% endwith %}{% endwith %}
 
-  <section class="card bg-base-100"><div class="card-body gap-2">
-    <h2 class="card-title text-base"><a class="link link-hover" href="{% url 'reg_fotos:galeria' tipo.clave r.pk 'general' %}">Imágenes</a></h2>
-    {% if fotos_total %}
-      <p class="text-sm text-base-content/60">{{ fotos_total }} {% if fotos_total == 1 %}imagen{% else %}imágenes{% endif %}</p>
-      <div class="grid grid-cols-4 gap-2 sm:grid-cols-6">{% for f in fotos_recientes %}<a href="{% url 'reg_fotos:imagen' f.pk %}" target="_blank" rel="noopener"><img src="{% url 'reg_fotos:miniatura' f.pk %}" alt="{{ f.descripcion|default:'Imagen' }}" loading="lazy" class="aspect-square w-full rounded-lg object-cover"></a>{% endfor %}</div>
-    {% else %}<p class="text-sm text-base-content/60">Todavía no hay imágenes.</p>{% endif %}
-  </div></section>
+  {% include "reg_base/_imagenes.html" %}
 
   {% include "reg_base/_revisiones.html" %}
 
-  <section class="card bg-base-100"><div class="card-body gap-2">
-    <h2 class="card-title text-base">Visitas del {{ termino_proyecto|lower }}</h2>
+  {% with t=termino_proyecto|lower %}{% with titulo="Visitas del "|add:t %}{% reg_tarjeta titulo %}
     <ul class="space-y-1 text-sm">
       {% for v in visitas %}<li><a class="link {% if v.serie == r.serie %}font-bold{% endif %}" href="{% url 'reg_construccion_base:detalle' v.pk %}">Visita {{ v.numero }} · {{ v.fecha|date:"d/m/Y" }}</a>{% if v.rev_numero %} <span class="text-xs text-base-content/50">{{ v.rev_etiqueta }}</span>{% endif %}{% if v.concluido %} <span class="badge badge-success badge-xs">emitida</span>{% endif %}</li>{% endfor %}
     </ul>
-  </div></section>
+  {% endreg_tarjeta %}{% endwith %}{% endwith %}
 </div>
 {% endblock %}

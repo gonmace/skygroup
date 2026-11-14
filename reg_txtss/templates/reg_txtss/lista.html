@@ -17,7 +17,9 @@
 </div>
 <div class="table-card">
   <table class="table">
-    <thead><tr><th>{{ termino_proyecto }}</th><th>Tipo</th><th>Alt.</th><th>Fecha</th><th>Responsable</th><th class="text-center">Acciones</th></tr></thead>
+    <thead><tr>
+      {% include "components/th_orden.html" with col=orden.proyecto texto=termino_proyecto %}{% include "components/th_orden.html" with col=orden.tipo texto="Tipo" %}{% include "components/th_orden.html" with col=orden.alt texto="Alt." %}{% include "components/th_orden.html" with col=orden.fecha texto="Fecha" %}{% include "components/th_orden.html" with col=orden.responsable texto="Responsable" %}<th class="text-center">Acciones</th>
+    </tr></thead>
     <tbody>
     {% for r in pagina %}
       <tr data-href="{% url 'reg_txtss:detalle' r.pk %}" class="hover cursor-pointer row-{% if r.color == 'verde' %}concluido{% elif r.color == 'amarillo' %}parcial{% else %}vacio{% endif %}">
@@ -53,7 +55,9 @@
   <p class="mb-3 text-sm text-base-content/60">Solo tú, como superusuario, ves y puedes restaurar estos registros.</p>
   <div class="table-card">
     <table class="table">
-      <thead><tr><th>{{ termino_proyecto }}</th><th>Tipo</th><th>Alt.</th><th>Fecha</th><th>Responsable</th><th>Borrado</th><th class="text-center">Acciones</th></tr></thead>
+      <thead><tr>
+        {% include "components/th_orden.html" with col=orden_b.proyecto texto=termino_proyecto %}{% include "components/th_orden.html" with col=orden_b.tipo texto="Tipo" %}{% include "components/th_orden.html" with col=orden_b.alt texto="Alt." %}{% include "components/th_orden.html" with col=orden_b.fecha texto="Fecha" %}{% include "components/th_orden.html" with col=orden_b.responsable texto="Responsable" %}{% include "components/th_orden.html" with col=orden_b.borrado texto="Borrado" %}<th class="text-center">Acciones</th>
+      </tr></thead>
       <tbody>
       {% for b in borrados %}
         <tr>

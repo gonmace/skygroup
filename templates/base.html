@@ -29,6 +29,7 @@
     {% block body %}{% block content %}{% endblock %}{% endblock %}
 
     <script src="{% static 'js/shell.js' %}" defer></script>
+    {% if request.user.is_authenticated %}<script src="{% static 'js/reg-visor.js' %}" defer></script>{% endif %}
     {% if request.user.is_authenticated and empresa %}<script src="{% static 'js/campana.js' %}" defer></script>{% endif %}
     {% if msj_activo %}<script src="{% static 'js/mensajeria.js' %}" defer></script>{% endif %}
     {% block extra_scripts %}{% endblock %}

@@ -309,7 +309,7 @@ class VistasMapaTests(MapaBase):
         with SIN_CLAVE:
             r = self.client.get(self.url('paso/enlace/'))
         self.assertContains(r, 'data-mapa-lienzo')
-        self.assertContains(r, 'GOOGLE_MAPS_API_KEY')
+        self.assertContains(r, 'Plataforma → Credenciales')
         self.assertNotContains(r, 'data-mapa-guardar')
 
     @CLAVE
@@ -329,7 +329,7 @@ class VistasMapaTests(MapaBase):
 
 
 class RegeneracionTests(MapaBase):
-    """Al corregir la ubicación de un paso, el mapa de 2 puntos que lo usa se regenera (solo si ya existía y cambió)."""
+    """Al corregir la ubicación de un paso, el mapa de 2 puntos que lo usa se regenera (TX/TSS la genera sola al completarse los puntos y la regenera si cambian)."""
 
     def llamadas(self, user, nombre, datos):
         with mock.patch('reg_actividades.mapas.requests.get', return_value=respuesta()) as get, \
@@ -339,21 +339,18 @@ class RegeneracionTests(MapaBase):
         return get.call_count
 
     @CLAVE
-    def test_regenera_solo_si_la_imagen_existia_y_las_coordenadas_cambiaron(self):
+    def test_genera_sola_al_completarse_y_regenera_solo_si_cambiaron_las_coordenadas(self):
         loc = lambda lat, lon: {'ubicacion_widget__lat': lat, 'ubicacion_widget__lon': lon}
         self.ubicar('sitio', -33.0, -70.0)
         self.ubicar('destino', -33.0, -70.001)
-        # Sin imagen previa: guardar la ubicación no genera nada (la primera la pide la persona).
-        self.assertEqual(self.llamadas(self.ito1, 'destino', loc('-33.0', '-70.001')), 0)
-        with mock.patch('reg_actividades.mapas.requests.get', return_value=respuesta()):
-            self.client.force_login(self.ito1)
-            self.client.post(self.url_mapa('guardar'))
-        self.assertEqual(ImagenMapa.objects.count(), 1)
+        # TX/TSS genera sola la imagen en cuanto el mapa tiene todos sus puntos (ya no hace falta «Guardar imagen»).
+        self.assertEqual(self.llamadas(self.ito1, 'destino', loc('-33.0', '-70.001')), 2)   # el de 1 punto y el de 2
+        self.assertEqual(ImagenMapa.objects.count(), 2)
         # Mismos valores: sin llamada a Google (no gasta cuota).
         self.assertEqual(self.llamadas(self.ito1, 'destino', loc('-33.0', '-70.001')), 0)
         # Ubicación corregida: se regenera una vez y las coordenadas guardadas se actualizan.
         self.assertEqual(self.llamadas(self.ito1, 'destino', loc('-33.5', '-70.5')), 1)
-        self.assertEqual(ImagenMapa.objects.get().coordenadas[1]['lat'], -33.5)
+        self.assertEqual(ImagenMapa.objects.get(etapa='enlace').coordenadas[1]['lat'], -33.5)
         # Un paso que el mapa no usa no dispara nada.
         self.assertEqual(self.llamadas(self.ito1, 'datos', {'comentario_widget__comentario': 'hola'}), 0)
 

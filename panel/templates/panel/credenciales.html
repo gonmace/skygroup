@@ -1,0 +1,39 @@
+{% extends "shell.html" %}
+{% block page_title %}Credenciales{% endblock %}
+{% block content_main %}
+<div class="grid gap-6 lg:grid-cols-3">
+  <form method="post" class="card bg-base-100 lg:col-span-2"><div class="card-body gap-4">
+    {% csrf_token %}
+    <h2 class="card-title text-base">Google Maps</h2>
+    <p class="text-sm text-base-content/70">Con esta clave la plataforma descarga la imagen del mapa (Google Static Maps) que los registros guardan y llevan al informe en PDF. Es una sola clave para todas las empresas.</p>
+    <div class="flex flex-wrap items-center gap-2 text-sm">
+      {% if maps_guardada %}<span class="badge badge-success badge-outline">Configurada</span><span class="text-base-content/60">termina en <code>…{{ maps_final }}</code></span>
+      {% elif maps_env %}<span class="badge badge-info badge-outline">Usando la del servidor (.env)</span>
+      {% else %}<span class="badge badge-warning badge-outline">Sin clave: los mapas muestran los puntos pero no generan la imagen</span>{% endif %}
+    </div>
+    {% if form.non_field_errors %}<div class="alert alert-error text-sm">{{ form.non_field_errors.0 }}</div>{% endif %}
+    <label class="form-control w-full">
+      <span class="label-text mb-1">{{ form.google_maps_api_key.label }}</span>
+      {{ form.google_maps_api_key }}
+      <span class="mt-1 text-xs text-base-content/60">{{ form.google_maps_api_key.help_text }}</span>
+      {% for e in form.google_maps_api_key.errors %}<span class="text-error text-sm">{{ e }}</span>{% endfor %}
+    </label>
+    {% if maps_guardada %}<label class="flex items-center gap-2 text-sm">{{ form.quitar_google_maps }} {{ form.quitar_google_maps.label }}</label>{% endif %}
+    <div class="card-actions justify-end gap-2">
+      <button type="submit" name="accion" value="probar" class="btn btn-outline">Probar clave</button>
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </div></form>
+
+  <aside class="card bg-base-100 self-start"><div class="card-body gap-3 text-sm">
+    <h2 class="card-title text-base">Cómo obtenerla</h2>
+    <ol class="list-decimal space-y-1 pl-5 text-base-content/70">
+      <li>En Google Cloud Console crea (o elige) un proyecto con facturación activa.</li>
+      <li>Habilita la <strong>Maps Static API</strong>.</li>
+      <li>Crea una clave de API en «Credenciales» y, si quieres, restríngela a esa API.</li>
+      <li>Pégala aquí y pulsa «Probar clave».</li>
+    </ol>
+    <p class="text-xs text-base-content/60">«Probar clave» usa lo escrito en el campo (o la guardada si lo dejas vacío) sin guardarlo.</p>
+  </div></aside>
+</div>
+{% endblock %}

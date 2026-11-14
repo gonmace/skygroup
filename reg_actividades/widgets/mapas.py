@@ -12,6 +12,10 @@ from . import registrar
 from .base import WidgetBase
 
 
+# Qué significa cada letra de los marcadores, para la leyenda de los mapas de dos puntos.
+NOMBRES_LETRA = {'R': 'Referencia', 'I': 'Inspección', 'P': 'Poste', 'S': 'Sitio', 'E': 'Eléctrico'}
+
+
 class _MapaBase(WidgetBase):
     guarda_datos = False
     plantilla = 'reg_actividades/widgets/mapa.html'
@@ -59,6 +63,8 @@ class _MapaBase(WidgetBase):
         total, desfase = (imagen.distancia_total_metros, imagen.desfase_metros) if imagen else mapas.distancias(puntos)
         return {
             'etiqueta': self.titulo(config), 'puntos': puntos, 'puntos_json': json.dumps(puntos),
+            'leyenda': [{'letra': p['label'], 'nombre': NOMBRES_LETRA.get(p['label'], ''), 'color': p['color']}
+                        for p in puntos] if len(puntos) > 1 else [],
             'hay_clave': mapas.hay_clave(), 'imagen': imagen,
             'imagen_url': reverse('reg_actividades:mapa_imagen', kwargs=kw) if imagen else '',
             'save_url': reverse('reg_actividades:mapa_guardar', kwargs=kw) if ctx.puede_escribir else '',

@@ -227,9 +227,7 @@ def nueva_visita(request, pk):
 
 
 def _fotos_ctx(registro):
-    from reg_fotos.servicios import fotos_de
-    fotos = fotos_de(registro)
-    return {'fotos_total': fotos.count(), 'fotos_recientes': list(fotos.order_by('-id')[:12])}
+    return acciones.contexto_imagenes(registro, 12)
 
 
 @_acceso()

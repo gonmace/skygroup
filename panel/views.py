@@ -26,12 +26,12 @@ from archivos.storage import s3_activo
 from cuentas import capacidades
 from cuentas.capacidades import requiere_capacidad
 from cuentas import correos
-from cuentas.models import (CorreoBloqueado, CorreoConfig, DominioPermitido, Membresia, NextcloudConfig, RolEmpresa,
+from cuentas.models import (CorreoBloqueado, CorreoConfig, CredencialesPlataforma, DominioPermitido, Membresia, NextcloudConfig, RolEmpresa,
                             RolPermiso, User)
 from cuentas.services import agregar_miembro, sembrar_roles
 from empresas.models import Contratista, Empresa, Sede
 
-from .forms import (AdministradorForm, CambiarMiembroForm, ContratistaForm, SedeForm, CorreoBloqueadoForm, DominioPermitidoForm, EmpresaForm,
+from .forms import (AdministradorForm, CambiarMiembroForm, ContratistaForm, CredencialesForm, SedeForm, CorreoBloqueadoForm, DominioPermitidoForm, EmpresaForm,
                     MarcaForm, MiembroForm, NextcloudForm, RolEmpresaForm)
 
 
@@ -218,6 +218,38 @@ def correo_probar(request):
     return JsonResponse({'ok': ok, 'mensaje': mensaje})
 
 
+@superusuario_requerido
+def credenciales(request):
+    """Credenciales de servicios externos de la plataforma (todas las empresas). Solo el superusuario.
+    Hoy: la clave de Google Maps (Static Maps API) con la que se generan las imágenes de los mapas."""
+    from reg_actividades import mapas
+    cred = CredencialesPlataforma.de()
+    form = CredencialesForm(request.POST or None, instance=cred)
+    if request.method == 'POST' and form.is_valid():
+        if request.POST.get('accion') == 'probar':
+            # Prueba la clave escrita (o, vacía, la guardada) sin guardarla.
+            clave = form.cleaned_data['google_maps_api_key'] or mapas.clave_google()
+            if not clave:
+                messages.error(request, 'No hay ninguna clave que probar.')
+            else:
+                ok, mensaje = mapas.probar_clave(clave)
+                (messages.success if ok else messages.error)(request, mensaje)
+            return render(request, 'panel/credenciales.html', {'form': CredencialesForm(instance=cred), **_ctx_credenciales(cred)})
+        form.save()
+        messages.success(request, 'Credenciales guardadas.')
+        return redirect('panel:credenciales')
+    return render(request, 'panel/credenciales.html', {'form': form, **_ctx_credenciales(cred)})
+
+
+def _ctx_credenciales(cred):
+    from django.conf import settings
+    clave = cred.google_maps_api_key
+    return {
+        'maps_guardada': bool(clave), 'maps_final': clave[-4:] if clave else '',
+        'maps_env': bool(getattr(settings, 'GOOGLE_MAPS_API_KEY', '')) and not clave,
+    }
+
+
 # ── Configuración de la empresa ───────────────────────────────────────────────
 
 @empresa_requerida
@@ -283,7 +315,11 @@ def miembros(request):
     if request.user.is_superuser:  # papelera: solo la ve el superusuario
         eliminados = (Membresia.objects.filter(empresa=empresa, user__is_deleted=True)
                       .select_related('user', 'rol').order_by('-user__eliminado_en'))
+    # Administradores que no son miembros: los superusuarios (de todas las empresas) y los administradores de esta empresa.
+    administradores = (User.objects.filter(is_deleted=False).filter(Q(is_superuser=True) | Q(empresas_administradas=empresa))
+                       .exclude(membresias__empresa=empresa).distinct().order_by('-is_superuser', 'email'))
     return render(request, 'panel/miembros.html', {
+        'administradores': administradores,
         'resumen': resumen, 'con_puesto': con_puesto, 'puestos': puestos, 'eliminados': eliminados, 'lista': lista, 'columnas': columnas, 'roles': empresa.roles.filter(activo=True),
         'contratistas': empresa.contratistas.filter(is_deleted=False, activo=True),
         'sedes': empresa.sedes.filter(activo=True),

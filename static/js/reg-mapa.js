@@ -13,13 +13,17 @@
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] > 0.18 ? '#000' : '#fff';
   }
 
-  function marcador(p) {
+  function marcador(p, gota) {
     var el = document.createElement('div');
-    el.className = 'reg-mapa-pin';
+    el.className = 'reg-mapa-pin' + (gota ? ' reg-mapa-pin--gota' : '');
     el.style.setProperty('--pin', p.color);          // CSSOM: permitido por el CSP (a diferencia de style="")
     el.style.setProperty('--pin-ink', tinta(p.color));
-    el.textContent = p.label;
-    return L.divIcon({ className: '', html: el, iconSize: [28, 28], iconAnchor: [14, 14] });
+    var letra = document.createElement('span');
+    letra.textContent = p.label;
+    el.appendChild(letra);
+    // Gota (mapa de un punto): la punta cae sobre la coordenada. Círculo (varios puntos): el centro.
+    return L.divIcon({ className: '', html: el, iconSize: [28, 28], iconAnchor: gota ? [14, 34] : [14, 14],
+                       popupAnchor: gota ? [0, -36] : [0, -14] });
   }
 
   function selectorDeCapas(mapa, satelite, calles) {
@@ -59,7 +63,7 @@
     satelite.addTo(mapa);
     selectorDeCapas(mapa, satelite, calles);
     puntos.forEach(function (p) {
-      L.marker([p.lat, p.lon], { icon: marcador(p), title: p.label })
+      L.marker([p.lat, p.lon], { icon: marcador(p, puntos.length === 1), title: p.label })
         .addTo(mapa)
         .bindPopup(p.label + '<br>Lat: ' + p.lat.toFixed(6) + '<br>Lon: ' + p.lon.toFixed(6));
     });
@@ -114,6 +118,10 @@
       w.setAttribute('data-mapa-listo', '');
       var puntos = [];
       try { puntos = JSON.parse(w.dataset.puntos || '[]'); } catch (e) { /* sin puntos */ }
+      w.querySelectorAll('[data-leyenda-color]').forEach(function (el) {   // color de la leyenda por CSSOM (el CSP no admite style="")
+        var c = el.getAttribute('data-leyenda-color');
+        if (/^#[0-9a-fA-F]{6}$/.test(c)) { el.style.setProperty('--pin', c); el.style.setProperty('--pin-ink', tinta(c)); }
+      });
       dibujar(w, puntos);
       guardar(w);
     });

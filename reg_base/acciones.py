@@ -57,3 +57,16 @@ def exigir_escritura(user, registro):
 def exigir_superusuario(user):
     if not user.is_superuser:
         raise PermissionDenied
+
+
+def contexto_imagenes(registro, recientes=6, por_etapa=False):
+    """Contexto de `reg_base/_imagenes.html`: total y últimas imágenes; con `por_etapa`, también el total por etapa.
+    La estructura de la tarjeta es la misma en todos los registros; lo que muestra lo decide cada tipo."""
+    from django.db.models import Count
+    from reg_fotos.servicios import fotos_de
+    fotos = fotos_de(registro)
+    ctx = {'fotos_total': fotos.count(), 'fotos_recientes': list(fotos.order_by('-id')[:recientes])}
+    if por_etapa:
+        ctx['fotos_etapas'] = [{'etapa': e['etapa'], 'nombre': e['etapa'].replace('_', ' ').capitalize(), 'n': e['n']}
+                               for e in fotos.order_by().values('etapa').annotate(n=Count('id')).order_by('etapa')]
+    return ctx

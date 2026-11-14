@@ -152,6 +152,20 @@ class Membresia(models.Model):
     def __str__(self):
         return f'{self.user} @ {self.empresa} · {self.rol.nombre}'
 
+    # Presentación: un superusuario que además es miembro se muestra como «Administrador» (rosa) en las listas y
+    # avatares, no con el cargo que se le asignó; su papel real («Superusuario») va en la cabecera.
+    @property
+    def cargo_visible(self):
+        return 'Administrador' if self.user.is_superuser else self.rol.nombre
+
+    @property
+    def clase_color(self):
+        return 'badge-plat-admin' if self.user.is_superuser else f'badge-rol-{self.rol.jerarquia}'
+
+    @property
+    def clase_avatar(self):
+        return 'badge-plat-admin tono-1' if self.user.is_superuser else f'badge-rol-{self.rol.jerarquia} tono-{self.rol.tono}'
+
     def clean(self):
         from django.core.exceptions import ValidationError
         if self.rol_id and self.empresa_id and self.rol.empresa_id != self.empresa_id:
@@ -396,3 +410,38 @@ class CorreoConfig(models.Model):
     def de(cls):
         """La configuración guardada o una vacía (sin guardar)."""
         return cls.objects.first() or cls()
+
+
+class CredencialesPlataforma(models.Model):
+    """Credenciales de servicios externos de la plataforma (UNA sola, para todas las empresas). Las edita el
+    superusuario en Plataforma → Credenciales. Hoy: la clave de Google Maps (Static Maps API) que genera las imágenes de
+    los widgets de mapa. Se guardan en la base de datos (igual que la contraseña SMTP); vacías, se usa lo del .env."""
+
+    google_maps_api_key = models.CharField(
+        'Clave de Google Maps (Static Maps API)', max_length=255, blank=True,
+        help_text='Se guarda en la base de datos. Debe tener habilitada la «Maps Static API» en Google Cloud.')
+    actualizada = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'credenciales de la plataforma'
+        verbose_name_plural = 'credenciales de la plataforma'
+
+    def __str__(self):
+        return 'Credenciales de la plataforma'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1      # singleton
+        self.google_maps_api_key = self.google_maps_api_key.strip()
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def de(cls):
+        """Las credenciales guardadas o unas vacías (sin guardar)."""
+        return cls.objects.first() or cls()
+
+    @classmethod
+    def clave_google_maps(cls):
+        """Clave de Google Maps: la de Plataforma → Credenciales; si no hay, GOOGLE_MAPS_API_KEY del .env."""
+        from django.conf import settings
+        guardada = cls.objects.values_list('google_maps_api_key', flat=True).first()
+        return guardada or getattr(settings, 'GOOGLE_MAPS_API_KEY', '') or ''

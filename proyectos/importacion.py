@@ -19,7 +19,7 @@ from .models import Proyecto, ProyectoUbicacion
 MAX_BYTES = 5 * 1024 * 1024
 MAX_FILAS = 2000
 MAX_DESCOMPRIMIDO = 50 * 1024 * 1024   # un .xlsx es un zip: se limita lo que ocupa abierto, no solo lo subido
-ETIQUETA_UBICACION = 'Principal'
+ETIQUETA_UBICACION = 'Referencia'
 
 # (encabezado, ancho, clave interna)
 COLUMNAS = [

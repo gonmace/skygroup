@@ -39,6 +39,30 @@ Para el resto de la interfaz (listas de usuarios, equipo, asistencia, ficha de p
 persona, nunca `m.rol.nombre` / `badge-rol-{{ m.rol.jerarquia }}` directamente:
 `m.cargo_visible`, `m.clase_color`, `m.clase_avatar`. En Usuarios su cargo no es editable (se muestra fijo).
 
+## Mensajes al usuario: siempre en toast (regla de interfaz)
+
+Todo mensaje que la interfaz le muestre a la persona sale como **toast** arriba a la derecha, no como banner dentro de la
+página, `alert()` ni `confirm()` del navegador:
+
+- **Avisos** (éxito, error, advertencia, información; también los de acciones AJAX y el progreso de una operación larga):
+  `window.avisar(texto, tipo, {fijo})` de `static/js/shell.js`. `tipo` es `success`, `error`, `warning` o `info`; se
+  cierra solo (error a los 12 s, el resto a los 6 s) salvo `{fijo: true}`, pensado para el progreso: devuelve el
+  elemento, y quien lo creó lo actualiza y lo quita (`el.remove()`).
+- **Mensajes de Django** (`messages.success/error/...` en la vista): ya los pinta `templates/shell.html` como toast; no
+  hace falta nada más.
+- **Confirmaciones**: `await window.confirmarUI(mensaje, {titulo, aceptar, tipo})` (Promise<boolean>), también con forma
+  de toast. En botones y formularios sin JS propio basta `data-confirmar="…"`. Si el mensaje es destructivo, `tipo: 'peligro'`.
+- Si la página se recarga justo después de la acción, el toast se perdería: guardarlo en `sessionStorage` y mostrarlo en
+  `DOMContentLoaded` (`window.avisar` se define al terminar de cargar; ver `static/js/reg-imagenes.js`).
+- Las respuestas JSON de las vistas llevan un `message` legible y **específico** (qué pasó y por qué), no un «0» a secas;
+  el JS lo muestra tal cual en el toast.
+- Los errores de validación de un formulario junto a su campo (`templates/components/campos.html`) siguen en línea,
+  porque señalan qué campo corregir; el resumen del resultado (guardado, falló) sí va en toast.
+
+Pendientes de migrar (aún usan banner o diálogo del navegador): `static/js/jor-marcar.js` (`alert`),
+`reg_construccion/detalle.html`, `reg_actividades/paso.html`, `jor_diario/inicio.html`, `panel/correo.html`,
+`panel/almacenamiento.html`, `panel/nextcloud.html`, `panel/credenciales.html`. Al tocar una de esas pantallas, migrarla.
+
 ## Credenciales de servicios externos
 Las claves de servicios externos de la plataforma (hoy: Google Maps) se cargan en **Plataforma → Credenciales** (solo
 superusuario) y viven en `cuentas.models.CredencialesPlataforma` (una sola para todas las empresas). El `.env`

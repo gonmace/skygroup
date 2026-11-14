@@ -10,7 +10,6 @@
   var csrf = meta ? meta.getAttribute('content') : '';
   var barra = document.getElementById('imagenes-acciones');
   var contador = document.getElementById('imagenes-contador');
-  var aviso = document.getElementById('imagenes-aviso');
   var todas = document.getElementById('imagenes-todas');
 
   function checks() { return Array.prototype.slice.call(raiz.querySelectorAll('.imagen-check')); }
@@ -29,9 +28,27 @@
     });
   }
 
-  function avisar(texto, tipo) {
-    aviso.textContent = texto;
-    aviso.className = 'alert mb-3 text-sm ' + (tipo === 'error' ? 'alert-error' : tipo === 'ok' ? 'alert-success' : 'alert-info');
+  // Todos los mensajes salen como toast (window.avisar de shell.js); «ok» = éxito.
+  function avisar(texto, tipo) { return window.avisar(texto, tipo === 'ok' ? 'success' : tipo); }
+  // Tras recargar la lista el toast se perdería: se guarda y se muestra al volver a cargar.
+  function avisarTrasRecargar(texto, tipo) {
+    try { sessionStorage.setItem('imagenes-aviso', JSON.stringify({ texto: texto, tipo: tipo })); } catch (e) {}
+    location.reload();
+  }
+  // window.avisar se define en shell.js al terminar de cargar la página: se espera a ese evento (su listener va primero).
+  document.addEventListener('DOMContentLoaded', function () {
+    try {
+      var guardado = JSON.parse(sessionStorage.getItem('imagenes-aviso') || 'null');
+      if (guardado) { sessionStorage.removeItem('imagenes-aviso'); avisar(guardado.texto, guardado.tipo); }
+    } catch (e) {}
+  });
+  // Mensaje de progreso: un solo toast que se actualiza y se quita al terminar.
+  function progreso(texto) {
+    var el = window.avisar(texto, 'info', { fijo: true });
+    return {
+      poner: function (t) { var sp = el.querySelector('span'); if (sp) sp.textContent = t; },
+      quitar: function () { el.remove(); }
+    };
   }
 
   function enviar(url, cuerpo) {
@@ -51,19 +68,21 @@
   // Envía los ids por lotes, uno tras otro, mostrando el avance. `acumular` suma las cifras de cada respuesta.
   async function porLotes(url, ids, tam, extra, etiqueta) {
     var total = { ok: 0, omitidas: 0, ahorro: 0, sinAhorro: 0, noJpeg: 0 };
-    var hechos = 0;
-    for (var lote of lotes(ids, tam)) {
-      avisar(etiqueta + '… ' + hechos + ' de ' + ids.length, 'info');
-      var r = await enviar(url, Object.assign({ ids: lote }, extra || {}));
-      var d = await r.json().catch(function () { return { success: false, message: 'Respuesta inválida.' }; });
-      if (!r.ok || !d.success) throw new Error(d.message || 'Error ' + r.status);
-      total.ok += (d.eliminadas || d.comprimidas || 0);
-      total.omitidas += d.omitidas || 0;
-      total.ahorro += d.ahorro || 0;
-      total.sinAhorro += d.sin_ahorro || 0;
-      total.noJpeg += d.no_jpeg || 0;
-      hechos += lote.length;
-    }
+    var hechos = 0, prog = progreso(etiqueta + '… 0 de ' + ids.length);
+    try {
+      for (var lote of lotes(ids, tam)) {
+        prog.poner(etiqueta + '… ' + hechos + ' de ' + ids.length);
+        var r = await enviar(url, Object.assign({ ids: lote }, extra || {}));
+        var d = await r.json().catch(function () { return { success: false, message: 'Respuesta inválida.' }; });
+        if (!r.ok || !d.success) throw new Error(d.message || 'Error ' + r.status);
+        total.ok += (d.eliminadas || d.comprimidas || 0);
+        total.omitidas += d.omitidas || 0;
+        total.ahorro += d.ahorro || 0;
+        total.sinAhorro += d.sin_ahorro || 0;
+        total.noJpeg += d.no_jpeg || 0;
+        hechos += lote.length;
+      }
+    } finally { prog.quitar(); }
     return total;
   }
 
@@ -74,7 +93,8 @@
   async function descargar() {
     var ids = seleccion(), max = +raiz.dataset.maxZip;
     if (ids.length > max) return avisar('Para descargar elige como máximo ' + max + ' fotos a la vez.', 'error');
-    ocupado(true); avisar('Preparando el ZIP de ' + ids.length + ' foto(s)…', 'info');
+    ocupado(true);
+    var prog = progreso('Preparando el ZIP de ' + ids.length + ' foto(s)…');
     try {
       var r = await enviar(raiz.dataset.urlDescargar, { ids: ids });
       if (!r.ok) { var d = await r.json().catch(function () { return {}; }); throw new Error(d.message || 'No se pudo generar el ZIP'); }
@@ -84,14 +104,14 @@
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
       avisar('ZIP descargado (' + ids.length + ' foto(s)).', 'ok');
-    } catch (e) { avisar(e.message, 'error'); } finally { ocupado(false); }
+    } catch (e) { avisar(e.message, 'error'); } finally { prog.quitar(); ocupado(false); }
   }
 
   async function comprimir() {
     var ids = seleccion(), cal = parseInt(document.getElementById('imagenes-calidad').value, 10) || 70;
     cal = Math.max(10, Math.min(95, cal));
-    if (!confirm('¿Comprimir ' + ids.length + ' foto(s) al ' + cal + ' % de calidad? Se conserva la resolución y el EXIF. ' +
-                 'Solo se comprimen las JPEG y nunca queda más pesada que la original.')) return;
+    if (!await window.confirmarUI('¿Comprimir ' + ids.length + ' foto(s) al ' + cal + ' % de calidad? Se conserva la resolución y el EXIF. ' +
+                 'Solo se comprimen las JPEG y nunca queda más pesada que la original.', { titulo: 'Comprimir', aceptar: 'Comprimir' })) return;
     ocupado(true);
     try {
       var t = await porLotes(raiz.dataset.urlComprimir, ids, +raiz.dataset.maxComprimir, { quality: cal }, 'Comprimiendo');
@@ -99,22 +119,19 @@
         (t.sinAhorro ? ' ' + t.sinAhorro + ' ya estaban optimizadas: recomprimir al ' + cal + ' % no las hace más livianas (prueba una calidad menor).' : '') +
         (t.noJpeg ? ' ' + t.noJpeg + ' no son JPEG (PNG u otro formato): no se tocan.' : '') +
         (t.omitidas ? ' ' + t.omitidas + ' con error.' : '');
-      avisar(texto, t.ok ? 'ok' : 'info');
-      // Si no cambió nada, se deja el mensaje a la vista (recargar lo borraría).
-      if (t.ok) setTimeout(function () { location.reload(); }, 2500);
-      else ocupado(false);
+      if (t.ok) avisarTrasRecargar(texto, 'success');
+      else { avisar(texto, 'warning'); ocupado(false); }   // sin cambios: no se recarga, el aviso queda visible
     } catch (e) { avisar(e.message, 'error'); ocupado(false); }
   }
 
   async function eliminar() {
     var ids = seleccion();
-    if (!confirm('¿Eliminar ' + ids.length + ' foto(s)? Esta acción no se puede deshacer. ' +
-                 'Las fotos de registros concluidos no se eliminan.')) return;
+    if (!await window.confirmarUI('¿Eliminar ' + ids.length + ' foto(s)? Esta acción no se puede deshacer. ' +
+                 'Las fotos de registros concluidos no se eliminan.', { titulo: 'Eliminar', aceptar: 'Eliminar', tipo: 'peligro' })) return;
     ocupado(true);
     try {
       var t = await porLotes(raiz.dataset.urlEliminar, ids, +raiz.dataset.maxEliminar, null, 'Eliminando');
-      avisar(t.ok + ' foto(s) eliminada(s)' + (t.omitidas ? '. ' + t.omitidas + ' omitida(s).' : '.'), 'ok');
-      setTimeout(function () { location.reload(); }, 1200);
+      avisarTrasRecargar(t.ok + ' foto(s) eliminada(s)' + (t.omitidas ? '. ' + t.omitidas + ' omitida(s).' : '.'), 'success');
     } catch (e) { avisar(e.message, 'error'); ocupado(false); }
   }
 

@@ -1,8 +1,8 @@
-{# Franja de acciones bajo los pasos: la MISMA en todos los registros. Cada tipo la incluye desde su _acciones.html con:
+{% comment %}Franja de acciones bajo los pasos: la MISMA en todos los registros. Cada tipo la incluye desde su _acciones.html con:
    tg_url (formulario del interruptor; sin él no hay interruptor), tg_on (activo), tg_titulo / tg_sub (texto del interruptor),
    tg_ayuda (tooltip), tg_confirmar (aviso al accionarlo), tg_texto (insignia fija en vez de interruptor),
    pdf_url (PDF directo) o pdf_modal (id del modal de opciones), formatear_url, eliminar_url, eliminar_confirmar.
-   Debe ir dentro del contexto del registro `r`. #}
+   Debe ir dentro del contexto del registro `r`.{% endcomment %}
 <div class="flex items-stretch gap-2">
   {% if tg_url %}
   <form method="post" action="{{ tg_url }}" class="min-w-0 flex-1">{% csrf_token %}

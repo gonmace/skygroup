@@ -271,21 +271,40 @@ def comprimir(request):
         calidad = max(CALIDAD_MIN, min(int(datos.get('quality', CALIDAD_DEFECTO)), CALIDAD_MAX))
     except (TypeError, ValueError):
         calidad = CALIDAD_DEFECTO
-    hechas = omitidas = ahorro = 0
+    hechas = omitidas = ahorro = sin_ahorro = no_jpeg = 0
     for foto in _fotos_de_la_empresa(request, ids):
+        if not foto.imagen.name.lower().endswith(('.jpg', '.jpeg')):
+            no_jpeg += 1
+            continue
         try:
             ahorrado = comprimir_foto(foto, calidad)
         except Exception:
             logger.exception('No se pudo comprimir la foto %s', foto.pk)
             omitidas += 1
             continue
-        hechas += 1 if ahorrado else 0
+        if ahorrado:
+            hechas += 1
+        else:
+            sin_ahorro += 1
         ahorro += ahorrado
         gc.collect()          # libera el bitmap decodificado antes de la siguiente foto
     logger.info('imágenes: %s comprimió %s foto(s) de %s (%s bytes)', request.user.pk, hechas, request.empresa.slug, ahorro)
     return JsonResponse({'success': True, 'comprimidas': hechas, 'omitidas': omitidas, 'ahorro': ahorro,
-                         'message': f'{hechas} foto(s) comprimida(s), ahorro {ahorro // 1024} KB.'
-                                    + (f' {omitidas} con error.' if omitidas else '')})
+                         'sin_ahorro': sin_ahorro, 'no_jpeg': no_jpeg,
+                         'message': mensaje_compresion(hechas, ahorro, sin_ahorro, no_jpeg, omitidas, calidad)})
+
+
+def mensaje_compresion(hechas, ahorro, sin_ahorro, no_jpeg, con_error, calidad):
+    """Resumen legible: dice POR QUÉ las fotos que no se comprimieron se dejaron como estaban."""
+    partes = [f'{hechas} foto(s) comprimida(s), ahorro {ahorro // 1024} KB.']
+    if sin_ahorro:
+        partes.append(f'{sin_ahorro} ya estaban optimizadas: recomprimir al {calidad} % no las hace más livianas '
+                      '(prueba una calidad menor).')
+    if no_jpeg:
+        partes.append(f'{no_jpeg} no son JPEG (PNG u otro formato): no se tocan.')
+    if con_error:
+        partes.append(f'{con_error} con error.')
+    return ' '.join(partes)
 
 
 @require_POST

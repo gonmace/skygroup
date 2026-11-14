@@ -50,7 +50,7 @@
 
   // Envía los ids por lotes, uno tras otro, mostrando el avance. `acumular` suma las cifras de cada respuesta.
   async function porLotes(url, ids, tam, extra, etiqueta) {
-    var total = { ok: 0, omitidas: 0, ahorro: 0 };
+    var total = { ok: 0, omitidas: 0, ahorro: 0, sinAhorro: 0, noJpeg: 0 };
     var hechos = 0;
     for (var lote of lotes(ids, tam)) {
       avisar(etiqueta + '… ' + hechos + ' de ' + ids.length, 'info');
@@ -60,6 +60,8 @@
       total.ok += (d.eliminadas || d.comprimidas || 0);
       total.omitidas += d.omitidas || 0;
       total.ahorro += d.ahorro || 0;
+      total.sinAhorro += d.sin_ahorro || 0;
+      total.noJpeg += d.no_jpeg || 0;
       hechos += lote.length;
     }
     return total;
@@ -93,9 +95,14 @@
     ocupado(true);
     try {
       var t = await porLotes(raiz.dataset.urlComprimir, ids, +raiz.dataset.maxComprimir, { quality: cal }, 'Comprimiendo');
-      avisar(t.ok + ' foto(s) comprimida(s), ahorro ' + Math.round(t.ahorro / 1024) + ' KB' +
-             (t.omitidas ? '. ' + t.omitidas + ' con error.' : '.'), 'ok');
-      setTimeout(function () { location.reload(); }, 1500);
+      var texto = t.ok + ' foto(s) comprimida(s), ahorro ' + Math.round(t.ahorro / 1024) + ' KB.' +
+        (t.sinAhorro ? ' ' + t.sinAhorro + ' ya estaban optimizadas: recomprimir al ' + cal + ' % no las hace más livianas (prueba una calidad menor).' : '') +
+        (t.noJpeg ? ' ' + t.noJpeg + ' no son JPEG (PNG u otro formato): no se tocan.' : '') +
+        (t.omitidas ? ' ' + t.omitidas + ' con error.' : '');
+      avisar(texto, t.ok ? 'ok' : 'info');
+      // Si no cambió nada, se deja el mensaje a la vista (recargar lo borraría).
+      if (t.ok) setTimeout(function () { location.reload(); }, 2500);
+      else ocupado(false);
     } catch (e) { avisar(e.message, 'error'); ocupado(false); }
   }
 

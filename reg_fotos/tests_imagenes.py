@@ -166,6 +166,13 @@ class ComprimirTests(ImagenesBase):
         d = self.post(self.admin, 'comprimir', [self.f1.pk], quality=40).json()
         self.assertEqual((d['comprimidas'], d['omitidas']), (1, 0))
 
+    def test_explica_por_que_no_comprimio(self):
+        """Una foto ya comprimida a esa calidad no se reduce más: se informa «ya optimizadas», no solo «0»."""
+        self.post(self.admin, 'comprimir', [self.f1.pk], quality=40)
+        d = self.post(self.admin, 'comprimir', [self.f1.pk], quality=95).json()   # más calidad que la de origen: no baja
+        self.assertEqual((d['comprimidas'], d['sin_ahorro'], d['no_jpeg']), (0, 1, 0))
+        self.assertIn('ya estaban optimizadas', d['message'])
+
     def test_lote_maximo(self):
         self.assertEqual(self.post(self.admin, 'comprimir', list(range(1, imagenes.MAX_COMPRIMIR + 2))).status_code, 400)
 

@@ -259,6 +259,7 @@ def proponer(request, pk, slug):
         'catalogo': asistente.catalogo_para_ia(request.empresa, tipo, f'{borrador.actividad} {borrador.descripcion}'),
         'catalogo_items': asistente.catalogo_items_para_ia(request.empresa, borrador.apu_guardado_id),
         'decisiones_previas': asistente.decisiones_previas(request.empresa, borrador.pk),
+        'aclaraciones': asistente.aclaraciones(borrador, tipo),
         'respuestas': [{'pregunta': h['pregunta'], 'respuesta': h['respuesta']} for h in historial],
         'historial': historial, 'ultima_ronda': usadas >= asistente.MAX_REPETICIONES,
     }

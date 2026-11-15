@@ -87,6 +87,20 @@ def decisiones_previas(empresa, excluir_pk=None, limite=15):
     return salida[:limite]
 
 
+def aclaraciones(borrador, excepto):
+    """Lo que la persona ya respondió a la IA en los OTROS pasos de este APU (respuestas a dudas y opciones elegidas), para
+    que no se vuelva a preguntar lo mismo."""
+    salida = []
+    for tipo in ia.TIPOS_INSUMO:
+        if tipo == excepto:
+            continue
+        datos = (borrador.consultas or {}).get(tipo, {})
+        salida += [{'pregunta': h['pregunta'], 'respuesta': h['respuesta']} for h in datos.get('historial', [])]
+        salida += [{'pregunta': d['pregunta'], 'respuesta': d['elegida']} for d in (datos.get('decisiones') or {}).values()
+                   if d.get('pregunta') and d.get('elegida')]
+    return salida
+
+
 def _siguiente_codigo(empresa, prefijo):
     ultimo = 0
     for c in Insumo.objects.filter(empresa=empresa, codigo__startswith=f'{prefijo}-').values_list('codigo', flat=True):

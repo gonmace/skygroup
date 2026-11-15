@@ -354,6 +354,17 @@ class PasosTests(Base):
             self.assertEqual(self.json(self.url(b, 'proponer/')).status_code, 429)  # ya usó la 1.ª propuesta + 3 repeticiones
         self.assertFalse(ConsumoAPU.objects.exists())                                # ninguna ronda cobra
 
+    def test_lo_respondido_en_un_paso_se_envia_como_aclaraciones_a_los_otros(self):
+        b = self.borrador(paso=3, consultas={
+            'materiales': {'historial': [{'pregunta': '¿Qué armadura?', 'respuesta': 'Barras corrugadas'}],
+                           'decisiones': {'c1': {'pregunta': '¿Encofrado?', 'elegida': 'Incluir', 'clave': 'si'}}},
+            'mano_obra': {'historial': [{'pregunta': 'solo de este paso', 'respuesta': 'x'}]}})
+        self.assertEqual(asistente.aclaraciones(b, 'mano_obra'), [
+            {'pregunta': '¿Qué armadura?', 'respuesta': 'Barras corrugadas'}, {'pregunta': '¿Encofrado?', 'respuesta': 'Incluir'}])
+        with mock.patch(LLAMAR, return_value=propuesta_materiales()) as ll:
+            self.json(self.url(b, 'proponer/', 'mano-obra'), {}, self.coord)
+        self.assertEqual(len(ll.call_args[0][1]['aclaraciones']), 2)                 # no incluye las del propio paso
+
     def test_una_respuesta_solo_con_preguntas_es_valida_pero_vacia_no(self):
         b = self.borrador(paso=2)
         with mock.patch(LLAMAR, return_value={'filas': [], 'consultas': [{'id': 'c1', 'tipo': 'dato', 'pregunta': '¿Altura?'}]}):

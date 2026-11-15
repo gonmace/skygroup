@@ -38,7 +38,9 @@ Salida (una de):
 ### `apu-insumos`
 Entrada: `{tipo: materiales|mano_obra|equipos, actividad, unidad, descripcion, region, proyecto, clasificacion, confirmado,
 catalogo:[{codigo,descripcion,unidad}], catalogo_items:[…], decisiones_previas:[{pregunta,elegida}],
-respuestas/historial:[{pregunta,respuesta}], ultima_ronda}`.
+aclaraciones:[{pregunta,respuesta}] (lo respondido en otros pasos), historial:[{pregunta,respuesta}], ultima_ronda}`.
+Si el título es genérico y faltan datos que definen la composición (p. ej. «Hormigón armado»: resistencia, elemento, tipo
+de armadura…), la primera respuesta trae solo `consultas` de tipo `dato` y `filas` vacío.
 Salida: `{filas:[{descripcion, unidad, cantidad | personas, desperdicio_pct, codigo_catalogo, codigo_subitem, nuevo,
 justificacion, check}], consultas:[{id, tipo: opciones|dato, pregunta, motivo, recomendada, opciones:[{clave, etiqueta,
 codigo_subitem, filas}]}], rendimiento?, horas_jornada?, ejecucion_id}`.

@@ -97,4 +97,4 @@
 </dialog>
 <script type="application/json" id="apu-cfg">{"hoy": "{{ hoy }}", "region": "{{ borrador.region|escapejs }}", "url_precio": "{% url 'apu_generador:precio' borrador.pk %}", "url_guardar": "{% url 'apu_generador:guardar_apu' borrador.pk %}"}</script>
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=2" defer></script>{% endblock %}

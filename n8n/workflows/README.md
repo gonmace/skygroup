@@ -46,6 +46,9 @@ Salida: `{filas:[{descripcion, unidad, cantidad | personas, desperdicio_pct, cod
 justificacion, check}], consultas:[{id, tipo: opciones|dato, pregunta, motivo, recomendada, opciones:[{clave, etiqueta,
 codigo_subitem, filas}]}], rendimiento?, horas_jornada?, ejecucion_id}`.
 Un segundo agente (modelo mini) deja `check:false` en las filas no esenciales.
+TODA consulta (`opciones` o `dato`) trae `recomendada` (la clave de la opción que recomienda la IA) y `por_que` (por qué); en las
+consultas `dato` las opciones son respuestas sugeridas, la más recomendable primero. Skygroup las muestra como «Recomendado» y
+deja la respuesta recomendada ya escrita para que la persona la acepte o la corrija.
 
 ### `apu-modificar`
 Entrada: `{instruccion, actividad, unidad, proyecto, apu:{materiales,mano_obra,equipos}, catalogo, catalogo_items}`.

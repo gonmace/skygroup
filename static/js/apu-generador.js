@@ -198,6 +198,10 @@
           decisiones[c.id] = op.clave;
           aplicarOpcion(c, op);
         } else if (estado.respuestas && estado.respuestas[c.id]) decisiones[c.id] = estado.respuestas[c.id];
+        else {   // pregunta abierta: ya viene la respuesta recomendada (la persona la acepta o escribe otra)
+          var rec = (c.opciones || []).filter(function (o) { return o.clave === c.recomendada; })[0] || (c.opciones || [])[0];
+          if (rec) decisiones[c.id] = rec.etiqueta;
+        }
       });
       if (esMO) {
         if (p.rendimiento && inRend && !inRend.value) inRend.value = p.rendimiento;
@@ -226,7 +230,9 @@
         el.className = 'rounded-box border border-primary/30 bg-primary/5 p-4';
         var html = '<div class="flex items-start gap-3"><span class="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-primary/15 text-primary-text">?</span>' +
           '<div class="min-w-0 flex-1"><p class="font-medium">' + esc(c.pregunta) + '</p>' +
-          (c.motivo ? '<p class="mt-0.5 text-sm text-base-content/60">' + esc(c.motivo) + '</p>' : '') + '<div class="mt-3 space-y-2">';
+          (c.motivo ? '<p class="mt-0.5 text-sm text-base-content/60">' + esc(c.motivo) + '</p>' : '') +
+          (c.por_que ? '<p class="mt-1 text-sm"><span class="font-medium text-primary-text">Recomendación:</span> ' + esc(c.por_que) + '</p>' : '') +
+          '<div class="mt-3 space-y-2">';
         if (c.tipo === 'opciones') {
           c.opciones.forEach(function (o) {
             var marcada = decisiones[c.id] === o.clave;
@@ -241,7 +247,9 @@
         } else {
           hayDatos = true;
           (c.opciones || []).length && (html += '<div class="flex flex-wrap gap-2">' + c.opciones.map(function (o) {
-            return '<button type="button" class="btn btn-xs btn-outline" data-sugerencia="' + esc(c.id) + '" data-valor="' + esc(o.etiqueta) + '">' + esc(o.etiqueta) + '</button>';
+            var rec = o.clave === c.recomendada;
+            return '<button type="button" class="btn btn-xs ' + (rec ? 'btn-primary btn-soft' : 'btn-outline') + '" data-sugerencia="' + esc(c.id) + '" data-valor="' + esc(o.etiqueta) + '">' +
+              esc(o.etiqueta) + (rec ? ' <span class="opacity-70">· Recomendado</span>' : '') + '</button>';
           }).join('') + '</div>');
           html += '<textarea class="textarea textarea-bordered w-full text-sm" rows="2" data-respuesta="' + esc(c.id) + '" placeholder="Tu respuesta">' + esc(decisiones[c.id] || '') + '</textarea>';
         }

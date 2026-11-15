@@ -1480,6 +1480,64 @@ class CambiarProyectoEnElPaso1Tests(Base):
         self.assertNotIn('type="hidden" name="proyecto"', html)                                     # sin el campo oculto que lo pisaba
 
 
+class PreguntasConRecomendacionTests(Base):
+    """Toda pregunta de la IA llega con una respuesta recomendada (y su porqué), también las preguntas abiertas."""
+
+    def norm(self, *consultas):
+        return ia.normalizar_consultas(list(consultas))
+
+    def test_una_pregunta_abierta_conserva_su_recomendacion_y_el_porque(self):
+        c, = self.norm({'id': 'c1', 'tipo': 'dato', 'pregunta': '¿Qué resistencia?', 'recomendada': 'h25', 'por_que': '  Es la habitual en losas.  ',
+                        'opciones': [{'clave': 'h21', 'etiqueta': 'H21'}, {'clave': 'h25', 'etiqueta': 'H25'}]})
+        self.assertEqual((c['recomendada'], c['por_que']), ('h25', 'Es la habitual en losas.'))
+        self.assertEqual([o['clave'] for o in c['opciones']], ['h21', 'h25'])
+
+    def test_si_la_recomendada_viene_como_texto_se_enlaza_con_su_opcion(self):
+        c, = self.norm({'id': 'c1', 'tipo': 'dato', 'pregunta': '¿Elemento?', 'recomendada': '  columnas ',
+                        'opciones': [{'clave': 'v', 'etiqueta': 'Vigas'}, {'clave': 'c', 'etiqueta': 'Columnas'}]})
+        self.assertEqual(c['recomendada'], 'c')
+
+    def test_sin_recomendada_o_invalida_se_recomienda_la_primera_opcion(self):
+        for crudo in ({}, {'recomendada': 'zzz'}, {'recomendada': ''}):
+            c, = self.norm({'id': 'c1', 'tipo': 'dato', 'pregunta': '¿Uso?', 'opciones': ['Aulas', 'Oficinas'], **crudo})
+            self.assertEqual(c['recomendada'], 'Aulas', crudo)                                   # la IA ordena de más a menos recomendable
+        c, = self.norm({'id': 'c1', 'tipo': 'opciones', 'pregunta': '¿Cómo?', 'opciones': [{'clave': 'a', 'etiqueta': 'A'}, {'clave': 'b', 'etiqueta': 'B'}]})
+        self.assertEqual(c['recomendada'], 'a')
+
+    def test_una_pregunta_sin_opciones_pero_con_respuesta_recomendada_la_ofrece_como_opcion(self):
+        c, = self.norm({'id': 'c1', 'tipo': 'dato', 'pregunta': '¿Altura?', 'recomendada': '2,70 m de piso a techo'})
+        self.assertEqual(c['recomendada'], c['opciones'][0]['clave'])
+        self.assertEqual(c['opciones'][0]['etiqueta'], '2,70 m de piso a techo')
+
+    def test_sin_ninguna_recomendacion_posible_queda_vacia_sin_romper(self):
+        c, = self.norm({'id': 'c1', 'tipo': 'dato', 'pregunta': '¿Altura?'})
+        self.assertEqual((c['recomendada'], c['opciones'], c['por_que']), ('', [], ''))
+
+    def test_el_endpoint_de_proponer_entrega_la_recomendacion_al_navegador(self):
+        b = self.borrador(paso=2)
+        crudo = {'filas': [], 'consultas': [{'id': 'c1', 'tipo': 'dato', 'pregunta': '¿Armadura?', 'recomendada': 'barras',
+                                             'por_que': 'Es lo habitual en columnas.', 'opciones': [
+                                                 {'clave': 'malla', 'etiqueta': 'Malla electrosoldada'}, {'clave': 'barras', 'etiqueta': 'Barras corrugadas'}]}]}
+        with mock.patch(LLAMAR, return_value=crudo):
+            r = self.json(f'/tekon/apu/borrador/{b.pk}/materiales/proponer/', {}, self.coord).json()
+        c = r['propuesta']['consultas'][0]
+        self.assertEqual((c['recomendada'], c['por_que']), ('barras', 'Es lo habitual en columnas.'))
+        b.refresh_from_db()
+        self.assertEqual(b.consultas['materiales']['propuesta']['consultas'][0]['recomendada'], 'barras')   # y queda guardada para retomar
+
+    def test_el_workflow_exige_recomendar_en_cada_consulta(self):
+        import json as _json
+        from pathlib import Path
+        wf = _json.loads((Path(__file__).resolve().parent.parent / 'n8n' / 'workflows' / 'APU_02-04insumos.json').read_text())
+        esquema = _json.loads(next(n for n in wf['nodes'] if n['name'] == 'Esquema · Insumos')['parameters']['inputSchema'])
+        items = esquema['properties']['consultas']['items']
+        self.assertIn('recomendada', items['required'])
+        self.assertIn('por_que', items['required'])
+        for nombre in ('Prompt · Materiales', 'Prompt · Mano de obra', 'Prompt · Equipos'):
+            texto = next(n for n in wf['nodes'] if n['name'] == nombre)['parameters']['assignments']['assignments'][0]['value']
+            self.assertIn('RECOMENDAR SIEMPRE', texto, nombre)
+
+
 class CalculoTests(Base):
     def test_sub_items_desperdicio_region_e_insumos_sin_precio(self):
         cemento = self.insumo('MAT-1', 'Cemento', unidad='kg', precio='2')

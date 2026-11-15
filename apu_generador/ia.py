@@ -117,11 +117,19 @@ def normalizar_consultas(crudas):
                 opciones.append({'clave': _texto(o, 40), 'etiqueta': _texto(o, 200), 'filas': [], 'codigo_subitem': ''})
         if tipo == 'opciones' and len(opciones) < 2:
             continue
-        recomendada = _texto(c.get('recomendada'), 40)
-        if opciones and recomendada not in {o['clave'] for o in opciones} and tipo == 'opciones':
+        # TODA pregunta lleva una respuesta recomendada: la de la IA si es una de las opciones (por clave o por su texto);
+        # si no, la primera opción (la IA las ordena de más a menos recomendable); si solo dio el texto, se ofrece como opción.
+        bruta = str(c.get('recomendada') or '').strip()
+        claves = {o['clave'] for o in opciones}
+        recomendada = _texto(bruta, 40)
+        if opciones and recomendada not in claves:
+            recomendada = next((o['clave'] for o in opciones if bruta and clave_texto(o['etiqueta']) == clave_texto(bruta)), opciones[0]['clave'])
+        elif not opciones and tipo == 'dato' and bruta:
+            opciones = [{'clave': _texto(bruta, 40), 'etiqueta': _texto(bruta, 200), 'filas': [], 'codigo_subitem': ''}]
             recomendada = opciones[0]['clave']
         salida.append({'id': _texto(c.get('id'), 20) or f'c{i}', 'tipo': tipo, 'pregunta': _texto(c.get('pregunta'), 400),
-                       'motivo': _texto(c.get('motivo'), 400), 'recomendada': recomendada, 'opciones': opciones})
+                       'motivo': _texto(c.get('motivo'), 400), 'recomendada': recomendada, 'por_que': _texto(c.get('por_que'), 400),
+                       'opciones': opciones})
     return salida
 
 

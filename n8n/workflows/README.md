@@ -27,6 +27,7 @@ Reglas de construcción (para poder editarlos y mejorarlos a mano desde la inter
 | `APU_02-04insumos.json` | APU · 02-04 Insumos (`apu0insumos0001`) | `apu-insumos` | gpt-5.1, gpt-4.1-mini |
 | `APU_05modificar.json` | APU · 05 Modificar (`apu0modificar001`) | `apu-modificar` | gpt-5.1 |
 | `APU_06tarifas.json` | APU · 06 Tarifas (`apu0tarifas00001`) | `apu-tarifas` | gpt-5.1 con búsqueda web |
+| `APU_07precios.json` | APU · 07 Precios estimados (`apu0precios00001`) | `apu-precios` | gpt-5.1 con búsqueda web |
 
 ### `apu-coherencia`
 Entrada: `{actividad, unidad, descripcion, region, proyecto:{nombre, descripcion, tipo, ciudad, region}}`.
@@ -52,6 +53,12 @@ Salida: `{materiales:{filas}, mano_obra:{filas, rendimiento, horas_jornada}, equ
 
 ### `apu-tarifas`
 Entrada: `{modelos:[…]}`. Salida: `{tarifas:[{modelo, entrada_usd_mtok, salida_usd_mtok}], fuente, ejecucion_id}`.
+
+### `apu-precios`
+Precios de referencia (RECOMENDACIÓN, no oficiales) de los insumos sin precio. Entrada: `{moneda, region, fecha,
+proyecto, insumos:[{id, descripcion, unidad, tipo}]}`. Salida: `{precios:[{id, precio, moneda, confianza: alta|media|baja,
+fuente, nota}], ejecucion_id}`. Skygroup los muestra como sugerencia en el paso de precios; los que la persona acepta se
+guardan en `PrecioInsumo` con `estimado=True`.
 
 ### Prueba rápida
 ```bash

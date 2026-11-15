@@ -529,6 +529,79 @@ class HabilitarTests(Base):
         self.assertIn('habilitado', r.json()['message'])
 
 
+class PreciosEstimadosTests(Base):
+    """La IA estima precios como RECOMENDACIÓN: no se guardan solos, no cobran y se marcan como «estimado»."""
+
+    def setUp(self):
+        super().setUp()
+        self.b = self.borrador_en_paso5()
+        self.sin = self.insumo('MAT-050', 'Arena', unidad='m3')
+        self.b.materiales = {'filas': self.b.materiales['filas'] + [
+            {'descripcion': 'Arena', 'unidad': 'm3', 'cantidad': '0.1', 'insumo_id': self.sin.pk, 'check': True}]}
+        self.b.save()
+        self.url = f'/tekon/apu/borrador/{self.b.pk}/sugerir-precios/'
+        self.respuesta = {'precios': [
+            {'id': self.sin.pk, 'precio': 85.5, 'moneda': 'bob', 'confianza': 'media', 'fuente': 'Ferretería X', 'nota': 'sin IVA'},
+            {'id': 99999, 'precio': 10, 'moneda': 'BOB', 'confianza': 'alta'},                  # insumo que no se pidió
+            {'id': self.sin.pk + 1000, 'precio': -3, 'moneda': 'BOB', 'confianza': 'alta'}]}
+
+    def test_sugiere_solo_para_los_insumos_sin_precio_sin_guardar_ni_cobrar(self):
+        with mock.patch(LLAMAR, return_value=self.respuesta) as ll:
+            r = self.json(self.url, {}, self.coord).json()
+        enviado = ll.call_args[0][1]
+        self.assertEqual([i['id'] for i in enviado['insumos']], [self.sin.pk])              # los que ya tienen precio no se piden
+        self.assertEqual((enviado['moneda'], enviado['region'], 'pais' in json.dumps(enviado).lower()), ('BOB', '', False))
+        self.assertEqual(list(r['sugerencias']), [str(self.sin.pk)])                           # el id ajeno y el precio negativo se descartan
+        sug = r['sugerencias'][str(self.sin.pk)]
+        self.assertEqual((sug['precio'], sug['moneda'], sug['confianza'], sug['fuente']), ('85.5', 'BOB', 'media', 'Ferretería X'))
+        self.assertFalse(PrecioInsumo.objects.filter(insumo=self.sin).exists())               # recomendación: nada se guarda solo
+        self.assertFalse(ConsumoAPU.objects.exists())                                           # y no cobra créditos
+        self.assertEqual(LlamadaIA.objects.get().webhook, 'apu-precios')
+
+    def test_usar_una_sugerencia_deja_el_precio_marcado_como_estimado(self):
+        self.json(f'/tekon/apu/borrador/{self.b.pk}/precio/',
+                  {'insumo': self.sin.pk, 'precio': '85.5', 'moneda': 'BOB', 'estimado': True, 'fuente': 'Ferretería X'}, self.coord)
+        p = PrecioInsumo.objects.get(insumo=self.sin)
+        self.assertEqual((p.estimado, p.fuente), (True, 'Ferretería X'))
+        pag = self.client.get(f'/tekon/apu/borrador/{self.b.pk}/resultado/')
+        self.assertContains(pag, 'Estimado')
+        self.assertContains(pag, 'estimado')                                                    # aviso: confírmalos con precios reales
+        # corregir el valor a mano lo vuelve un precio normal
+        self.json(f'/tekon/apu/borrador/{self.b.pk}/precio/', {'insumo': self.sin.pk, 'precio': '90', 'moneda': 'BOB'})
+        self.assertFalse(PrecioInsumo.objects.get(insumo=self.sin).estimado)
+
+    def test_la_ficha_y_los_insumos_muestran_el_precio_estimado(self):
+        PrecioInsumo.objects.create(insumo=self.sin, fecha=date(2026, 1, 1), precio=D('85'), moneda='BOB', estimado=True)
+        self.json(f'/tekon/apu/borrador/{self.b.pk}/guardar-apu/', {}, self.coord)
+        item = ItemModelo.objects.get()
+        self.assertContains(self.client.get(f'/tekon/apu/lista/{item.pk}/'), 'Estimado')
+        self.assertContains(self.client.get('/tekon/apu/insumos/'), 'Estimado')
+
+    def test_si_todo_tiene_precio_no_hay_nada_que_sugerir(self):
+        PrecioInsumo.objects.create(insumo=self.sin, fecha=date(2026, 1, 1), precio=D('85'), moneda='BOB')
+        with mock.patch(LLAMAR, return_value=self.respuesta) as ll:
+            r = self.json(self.url, {}, self.coord)
+        self.assertEqual(r.status_code, 400)
+        ll.assert_not_called()
+
+    def test_maximo_de_pedidos_por_borrador_y_fallos_de_n8n(self):
+        with mock.patch(LLAMAR, side_effect=N8NError('El servicio de IA tardó demasiado en responder.')):
+            self.assertEqual(self.json(self.url, {}, self.coord).status_code, 502)
+        with mock.patch(LLAMAR, return_value=self.respuesta):
+            for _ in range(3):
+                self.assertEqual(self.json(self.url, {}).status_code, 200)
+            self.assertEqual(self.json(self.url, {}).status_code, 429)
+
+    def test_respuesta_sin_precios_utiles_y_permisos(self):
+        with mock.patch(LLAMAR, return_value={'precios': [{'id': 99999, 'precio': 5, 'moneda': 'BOB', 'confianza': 'alta'}]}):
+            self.assertEqual(self.json(self.url, {}, self.coord).status_code, 502)
+        self.assertEqual(self.json(self.url, {}, self.obs).status_code, 403)
+
+    def test_normalizar_precios(self):
+        r = ia.normalizar_precios({'precios': [{'id': '7', 'precio': '1,5', 'moneda': 'clp', 'confianza': 'rara'}, 'basura', {'id': None}]}, {7}, 'BOB')
+        self.assertEqual(r, {7: {'precio': '1.5', 'moneda': 'CLP', 'confianza': 'baja', 'fuente': '', 'nota': ''}})
+
+
 class CreditosTests(Base):
     def consumir(self, user, n=1, empresa=None):
         for i in range(n):

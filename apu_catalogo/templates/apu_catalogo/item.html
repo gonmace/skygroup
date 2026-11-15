@@ -42,7 +42,7 @@
           <td>{% if f.tipo == 'MAT' %}Material{% elif f.tipo == 'MO' %}Mano de obra{% elif f.tipo == 'EQ' %}Equipo{% else %}—{% endif %}</td>
           <td class="text-right tabular-nums">{{ f.cantidad|floatformat:"-6" }} {{ f.unidad }}</td>
           <td class="text-right tabular-nums">{% if f.desperdicio_pct %}{{ f.desperdicio_pct|floatformat:"-2" }} %{% else %}—{% endif %}</td>
-          <td class="text-right tabular-nums">{% if f.precio is not None %}{{ f.precio|floatformat:"-4" }} {{ f.moneda }}{% else %}—{% endif %}</td>
+          <td class="text-right tabular-nums">{% if f.precio is not None %}{{ f.precio|floatformat:"-4" }} {{ f.moneda }}{% if f.estimado %} <span class="badge badge-info badge-soft badge-sm" title="Estimado por IA: confírmalo con un precio real">Estimado</span>{% endif %}{% else %}—{% endif %}</td>
           <td class="text-right tabular-nums">{{ f.costo|floatformat:2 }}</td>
         </tr>
       {% empty %}<tr><td colspan="6" class="py-6 text-center text-base-content/60">Este APU aún no tiene composición.</td></tr>{% endfor %}
@@ -124,4 +124,4 @@
 {% endif %}
 {% endif %}
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=3" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=4" defer></script>{% endblock %}

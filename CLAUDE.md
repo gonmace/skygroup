@@ -104,5 +104,8 @@ el APU solo se enlaza al proyecto por FK (`ItemModelo.proyecto`).
   superusuario y administradores. Usar `acceso_apu(...)` en toda vista nueva del módulo, nunca `acceso_modulo` directo.
 - **Incidencias por proyecto** (`ProyectoAPU`): ajustes de porcentaje/factor del perfil solo para ese proyecto; el precio
   unitario no se guarda, se calcula con `apu_catalogo.calculo.analizar`.
+- **Precios estimados por IA**: en el paso de precios, «Sugerir precios con IA» (`apu-precios`, búsqueda web) propone
+  precios de los insumos sin precio como **recomendación**: no se guardan solos ni cobran créditos; los que la persona
+  acepta se guardan con `PrecioInsumo.estimado=True` y se muestran con la insignia «Estimado» hasta que los corrija.
 - **Tokens y costo** (solo superusuario): `LlamadaIA` guarda la ejecución de n8n; el uso se lee de la API de n8n
   (`N8N_API_URL`/`N8N_API_KEY`) y el costo sale de `TarifaModeloIA` (botón «Verificar tarifas»).

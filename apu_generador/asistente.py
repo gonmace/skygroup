@@ -223,7 +223,7 @@ def previsualizar(borrador, perfil=None):
         cantidad = Decimal(f.get('cantidad') or 0)
         desperdicio = Decimal(f.get('desperdicio_pct') or 0)
         efectiva = cantidad * (1 + desperdicio / 100)
-        precio = moneda = None
+        precio = moneda = vigente = None
         if f['subitem']:
             grupos, faltan = calculo.grupos_de(f['subitem'], borrador.region, factor=efectiva)
             costo = sum(grupos.values(), Decimal(0))
@@ -240,13 +240,15 @@ def previsualizar(borrador, perfil=None):
                 precio, moneda = vigente.precio, vigente.moneda
                 costo = efectiva * precio
             acumulado[f['insumo'].tipo] += costo
-        filas.append({**f, 'precio': precio, 'moneda': moneda, 'costo': costo, 'sin_precio': f['insumo'] is not None and precio is None})
+        filas.append({**f, 'precio': precio, 'moneda': moneda, 'costo': costo, 'sin_precio': f['insumo'] is not None and precio is None,
+                      'estimado': bool(vigente.estimado) if not f['subitem'] and vigente else False})
     resultado = calculo.calcular(perfil, acumulado) if perfil else None
-    return {'filas': filas, 'grupos': acumulado, 'sin_precio': sin_precio, 'perfil': perfil, 'resultado': resultado,
+    return {'filas': filas, 'grupos': acumulado, 'sin_precio': sin_precio, 'n_estimados': sum(1 for f in filas if f['estimado']),
+            'perfil': perfil, 'resultado': resultado,
             'moneda': perfil['moneda'] if perfil else ''}
 
 
-def cargar_precio(empresa, insumo_pk, precio, moneda, region, fecha):
+def cargar_precio(empresa, insumo_pk, precio, moneda, region, fecha, estimado=False, fuente=''):
     """Guarda (o actualiza) el precio de un insumo de la empresa. Devuelve el `PrecioInsumo`."""
     insumo = Insumo.objects.filter(empresa=empresa, pk=insumo_pk).first()
     valor = numero(precio)
@@ -258,7 +260,8 @@ def cargar_precio(empresa, insumo_pk, precio, moneda, region, fecha):
     if len(moneda) != 3:
         raise ErrorPaso('Indica la moneda con su código de 3 letras (p. ej. BOB).')
     obj, _ = PrecioInsumo.objects.update_or_create(insumo=insumo, region=(region or '').strip(), fecha=fecha,
-                                                   defaults={'precio': valor, 'moneda': moneda})
+                                                   defaults={'precio': valor, 'moneda': moneda, 'estimado': bool(estimado),
+                                                                     'fuente': (fuente or '')[:200]})
     return obj
 
 

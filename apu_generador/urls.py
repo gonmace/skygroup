@@ -11,6 +11,7 @@ urlpatterns = [
     path('apu/borrador/<int:pk>/actividad/', views.actividad, name='actividad'),
     path('apu/borrador/<int:pk>/resultado/', views.resultado, name='resultado'),
     path('apu/borrador/<int:pk>/precio/', views.precio, name='precio'),
+    path('apu/borrador/<int:pk>/sugerir-precios/', views.sugerir_precios, name='sugerir_precios'),
     path('apu/borrador/<int:pk>/guardar-apu/', views.guardar_apu, name='guardar_apu'),
     path('apu/borrador/<int:pk>/modificar/', views.modificar, name='modificar'),
     path('apu/borrador/<int:pk>/revision/', views.revision, name='revision'),

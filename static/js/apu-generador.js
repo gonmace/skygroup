@@ -402,12 +402,57 @@
   // ── Paso 5: precios, guardar el APU y modificar con IA ───────────────────────────────────────────────────────────
   function iniciarResultado(raiz) {
     var cfg = leerJson('apu-cfg') || {};
+    var progreso = Progreso(raiz);
+    // Las sugerencias de la IA son una RECOMENDACIÓN: se muestran junto a cada fila y solo se usan si la persona lo decide.
+    var CONFIANZA = { alta: 'badge-success', media: 'badge-warning', baja: 'badge-ghost' };
+    function mostrarSugerencias(sug) {
+      Object.keys(sug).forEach(function (id) {
+        var fila = raiz.querySelector('[data-precio-fila][data-insumo="' + id + '"]');
+        if (!fila) return;
+        var s = sug[id], caja = fila.querySelector('[data-sugerencia]');
+        caja.classList.remove('hidden');
+        caja.innerHTML = '<span class="text-base-content/70">Sugerido: <strong class="tabular-nums">' + esc(s.precio) + ' ' + esc(s.moneda) + '</strong></span> ' +
+          '<span class="badge badge-soft badge-sm ' + (CONFIANZA[s.confianza] || 'badge-ghost') + '">confianza ' + esc(s.confianza) + '</span> ' +
+          '<button type="button" class="btn btn-ghost btn-xs" data-usar-sugerencia>Usar</button>' +
+          '<span class="block text-base-content/50">' + esc(s.fuente) + (s.nota ? ' · ' + esc(s.nota) : '') + '</span>';
+        caja.setAttribute('data-precio-sug', s.precio);
+        caja.setAttribute('data-moneda-sug', s.moneda);
+        caja.setAttribute('data-fuente-sug', s.fuente);
+      });
+    }
+    raiz.addEventListener('input', function (e) {   // si la persona corrige el valor, ya no es el de la IA
+      if (!e.target.matches('[data-precio]')) return;
+      var fila = e.target.closest('[data-precio-fila]'), caja = fila.querySelector('[data-sugerencia]');
+      if (caja && caja.getAttribute('data-precio-sug') !== e.target.value.trim().replace(',', '.')) fila.removeAttribute('data-estimado');
+    });
     raiz.addEventListener('click', function (e) {
+      var u = e.target.closest('[data-usar-sugerencia]');
+      if (u) {
+        var f = u.closest('[data-precio-fila]'), c = f.querySelector('[data-sugerencia]');
+        f.querySelector('[data-precio]').value = c.getAttribute('data-precio-sug');
+        f.querySelector('[data-moneda]').value = c.getAttribute('data-moneda-sug');
+        f.setAttribute('data-estimado', '1');
+        f.setAttribute('data-fuente', c.getAttribute('data-fuente-sug') || '');
+        return;
+      }
+      if (e.target.closest('[data-accion=sugerir-precios]')) {
+        bloquear(raiz, true);
+        progreso.iniciar(['Buscando precios de referencia en la web…', 'Comparando con tu ciudad y región…', 'Ajustando unidades y moneda…'], 30000);
+        post(cfg.url_sugerir, {}).then(function (res) {
+          bloquear(raiz, false);
+          progreso.terminar(res.ok);
+          if (!res.ok) { avisar(res.data.message, 'error'); return; }
+          avisar(res.data.message, 'info');
+          mostrarSugerencias(res.data.sugerencias || {});
+        });
+        return;
+      }
       var b = e.target.closest('[data-guardar-precio]');
       if (b) {
         var fila = b.closest('[data-precio-fila]');
         var datos = { insumo: fila.getAttribute('data-insumo'), precio: fila.querySelector('[data-precio]').value,
-          moneda: fila.querySelector('[data-moneda]').value, fecha: cfg.hoy, region: cfg.region };
+          moneda: fila.querySelector('[data-moneda]').value, fecha: cfg.hoy, region: cfg.region,
+          estimado: !!fila.getAttribute('data-estimado'), fuente: fila.getAttribute('data-fuente') || '' };
         bloquear(fila, true);
         post(cfg.url_precio, datos).then(function (res) {
           bloquear(fila, false);

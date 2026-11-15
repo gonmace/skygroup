@@ -1,0 +1,212 @@
+{
+  "id": "apu0precios00001",
+  "name": "APU · 07 Precios estimados",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "apu-precios",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "89992748-05d3-4da8-89a2-9c1455d9bf15",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "ab1d5aec-7a11-470c-ac0d-80c5b5b47c18",
+      "notes": "Lo llama skygroup (apu_generador/ia.py) con el payload descrito en n8n/workflows/README.md."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "de94c29d-29f1-4299-9f2d-9b77c2b9e627",
+              "name": "system_prompt",
+              "value": "Eres un especialista en costos de construcción. Tu tarea es ESTIMAR precios de referencia de insumos para un análisis de precios unitarios (APU). Usa la búsqueda web para encontrar precios de mercado recientes en la ciudad o región indicada (tiendas, distribuidores, listas de precios, cámaras o publicaciones del sector). Si no hay datos locales, usa los de la región o país más cercano y ajústalos con criterio.\n\nIMPORTANTE: son RECOMENDACIONES que una persona revisará, no precios oficiales. Por eso:\n- Da un solo valor por insumo, redondeado de forma razonable, en la moneda pedida y por la MISMA unidad del insumo.\n- Materiales: precio de compra por unidad. Mano de obra (unidad «h»): costo por hora de ese oficio (jornal ÷ horas de jornada), sin cargas sociales salvo que sea la práctica habitual de la zona. Equipos (unidad «h»): costo horario de alquiler u operación.\n- «confianza»: «alta» si encontraste referencias locales recientes y coherentes; «media» si son de otra zona o poco recientes; «baja» si es una estimación con poca información.\n- «fuente»: dónde lo encontraste (nombre del sitio o tienda) o «estimación» si no hay referencia directa. «nota»: una frase corta con el supuesto o la advertencia (p. ej. «sin IVA», «precio por mayor»).\n- Nunca inventes cifras exactas con falsa precisión. Si no puedes estimar un insumo, omítelo.\nResponde SOLO con el JSON pedido; «id» es el identificador que recibiste.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "322a4658-8c36-48b1-9ec3-a21599b76459",
+      "name": "Prompt · Precios",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        300
+      ],
+      "notes": "Aquí vive el prompt de sistema. Edita el texto para mejorar el comportamiento de la IA."
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5.1"
+        },
+        "builtInTools": {
+          "webSearch": {
+            "searchContextSize": "medium"
+          }
+        },
+        "options": {}
+      },
+      "id": "888a25d6-28df-4a94-a8f1-59a9584488c7",
+      "name": "Modelo con búsqueda web",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        420,
+        540
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "W8XaJvGwacT4HUqW",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"precios\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"id\": {\n            \"type\": \"number\"\n          },\n          \"precio\": {\n            \"type\": \"number\"\n          },\n          \"moneda\": {\n            \"type\": \"string\"\n          },\n          \"confianza\": {\n            \"type\": \"string\",\n            \"enum\": [\n              \"alta\",\n              \"media\",\n              \"baja\"\n            ]\n          },\n          \"fuente\": {\n            \"type\": \"string\"\n          },\n          \"nota\": {\n            \"type\": \"string\"\n          }\n        },\n        \"required\": [\n          \"id\",\n          \"precio\",\n          \"moneda\",\n          \"confianza\"\n        ]\n      }\n    }\n  },\n  \"required\": [\n    \"precios\"\n  ]\n}"
+      },
+      "id": "5d1ea9ae-3468-490b-82c0-5698089a903b",
+      "name": "Esquema · Precios",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        560,
+        540
+      ],
+      "notes": "Esquema de lo que devuelve la IA. Si lo cambias, revisa también apu_generador/ia.py."
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Moneda: {{ $('Webhook').item.json.body.moneda }}\nCiudad o región de los precios: {{ $('Webhook').item.json.body.region }}\nProyecto: {{ $('Webhook').item.json.body.proyecto.nombre }} ({{ $('Webhook').item.json.body.proyecto.tipo }}, {{ $('Webhook').item.json.body.proyecto.ciudad }})\nFecha de hoy: {{ $('Webhook').item.json.body.fecha }}\nInsumos a estimar (id, descripcion, unidad, tipo): {{ JSON.stringify($('Webhook').item.json.body.insumos) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "={{ $json.system_prompt }}"
+        }
+      },
+      "id": "c4d4e2d5-bdc1-4dbe-8ab3-b931b457ffcf",
+      "name": "Agente · Precios",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"precios\": $json.output.precios, \"ejecucion_id\": $execution.id } }}",
+        "options": {}
+      },
+      "id": "837958b2-0fd1-414b-849c-139bf45eedb9",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        800,
+        300
+      ],
+      "notes": "Devuelve el JSON a skygroup. `ejecucion_id` permite medir los tokens de esta ejecución."
+    },
+    {
+      "parameters": {
+        "content": "Precios estimados (recomendación)\nBusca en la web precios de referencia para los insumos sin precio. Skygroup los muestra como sugerencias con su confianza y fuente: la persona decide si los usa; los que guarda quedan marcados como estimados. Entrada: moneda, region, fecha, proyecto, insumos[{id,descripcion,unidad,tipo}].",
+        "height": 170,
+        "width": 560,
+        "color": 4
+      },
+      "id": "d0d2bb1e-733c-435b-b8a0-fdaf52f9d5ee",
+      "name": "Nota · Precios estimados (recomendación)",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        200,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prompt · Precios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt · Precios": {
+      "main": [
+        [
+          {
+            "node": "Agente · Precios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente · Precios": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modelo con búsqueda web": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente · Precios",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esquema · Precios": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Agente · Precios",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  },
+  "versionId": "3e36a6e6-5f03-4a50-9bf3-d353d98e2f60",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

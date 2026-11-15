@@ -25,6 +25,7 @@ class Fila:
     costo: Decimal
     sin_precio: bool = False
     subitem: bool = False
+    estimado: bool = False
 
 
 @dataclass
@@ -80,7 +81,8 @@ def _sumar(item, region, fecha, acumulado, filas, sin_precio, factor=UNO, vistos
         acumulado[insumo.tipo] += costo
         if factor == UNO:
             filas.append(Fila(linea, insumo.descripcion, insumo.unidad, insumo.tipo, linea.cantidad,
-                              linea.desperdicio_pct, valor, moneda, costo, sin_precio=precio is None))
+                              linea.desperdicio_pct, valor, moneda, costo, sin_precio=precio is None,
+                              estimado=bool(precio and precio.estimado)))
 
 
 def analizar(item, region=None, fecha=None, perfil=None):

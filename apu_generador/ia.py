@@ -17,7 +17,7 @@ from .models import LlamadaIA, TarifaModeloIA
 logger = logging.getLogger(__name__)
 
 WEBHOOKS = {'coherencia': 'apu-coherencia', 'insumos': 'apu-insumos', 'modificar': 'apu-modificar',
-            'tarifas': 'apu-tarifas'}
+            'tarifas': 'apu-tarifas', 'precios': 'apu-precios'}
 TIMEOUT = 180
 TIPOS_INSUMO = ('materiales', 'mano_obra', 'equipos')
 CODIGO_TIPO = {'materiales': 'MAT', 'mano_obra': 'MO', 'equipos': 'EQ'}
@@ -143,6 +143,27 @@ def normalizar_propuesta(datos, tipo, con_defectos=True):
             if valor is not None and valor > 0:
                 propuesta[campo] = str(valor)
     return propuesta
+
+
+def normalizar_precios(datos, permitidos, moneda):
+    """Sugerencias de precio de la IA como {insumo_id: {precio, moneda, confianza, fuente, nota}}. Solo de los insumos
+    pedidos (`permitidos`, ids) y con un precio válido (> 0). Son recomendaciones, no precios guardados."""
+    salida = {}
+    for c in datos.get('precios') or []:
+        if not isinstance(c, dict):
+            continue
+        try:
+            pk = int(c.get('id'))
+        except (TypeError, ValueError):
+            continue
+        precio = numero(c.get('precio'))
+        if pk not in permitidos or precio is None or precio <= 0:
+            continue
+        confianza = str(c.get('confianza') or '').lower()
+        salida[pk] = {'precio': str(precio.normalize() if precio == precio.to_integral() else precio), 'moneda': (str(c.get('moneda') or moneda)[:3] or moneda).upper(),
+                      'confianza': confianza if confianza in ('alta', 'media', 'baja') else 'baja',
+                      'fuente': _texto(c.get('fuente'), 200), 'nota': _texto(c.get('nota'), 300)}
+    return salida
 
 
 # ── Tokens y costo ────────────────────────────────────────────────────────────

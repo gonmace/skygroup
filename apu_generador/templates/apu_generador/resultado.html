@@ -22,8 +22,16 @@
     {% if prev.sin_precio %}
     <div role="alert" class="alert alert-warning alert-soft items-start text-sm">
       {% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}
-      <span>{{ prev.sin_precio|length }} insumo{{ prev.sin_precio|length|pluralize }} sin precio. Cárgalo{{ prev.sin_precio|length|pluralize }} abajo: el precio unitario no será real hasta entonces, y quedan guardados para los próximos APU.</span>
+      <div class="flex-1 space-y-2">
+        <p>{{ prev.sin_precio|length }} insumo{{ prev.sin_precio|length|pluralize }} sin precio. Cárgalo{{ prev.sin_precio|length|pluralize }} abajo: el precio unitario no será real hasta entonces, y quedan guardados para los próximos APU.</p>
+        <button type="button" class="btn btn-sm btn-outline gap-1" data-accion="sugerir-precios">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Sugerir precios con IA</button>
+        <span class="block text-xs text-base-content/60">La IA busca precios de referencia en la web para tu zona. Son <strong>recomendaciones</strong>: tú decides si las usas, y las que guardes quedan marcadas como «estimado».</span>
+      </div>
     </div>
+    {% include "apu_generador/_progreso.html" %}
+    {% endif %}
+    {% if prev.n_estimados %}
+    <div role="alert" class="alert alert-info alert-soft text-sm">{{ prev.n_estimados }} precio{{ prev.n_estimados|pluralize }} de este APU {{ prev.n_estimados|pluralize:"es,son" }} estimado{{ prev.n_estimados|pluralize }} por IA. Conviene confirmarlo{{ prev.n_estimados|pluralize }} con precios reales.</div>
     {% endif %}
 
     <div class="table-card">
@@ -42,9 +50,10 @@
                 <input class="input input-bordered input-xs w-16 uppercase" data-moneda maxlength="3" value="{{ prev.moneda }}" aria-label="Moneda">
                 <button type="button" class="btn btn-primary btn-xs" data-guardar-precio>Guardar</button>
               </div>
+              <div class="mt-1 hidden text-left text-xs" data-sugerencia></div>
             </td>
             {% else %}
-            <td class="text-right tabular-nums">{% if f.precio is not None %}{{ f.precio|floatformat:"-4" }} {{ f.moneda }}{% else %}—{% endif %}</td>
+            <td class="text-right tabular-nums">{% if f.precio is not None %}{{ f.precio|floatformat:"-4" }} {{ f.moneda }}{% if f.estimado %} <span class="badge badge-info badge-soft badge-sm" title="Estimado por IA: confírmalo con un precio real">Estimado</span>{% endif %}{% else %}—{% endif %}</td>
             <td class="text-right tabular-nums">{{ f.costo|floatformat:2 }}</td>
             {% endif %}
           </tr>
@@ -95,6 +104,6 @@
   </div>
   <form method="dialog" class="modal-backdrop"><button aria-label="Cerrar">cerrar</button></form>
 </dialog>
-<script type="application/json" id="apu-cfg">{"hoy": "{{ hoy }}", "region": "{{ borrador.region|escapejs }}", "url_precio": "{% url 'apu_generador:precio' borrador.pk %}", "url_guardar": "{% url 'apu_generador:guardar_apu' borrador.pk %}"}</script>
+<script type="application/json" id="apu-cfg">{"hoy": "{{ hoy }}", "region": "{{ borrador.region|escapejs }}", "url_precio": "{% url 'apu_generador:precio' borrador.pk %}", "url_guardar": "{% url 'apu_generador:guardar_apu' borrador.pk %}", "url_sugerir": "{% url 'apu_generador:sugerir_precios' borrador.pk %}"}</script>
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=3" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=4" defer></script>{% endblock %}

@@ -22,7 +22,7 @@
         <td class="font-medium">{{ i.descripcion }}{% if not i.activo %} <span class="badge badge-ghost badge-sm">Inactivo</span>{% endif %}</td>
         <td>{{ i.unidad }}</td>
         <td><span class="badge badge-outline badge-sm">{{ i.get_tipo_display }}</span></td>
-        <td class="text-right tabular-nums">{% with p=i.precios_nacionales.0 %}{% if p %}{{ p.precio|floatformat:"-4" }} {{ p.moneda }}{% else %}<span class="text-base-content/40">Sin precio</span>{% endif %}{% endwith %}</td>
+        <td class="text-right tabular-nums">{% with p=i.precios_nacionales.0 %}{% if p %}{{ p.precio|floatformat:"-4" }} {{ p.moneda }}{% if p.estimado %} <span class="badge badge-info badge-soft badge-sm" title="Estimado por IA">Estimado</span>{% endif %}{% else %}<span class="text-base-content/40">Sin precio</span>{% endif %}{% endwith %}</td>
       </tr>
     {% empty %}<tr><td colspan="5" class="py-10 text-center text-base-content/60">Todavía no hay insumos. Se crean al confirmar los pasos del generador.</td></tr>{% endfor %}
     </tbody>

@@ -51,6 +51,9 @@ class PrecioInsumo(models.Model):
     fecha = models.DateField('Vigente desde')
     precio = models.DecimalField('Precio', max_digits=16, decimal_places=4)
     moneda = models.CharField('Moneda', max_length=3, help_text='Código ISO, p. ej. BOB o CLP.')
+    estimado = models.BooleanField('Estimado por IA', default=False,
+                                   help_text='Recomendación de la IA aceptada tal cual; conviene confirmarla con un precio real.')
+    fuente = models.CharField('Fuente', max_length=200, blank=True)
 
     class Meta:
         ordering = ['insumo', 'region', '-fecha']

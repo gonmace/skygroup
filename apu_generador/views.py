@@ -310,6 +310,43 @@ def resultado(request, pk):
         'ultima_modificacion': next((i for i in reversed(borrador.instrucciones or []) if not i.get('aplicada')), None)})
 
 
+MAX_SUGERENCIAS = 3          # veces que se puede pedir sugerencias de precio por borrador
+MAX_INSUMOS_SUGERENCIA = 40
+
+
+@acceso_apu('apu.catalogo.manage')
+@require_POST
+def sugerir_precios(request, pk):
+    """Pide a la IA (`apu-precios`) precios ESTIMADOS de los insumos sin precio. Son una recomendación: no se guarda nada;
+    la persona decide si los usa. No cobra créditos (queda registrada la llamada y sus tokens)."""
+    borrador = _borrador(request, pk)
+    if borrador.paso < 5:
+        return _json(False, 'Termina los pasos anteriores primero.', 409, continuar_url=_url_paso(borrador))
+    usadas = int((borrador.rondas or {}).get('precios', 0))
+    if usadas >= MAX_SUGERENCIAS:
+        return _json(False, 'Ya pediste sugerencias de precio varias veces para este APU. Carga los que faltan a mano.', 429)
+    prev = asistente.previsualizar(borrador)
+    faltan = prev['sin_precio'][:MAX_INSUMOS_SUGERENCIA]
+    if not faltan:
+        return _json(False, 'Todos los insumos de este APU ya tienen precio.', 400)
+    pa = ProyectoAPU.objects.filter(proyecto=borrador.proyecto).select_related('perfil').first()
+    moneda = pa.perfil.moneda if pa else ''
+    payload = {'moneda': moneda, 'region': borrador.region or borrador.proyecto.ciudad or borrador.proyecto.region or '',
+               'fecha': date.today().isoformat(), 'proyecto': ia.contexto_proyecto(borrador.proyecto),
+               'insumos': [{'id': i.pk, 'descripcion': i.descripcion, 'unidad': i.unidad, 'tipo': i.tipo} for i in faltan]}
+    try:
+        crudo = ia.llamar('precios', payload, empresa=request.empresa, usuario=request.user, borrador=borrador, paso='precios')
+    except N8NError as e:
+        return _json(False, str(e), 502)
+    sugerencias = ia.normalizar_precios(crudo, {i.pk for i in faltan}, moneda)
+    if not sugerencias:
+        return _json(False, 'La IA no pudo estimar esos precios. Cárgalos a mano.', 502)
+    borrador.rondas = {**(borrador.rondas or {}), 'precios': usadas + 1}
+    borrador.save(update_fields=['rondas', 'actualizado'])
+    return _json(True, f'La IA estimó {len(sugerencias)} de {len(faltan)} precio(s). Son recomendaciones: revísalas antes de usarlas.',
+                 sugerencias=sugerencias)
+
+
 @acceso_apu('apu.catalogo.manage')
 @require_POST
 def precio(request, pk):
@@ -318,7 +355,8 @@ def precio(request, pk):
     try:
         fecha = date.fromisoformat(str(d.get('fecha') or date.today().isoformat()))
         obj = asistente.cargar_precio(request.empresa, d.get('insumo'), d.get('precio'), d.get('moneda'),
-                                      d.get('region', borrador.region), fecha)
+                                      d.get('region', borrador.region), fecha, estimado=bool(d.get('estimado')),
+                                      fuente=str(d.get('fuente') or ''))
     except (ErrorPaso, ValueError) as e:
         return _json(False, str(e) if isinstance(e, ErrorPaso) else 'La fecha no es válida.', 400)
     return _json(True, f'Se guardó el precio de «{obj.insumo.descripcion}».')

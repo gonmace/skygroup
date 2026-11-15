@@ -1,0 +1,207 @@
+{
+  "id": "apu0modificar001",
+  "name": "APU · 05 Modificar",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "apu-modificar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b3e18f91-8827-4e96-b2a3-66f3d867d327",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "3891389e-4dae-4e15-8af0-6208ce2b2ead",
+      "notes": "Lo llama skygroup (apu_generador/ia.py) con el payload descrito en n8n/workflows/README.md."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "13773269-ad0b-4f40-a3d6-0cfe1fd687a5",
+              "name": "system_prompt",
+              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Recibes un APU ya armado (materiales, mano de obra y equipos por UNA unidad de la actividad) y una instrucción de la persona para modificarlo.\n\nDevuelve el APU COMPLETO modificado, con la misma estructura: «materiales», «mano_obra» (con «rendimiento» y «horas_jornada») y «equipos». Cambia solo lo que la instrucción pide y mantén lo demás igual.\n- Conserva exactamente la descripción de las filas que no cambian. Usa los términos del catálogo de la empresa cuando existan (codigo_catalogo) y marca nuevo=true solo si agregas un término que no está en el catálogo.\n- Materiales y equipos: cantidad por unidad de la actividad (y desperdicio_pct en materiales). Mano de obra: «personas» por oficio y el rendimiento de la cuadrilla.\n- Si la instrucción es ambigua, aplica la interpretación más razonable y explícala en «resumen_cambios».\n- «resumen_cambios»: 2-4 frases claras con lo que cambiaste.\nResponde SOLO con el JSON pedido. Los números van sin unidades.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "7ac9c3a8-7034-4d4a-ba3e-c8d376ace5df",
+      "name": "Prompt · Modificar",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        300
+      ],
+      "notes": "Aquí vive el prompt de sistema. Edita el texto para mejorar el comportamiento de la IA."
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5.1"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "460de837-7d42-4d27-a79f-3ef5acd3fb9f",
+      "name": "Modelo principal",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        420,
+        540
+      ],
+      "credentials": {
+        "openAiApi": {
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"materiales\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"mano_obra\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        },\n        \"rendimiento\": {\n          \"type\": \"number\"\n        },\n        \"horas_jornada\": {\n          \"type\": \"number\"\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"equipos\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"resumen_cambios\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"materiales\",\n    \"mano_obra\",\n    \"equipos\",\n    \"resumen_cambios\"\n  ]\n}"
+      },
+      "id": "eaed55dc-e0ed-413f-8d76-075de4ef38f5",
+      "name": "Esquema · APU modificado",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        560,
+        540
+      ],
+      "notes": "Esquema de lo que devuelve la IA. Si lo cambias, revisa también apu_generador/ia.py."
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Instrucción de la persona: {{ $('Webhook').item.json.body.instruccion }}\nActividad: {{ $('Webhook').item.json.body.actividad }} (unidad: {{ $('Webhook').item.json.body.unidad }})\nProyecto: {{ $('Webhook').item.json.body.proyecto.nombre }} ({{ $('Webhook').item.json.body.proyecto.tipo }}, {{ $('Webhook').item.json.body.proyecto.ciudad }})\nDescripción del proyecto: {{ $('Webhook').item.json.body.proyecto.descripcion }}\nAPU actual: {{ JSON.stringify($('Webhook').item.json.body.apu) }}\nCatálogo de la empresa: {{ JSON.stringify($('Webhook').item.json.body.catalogo) }}\nAPU del catálogo (posibles sub-análisis): {{ JSON.stringify($('Webhook').item.json.body.catalogo_items) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "={{ $json.system_prompt }}"
+        }
+      },
+      "id": "5a3f2cfb-2628-4ec3-b3a5-a1e2ec7908da",
+      "name": "Agente · Modificar APU",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ...$json.output, \"ejecucion_id\": $execution.id } }}",
+        "options": {}
+      },
+      "id": "58a7f21d-cf43-4608-a7d0-c89395872d62",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        800,
+        300
+      ],
+      "notes": "Devuelve el JSON a skygroup. `ejecucion_id` permite medir los tokens de esta ejecución."
+    },
+    {
+      "parameters": {
+        "content": "Modificar con IA\nRecibe el APU completo y una instrucción, y devuelve el APU modificado con un resumen de cambios. Skygroup compara con lo actual y deja a la persona elegir qué aplicar. Entrada: instruccion, actividad, unidad, proyecto, apu{materiales,mano_obra,equipos}, catalogo, catalogo_items.",
+        "height": 170,
+        "width": 560,
+        "color": 4
+      },
+      "id": "bf1d6477-d190-4e27-a2ad-c0aa45d558b0",
+      "name": "Nota · Modificar con IA",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        200,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prompt · Modificar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt · Modificar": {
+      "main": [
+        [
+          {
+            "node": "Agente · Modificar APU",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente · Modificar APU": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modelo principal": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente · Modificar APU",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esquema · APU modificado": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Agente · Modificar APU",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  },
+  "versionId": "739f1c1b-4572-41aa-b538-b24428180c00",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

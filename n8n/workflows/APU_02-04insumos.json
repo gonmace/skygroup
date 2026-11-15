@@ -1,0 +1,574 @@
+{
+  "id": "apu0insumos0001",
+  "name": "APU · 02-04 Insumos",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "apu-insumos",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a2e5b526-1adf-4316-a09d-2e5817957111",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        360
+      ],
+      "webhookId": "18431a98-2162-4b13-8393-98bbbcfa3f99",
+      "notes": "Lo llama skygroup (apu_generador/ia.py) con el payload descrito en n8n/workflows/README.md."
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "609c2d0a-8195-4c23-bc30-62781a3d4d2c",
+                    "leftValue": "={{ $json.body.tipo }}",
+                    "rightValue": "materiales",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "materiales"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "95f258b9-95a9-43bd-9f21-c71b3c700724",
+                    "leftValue": "={{ $json.body.tipo }}",
+                    "rightValue": "mano_obra",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "mano_obra"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "72cda703-1bb2-4f1a-9fde-6b544d75ff06",
+                    "leftValue": "={{ $json.body.tipo }}",
+                    "rightValue": "equipos",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "equipos"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "001df92c-f983-45e5-843c-0d8ff55cfae8",
+      "name": "Tipo de insumo",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        360
+      ],
+      "notes": "Separa por body.tipo: materiales | mano_obra | equipos."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d9d169b6-720a-433a-8641-2c98415007c9",
+              "name": "system_prompt",
+              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Propón los MATERIALES de la actividad: los insumos que quedan incorporados en la obra o se consumen en ella.\n\nPara cada material devuelve: descripcion, unidad, cantidad (por una unidad de la actividad) y desperdicio_pct (% habitual de pérdida; 0 si no aplica).\n- No desarmes productos premezclados o prefabricados en sus componentes sin preguntar.\n- Elementos consolidados: cuando la actividad pueda resolverse con un elemento ya preparado o con sus componentes (p. ej. «Hormigón H21 premezclado» frente a cemento + arena + grava + agua; «mortero 1:4» frente a sus componentes; «acero cortado y doblado» frente a barras y alambre), pregunta con una consulta de tipo «opciones» y recomienda una según el proyecto. Si en «catalogo_items» hay un APU de la empresa que resuelva el elemento consolidado, ofrécelo como una opción con su «codigo_subitem» (y sin filas) y la cantidad del sub-análisis por unidad de la actividad en una fila de la opción.\n- No incluyas mano de obra, equipos, herramientas menores ni EPP.\n\nREGLAS GENERALES\n1. Trabaja SIEMPRE por UNA unidad de la actividad.\n2. Usa el catálogo de la empresa: si un concepto ya existe allí, usa EXACTAMENTE su descripción y devuelve su «codigo_catalogo». Solo propón un término nuevo (nuevo=true, codigo_catalogo vacío) si ningún término del catálogo sirve. Así los términos de la empresa se mantienen uniformes.\n3. Si tienes DUDAS que cambian la propuesta (dimensiones, tipo de elemento, condiciones de obra, calidad…), NO supongas: agrega una consulta de tipo «dato» con una pregunta concreta y, si puedes, opciones sugeridas. Si la duda impide proponer, devuelve «filas» vacío y solo las consultas. No repitas preguntas que ya aparecen respondidas en el historial.\n4. Si una consulta tiene alternativas, usa el tipo «opciones» (mínimo 2, cada una con su clave y etiqueta) y SIEMPRE marca cuál recomiendas en «recomendada». Pon dentro de cada opción las «filas» que quedarían si se elige.\n5. Si el campo «ultima_ronda» es true, NO hagas más preguntas: propón con supuestos razonables y menciónalos en «justificacion».\n6. Un solo valor por campo (nunca rangos). Unidades del Sistema Internacional, con la escala que dé números enteros o simples. «justificacion»: una frase corta de por qué va esa fila.\n7. No inventes insumos que no correspondan a la actividad y no repitas conceptos ya confirmados en otros pasos.\n8. Responde SOLO con el JSON pedido. Los números van sin unidades ni texto.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "2c324e2f-a5b7-4410-9f21-a3513d578f1e",
+      "name": "Prompt · Materiales",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        480,
+        120
+      ],
+      "notes": "Aquí vive el prompt de sistema. Edita el texto para mejorar el comportamiento de la IA."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9f388aae-2bcd-4d1d-bc73-755f1d23a6a7",
+              "name": "system_prompt",
+              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Propón la MANO DE OBRA de la actividad: la cuadrilla que la ejecuta.\n\nPara cada oficio devuelve: descripcion (nombre del oficio, p. ej. «Albañil», «Ayudante»), unidad «h» y «personas» (cuántas personas de ese oficio hay en la cuadrilla). Además devuelve «rendimiento» (cuántas unidades de la actividad ejecuta la cuadrilla completa en una jornada) y «horas_jornada» (normalmente 8). NO devuelvas cantidad por unidad: la calcula el sistema.\n- Usa los oficios del catálogo de la empresa cuando existan.\n- Si el rendimiento depende de condiciones que no conoces (altura, acceso, calidad), pregunta con una consulta «dato».\n- No incluyas materiales ni equipos.\n\nREGLAS GENERALES\n1. Trabaja SIEMPRE por UNA unidad de la actividad.\n2. Usa el catálogo de la empresa: si un concepto ya existe allí, usa EXACTAMENTE su descripción y devuelve su «codigo_catalogo». Solo propón un término nuevo (nuevo=true, codigo_catalogo vacío) si ningún término del catálogo sirve. Así los términos de la empresa se mantienen uniformes.\n3. Si tienes DUDAS que cambian la propuesta (dimensiones, tipo de elemento, condiciones de obra, calidad…), NO supongas: agrega una consulta de tipo «dato» con una pregunta concreta y, si puedes, opciones sugeridas. Si la duda impide proponer, devuelve «filas» vacío y solo las consultas. No repitas preguntas que ya aparecen respondidas en el historial.\n4. Si una consulta tiene alternativas, usa el tipo «opciones» (mínimo 2, cada una con su clave y etiqueta) y SIEMPRE marca cuál recomiendas en «recomendada». Pon dentro de cada opción las «filas» que quedarían si se elige.\n5. Si el campo «ultima_ronda» es true, NO hagas más preguntas: propón con supuestos razonables y menciónalos en «justificacion».\n6. Un solo valor por campo (nunca rangos). Unidades del Sistema Internacional, con la escala que dé números enteros o simples. «justificacion»: una frase corta de por qué va esa fila.\n7. No inventes insumos que no correspondan a la actividad y no repitas conceptos ya confirmados en otros pasos.\n8. Responde SOLO con el JSON pedido. Los números van sin unidades ni texto.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "0a14b94f-e4ed-4cde-a795-89afab38d445",
+      "name": "Prompt · Mano de obra",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        480,
+        360
+      ],
+      "notes": "Aquí vive el prompt de sistema. Edita el texto para mejorar el comportamiento de la IA."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f2871b39-80b0-48ad-90f9-3d026b4453a5",
+              "name": "system_prompt",
+              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Propón los EQUIPOS y la maquinaria de la actividad.\n\nPara cada equipo devuelve: descripcion, unidad «h» y cantidad (horas-máquina por una unidad de la actividad).\n- No incluyas herramientas manuales ni menores (el perfil de cálculo ya las cubre con un porcentaje), ni EPP.\n- No incluyas equipos de planta de proveedores ni materiales ni mano de obra.\n- Si dudas entre equipos alternativos (p. ej. mezcladora o mortero premezclado), pregunta con una consulta «opciones».\n\nREGLAS GENERALES\n1. Trabaja SIEMPRE por UNA unidad de la actividad.\n2. Usa el catálogo de la empresa: si un concepto ya existe allí, usa EXACTAMENTE su descripción y devuelve su «codigo_catalogo». Solo propón un término nuevo (nuevo=true, codigo_catalogo vacío) si ningún término del catálogo sirve. Así los términos de la empresa se mantienen uniformes.\n3. Si tienes DUDAS que cambian la propuesta (dimensiones, tipo de elemento, condiciones de obra, calidad…), NO supongas: agrega una consulta de tipo «dato» con una pregunta concreta y, si puedes, opciones sugeridas. Si la duda impide proponer, devuelve «filas» vacío y solo las consultas. No repitas preguntas que ya aparecen respondidas en el historial.\n4. Si una consulta tiene alternativas, usa el tipo «opciones» (mínimo 2, cada una con su clave y etiqueta) y SIEMPRE marca cuál recomiendas en «recomendada». Pon dentro de cada opción las «filas» que quedarían si se elige.\n5. Si el campo «ultima_ronda» es true, NO hagas más preguntas: propón con supuestos razonables y menciónalos en «justificacion».\n6. Un solo valor por campo (nunca rangos). Unidades del Sistema Internacional, con la escala que dé números enteros o simples. «justificacion»: una frase corta de por qué va esa fila.\n7. No inventes insumos que no correspondan a la actividad y no repitas conceptos ya confirmados en otros pasos.\n8. Responde SOLO con el JSON pedido. Los números van sin unidades ni texto.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "55e00c00-63ba-4a57-96e2-c65b0c931621",
+      "name": "Prompt · Equipos",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        480,
+        600
+      ],
+      "notes": "Aquí vive el prompt de sistema. Edita el texto para mejorar el comportamiento de la IA."
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5.1"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "ba82dd7a-64f9-4df8-a9ee-06902d6cfad2",
+      "name": "Modelo principal",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        780,
+        600
+      ],
+      "credentials": {
+        "openAiApi": {
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"filas\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"descripcion\": {\n            \"type\": \"string\"\n          },\n          \"unidad\": {\n            \"type\": \"string\"\n          },\n          \"cantidad\": {\n            \"type\": \"number\"\n          },\n          \"desperdicio_pct\": {\n            \"type\": \"number\"\n          },\n          \"personas\": {\n            \"type\": \"number\"\n          },\n          \"codigo_catalogo\": {\n            \"type\": \"string\"\n          },\n          \"codigo_subitem\": {\n            \"type\": \"string\"\n          },\n          \"nuevo\": {\n            \"type\": \"boolean\"\n          },\n          \"justificacion\": {\n            \"type\": \"string\"\n          }\n        },\n        \"required\": [\n          \"descripcion\",\n          \"unidad\"\n        ]\n      }\n    },\n    \"consultas\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"id\": {\n            \"type\": \"string\"\n          },\n          \"tipo\": {\n            \"type\": \"string\",\n            \"enum\": [\n              \"opciones\",\n              \"dato\"\n            ]\n          },\n          \"pregunta\": {\n            \"type\": \"string\"\n          },\n          \"motivo\": {\n            \"type\": \"string\"\n          },\n          \"recomendada\": {\n            \"type\": \"string\"\n          },\n          \"opciones\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"object\",\n              \"properties\": {\n                \"clave\": {\n                  \"type\": \"string\"\n                },\n                \"etiqueta\": {\n                  \"type\": \"string\"\n                },\n                \"codigo_subitem\": {\n                  \"type\": \"string\"\n                },\n                \"filas\": {\n                  \"type\": \"array\",\n                  \"items\": {\n                    \"type\": \"object\",\n                    \"properties\": {\n                      \"descripcion\": {\n                        \"type\": \"string\"\n                      },\n                      \"unidad\": {\n                        \"type\": \"string\"\n                      },\n                      \"cantidad\": {\n                        \"type\": \"number\"\n                      },\n                      \"desperdicio_pct\": {\n                        \"type\": \"number\"\n                      },\n                      \"personas\": {\n                        \"type\": \"number\"\n                      },\n                      \"codigo_catalogo\": {\n                        \"type\": \"string\"\n                      },\n                      \"codigo_subitem\": {\n                        \"type\": \"string\"\n                      },\n                      \"nuevo\": {\n                        \"type\": \"boolean\"\n                      },\n                      \"justificacion\": {\n                        \"type\": \"string\"\n                      }\n                    },\n                    \"required\": [\n                      \"descripcion\",\n                      \"unidad\"\n                    ]\n                  }\n                }\n              },\n              \"required\": [\n                \"clave\",\n                \"etiqueta\"\n              ]\n            }\n          }\n        },\n        \"required\": [\n          \"id\",\n          \"tipo\",\n          \"pregunta\"\n        ]\n      }\n    },\n    \"rendimiento\": {\n      \"type\": \"number\"\n    },\n    \"horas_jornada\": {\n      \"type\": \"number\"\n    }\n  },\n  \"required\": [\n    \"filas\",\n    \"consultas\"\n  ]\n}"
+      },
+      "id": "db93d365-c667-49f8-aedf-9aef147357e3",
+      "name": "Esquema · Insumos",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        920,
+        600
+      ],
+      "notes": "Esquema de lo que devuelve la IA. Si lo cambias, revisa también apu_generador/ia.py."
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Tipo de insumo: {{ $('Webhook').item.json.body.tipo }}\nActividad: {{ $('Webhook').item.json.body.actividad }} (unidad: {{ $('Webhook').item.json.body.unidad }})\nDetalles: {{ $('Webhook').item.json.body.descripcion }}\nProyecto: {{ $('Webhook').item.json.body.proyecto.nombre }} ({{ $('Webhook').item.json.body.proyecto.tipo }}, {{ $('Webhook').item.json.body.proyecto.ciudad }})\nDescripción del proyecto: {{ $('Webhook').item.json.body.proyecto.descripcion }}\nClasificación: {{ JSON.stringify($('Webhook').item.json.body.clasificacion) }}\nYa confirmado en pasos anteriores: {{ JSON.stringify($('Webhook').item.json.body.confirmado) }}\nCatálogo de la empresa (usa estos términos exactos): {{ JSON.stringify($('Webhook').item.json.body.catalogo) }}\nAPU del catálogo de la empresa (posibles sub-análisis): {{ JSON.stringify($('Webhook').item.json.body.catalogo_items) }}\nDecisiones anteriores de la empresa en consultas parecidas: {{ JSON.stringify($('Webhook').item.json.body.decisiones_previas) }}\nPreguntas tuyas ya respondidas: {{ JSON.stringify($('Webhook').item.json.body.historial) }}\nultima_ronda: {{ $('Webhook').item.json.body.ultima_ronda }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "={{ $json.system_prompt }}"
+        }
+      },
+      "id": "bf6a02ed-4ca6-4fa1-8151-65d975e9b958",
+      "name": "Agente · Insumos",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        800,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f8a3f3c4-a999-418d-bf00-80c585b0a201",
+              "name": "system_prompt",
+              "value": "Eres un revisor técnico de análisis de precios unitarios (APU). Recibes una lista de filas propuestas para una actividad de construcción. Indica cuáles NO son esenciales para ejecutarla: filas redundantes, accesorias o poco justificadas que conviene dejar sin marcar por defecto. Ante la duda, considera la fila esencial.\nDevuelve en «no_esenciales» las descripciones EXACTAS de esas filas (lista vacía si todas son esenciales). Responde SOLO con el JSON pedido.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "c0318ce7-b9df-463a-a2ef-95416087a73d",
+      "name": "Prompt · Verificar esenciales",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1080,
+        360
+      ],
+      "notes": "Aquí vive el prompt de sistema. Edita el texto para mejorar el comportamiento de la IA."
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "4359ad82-2d50-499c-a174-9fa59f4730fa",
+      "name": "Modelo mini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1260,
+        600
+      ],
+      "credentials": {
+        "openAiApi": {
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"no_esenciales\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"required\": [\n    \"no_esenciales\"\n  ]\n}"
+      },
+      "id": "76853d27-c4e6-4dbd-b272-1c138fc7f8eb",
+      "name": "Esquema · No esenciales",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1400,
+        600
+      ],
+      "notes": "Esquema de lo que devuelve la IA. Si lo cambias, revisa también apu_generador/ia.py."
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Actividad: {{ $('Webhook').item.json.body.actividad }}\nTipo: {{ $('Webhook').item.json.body.tipo }}\nFilas propuestas: {{ JSON.stringify($('Agente · Insumos').item.json.output.filas) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "={{ $json.system_prompt }}"
+        }
+      },
+      "id": "da41b77f-fdf5-4a13-8810-6960fa9fec38",
+      "name": "Agente · Verificar esenciales",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1320,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "de2c4557-74cf-4939-8af7-b5935a1e1ea0",
+              "name": "filas",
+              "value": "={{ $('Agente · Insumos').item.json.output.filas.map(f => ({...f, check: !$json.output.no_esenciales.includes(f.descripcion)})) }}",
+              "type": "array"
+            },
+            {
+              "id": "1d6c0646-6f4f-4bbe-927f-9b20b47390dc",
+              "name": "consultas",
+              "value": "={{ $('Agente · Insumos').item.json.output.consultas }}",
+              "type": "array"
+            },
+            {
+              "id": "318d6fa7-52c6-4f9b-ac66-6820673e56ba",
+              "name": "rendimiento",
+              "value": "={{ $('Agente · Insumos').item.json.output.rendimiento }}",
+              "type": "number"
+            },
+            {
+              "id": "9f920f8c-2a21-4ace-a164-d0eb02265666",
+              "name": "horas_jornada",
+              "value": "={{ $('Agente · Insumos').item.json.output.horas_jornada }}",
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "051c7a0f-716e-45dc-859f-e844be32527a",
+      "name": "Marcar filas",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1600,
+        360
+      ],
+      "notes": "Aplica check=false a las filas que el revisor marcó como no esenciales. El resto queda marcado."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"filas\": $json.filas, \"consultas\": $json.consultas, \"rendimiento\": $json.rendimiento, \"horas_jornada\": $json.horas_jornada, \"ejecucion_id\": $execution.id } }}",
+        "options": {}
+      },
+      "id": "94a5b932-c159-4cde-9f14-9704110ba65f",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1860,
+        360
+      ],
+      "notes": "Devuelve el JSON a skygroup. `ejecucion_id` permite medir los tokens de esta ejecución."
+    },
+    {
+      "parameters": {
+        "content": "Paso 2 a 4 · Insumos\nUn solo webhook para materiales, mano de obra y equipos: el Switch elige el prompt. La IA propone filas y, cuando duda, consultas (opciones o dato). Un segundo agente (modelo mini) deja sin marcar lo no esencial. Entrada: tipo, actividad, unidad, descripcion, proyecto, clasificacion, confirmado, catalogo, catalogo_items, decisiones_previas, historial, ultima_ronda.",
+        "height": 200,
+        "width": 760,
+        "color": 4
+      },
+      "id": "90a501ac-293f-43de-aa15-838a57b41be0",
+      "name": "Nota · Paso 2 a 4 · Insumos",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        440,
+        -140
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Tipo de insumo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt · Materiales": {
+      "main": [
+        [
+          {
+            "node": "Agente · Insumos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt · Mano de obra": {
+      "main": [
+        [
+          {
+            "node": "Agente · Insumos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt · Equipos": {
+      "main": [
+        [
+          {
+            "node": "Agente · Insumos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente · Insumos": {
+      "main": [
+        [
+          {
+            "node": "Prompt · Verificar esenciales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt · Verificar esenciales": {
+      "main": [
+        [
+          {
+            "node": "Agente · Verificar esenciales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente · Verificar esenciales": {
+      "main": [
+        [
+          {
+            "node": "Marcar filas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar filas": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipo de insumo": {
+      "main": [
+        [
+          {
+            "node": "Prompt · Materiales",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prompt · Mano de obra",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prompt · Equipos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modelo principal": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente · Insumos",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esquema · Insumos": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Agente · Insumos",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modelo mini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente · Verificar esenciales",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esquema · No esenciales": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Agente · Verificar esenciales",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  },
+  "versionId": "71de0322-28cb-437a-8c04-f951dc347028",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

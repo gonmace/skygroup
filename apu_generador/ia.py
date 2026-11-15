@@ -205,26 +205,47 @@ def costo_de_uso(uso):
     return total.quantize(Decimal('0.000001'))
 
 
+ESTADO_MEDICION = {'motivo': ''}   # por qué la última sincronización no pudo medir (se muestra al superusuario)
+
+
 def sincronizar_uso(llamadas):
     """Completa `uso` y `costo_usd` de las llamadas aún sin medir, consultando la API pública de n8n. Un fallo deja la
-    llamada pendiente (no rompe nada). Devuelve cuántas se sincronizaron."""
-    if not (settings.N8N_API_URL and settings.N8N_API_KEY):
+    llamada pendiente (no rompe nada) y deja el motivo en `ESTADO_MEDICION`. Devuelve cuántas se sincronizaron."""
+    ESTADO_MEDICION['motivo'] = ''
+    api_url, api_key = settings.N8N_API_URL.rstrip('/'), settings.N8N_API_KEY
+    if not (api_url and api_key):
+        ESTADO_MEDICION['motivo'] = 'La medición está desactivada: falta la URL o la clave de la API de n8n (Plataforma → Credenciales).'
         return 0
-    hechas = 0
+    hechas = no_disponibles = 0
     for ll in llamadas:
         if ll.uso is not None or not ll.ejecucion_id:
             continue
         try:
-            r = requests.get(f"{settings.N8N_API_URL.rstrip('/')}/api/v1/executions/{ll.ejecucion_id}",
-                             params={'includeData': 'true'}, headers={'X-N8N-API-KEY': settings.N8N_API_KEY}, timeout=20)
+            r = requests.get(f"{api_url}/api/v1/executions/{ll.ejecucion_id}",
+                             params={'includeData': 'true'}, headers={'X-N8N-API-KEY': api_key}, timeout=20)
+        except requests.RequestException as e:
+            logger.warning('No se pudo conectar con n8n (%s): %s', api_url, e)
+            ESTADO_MEDICION['motivo'] = f'No se pudo conectar con n8n en {api_url}.'
+            break          # sin conexión no tiene sentido seguir intentando con cada llamada
+        if r.status_code in (401, 403):
+            ESTADO_MEDICION['motivo'] = (f'n8n rechazó la clave de la API (error {r.status_code}). Revisa la clave en Plataforma → '
+                                         f'Credenciales: debe ser una clave creada en el n8n de {api_url}.')
+            break
+        if r.status_code == 404:
+            no_disponibles += 1      # n8n limpia las ejecuciones antiguas: esa ya no se puede medir
+            continue
+        try:
             r.raise_for_status()
             uso = uso_de_ejecucion(r.json())
         except (requests.RequestException, ValueError) as e:
             logger.warning('No se pudo leer la ejecución %s de n8n: %s', ll.ejecucion_id, e)
+            ESTADO_MEDICION['motivo'] = f'n8n respondió con un error al leer la ejecución {ll.ejecucion_id}.'
             continue
         ll.uso, ll.costo_usd = uso, costo_de_uso(uso)
         ll.save(update_fields=['uso', 'costo_usd'])
         hechas += 1
+    if no_disponibles and not ESTADO_MEDICION['motivo']:
+        ESTADO_MEDICION['motivo'] = f'n8n ya no conserva {no_disponibles} ejecución(es): se limpian con el tiempo.'
     return hechas
 
 
@@ -250,4 +271,4 @@ def resumen_uso(llamadas):
     filas = sorted(por_modelo.values(), key=lambda f: f['modelo'])
     return {'modelos': filas, 'entrada': sum(f['entrada'] for f in filas), 'salida': sum(f['salida'] for f in filas),
             'costo': costo_total if completo else None, 'pendientes': pendientes, 'duracion_ms': duracion,
-            'llamadas': len(llamadas)}
+            'llamadas': len(llamadas), 'motivo': ESTADO_MEDICION['motivo'] if pendientes else ''}

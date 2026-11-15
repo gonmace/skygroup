@@ -1346,6 +1346,72 @@ class UnidadYMotivoAlReutilizarTests(Base):
         self.assertEqual(self.client.get(r.json()['continuar_url']).status_code, 200)
 
 
+class MotivoDeMedicionTests(Base):
+    """Cuando no se pueden medir los tokens, se dice por qué (y no se insiste con cada llamada)."""
+
+    def llamadas(self, n=3):
+        return [LlamadaIA.objects.create(empresa=self.a, webhook='apu-insumos', ejecucion_id=str(100 + i)) for i in range(n)]
+
+    def respuesta(self, codigo):
+        return mock.Mock(status_code=codigo, **{'raise_for_status.return_value': None, 'json.return_value': {}})
+
+    def test_sin_clave_la_medicion_esta_desactivada_y_lo_dice(self):
+        ll = self.llamadas(1)
+        self.assertEqual(ia.sincronizar_uso(ll), 0)
+        self.assertIn('desactivada', ia.ESTADO_MEDICION['motivo'])
+
+    @override_settings(N8N_API_URL='http://n8n:5678', N8N_API_KEY='mala')
+    def test_clave_rechazada_se_avisa_y_se_deja_de_insistir(self):
+        ll = self.llamadas(3)
+        with mock.patch('apu_generador.ia.requests.get', return_value=self.respuesta(401)) as g:
+            self.assertEqual(ia.sincronizar_uso(ll), 0)
+        self.assertEqual(g.call_count, 1)                                                     # una sola prueba, no una por llamada
+        self.assertIn('rechazó la clave de la API', ia.ESTADO_MEDICION['motivo'])
+        self.assertIn('401', ia.ESTADO_MEDICION['motivo'])
+        self.assertIn('http://n8n:5678', ia.ESTADO_MEDICION['motivo'])
+        self.assertFalse(LlamadaIA.objects.exclude(uso__isnull=True).exists())                # siguen pendientes
+
+    @override_settings(N8N_API_URL='http://n8n:5678', N8N_API_KEY='k')
+    def test_sin_conexion(self):
+        import requests
+        ll = self.llamadas(3)
+        with mock.patch('apu_generador.ia.requests.get', side_effect=requests.ConnectionError('x')) as g:
+            self.assertEqual(ia.sincronizar_uso(ll), 0)
+        self.assertEqual(g.call_count, 1)
+        self.assertIn('No se pudo conectar con n8n en http://n8n:5678', ia.ESTADO_MEDICION['motivo'])
+
+    @override_settings(N8N_API_URL='http://n8n:5678', N8N_API_KEY='k')
+    def test_ejecuciones_que_n8n_ya_borro(self):
+        ll = self.llamadas(2)
+        with mock.patch('apu_generador.ia.requests.get', return_value=self.respuesta(404)):
+            self.assertEqual(ia.sincronizar_uso(ll), 0)
+        self.assertIn('ya no conserva 2 ejecución(es)', ia.ESTADO_MEDICION['motivo'])
+
+    @override_settings(N8N_API_URL='http://n8n:5678', N8N_API_KEY='k')
+    def test_al_medir_bien_el_motivo_se_limpia_y_el_resumen_lo_trae_solo_si_hay_pendientes(self):
+        ll = self.llamadas(1)
+        with mock.patch('apu_generador.ia.requests.get', return_value=self.respuesta(401)):
+            ia.sincronizar_uso(ll)
+        self.assertIn('rechazó', ia.resumen_uso(LlamadaIA.objects.all())['motivo'])
+        ok = mock.Mock(status_code=200, **{'raise_for_status.return_value': None, 'json.return_value': TokensTests.EJECUCION})
+        with mock.patch('apu_generador.ia.requests.get', return_value=ok):
+            self.assertEqual(ia.sincronizar_uso(ll), 1)
+        self.assertEqual(ia.ESTADO_MEDICION['motivo'], '')
+        self.assertEqual(ia.resumen_uso(LlamadaIA.objects.all())['motivo'], '')
+
+    @override_settings(N8N_API_URL='http://n8n:5678', N8N_API_KEY='mala')
+    def test_la_ficha_del_apu_muestra_el_motivo_al_superusuario(self):
+        b = self.borrador_en_paso5()
+        self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {}, self.su)
+        item = ItemModelo.objects.get()
+        LlamadaIA.objects.create(empresa=self.a, webhook='apu-insumos', borrador=b, ejecucion_id='55')
+        self.client.force_login(self.su)
+        with mock.patch('apu_generador.ia.requests.get', return_value=self.respuesta(401)):
+            r = self.client.get(f'/tekon/apu/lista/{item.pk}/')
+        self.assertContains(r, '1 llamada pendiente de medir')
+        self.assertContains(r, 'rechazó la clave de la API')
+
+
 class CalculoTests(Base):
     def test_sub_items_desperdicio_region_e_insumos_sin_precio(self):
         cemento = self.insumo('MAT-1', 'Cemento', unidad='kg', precio='2')

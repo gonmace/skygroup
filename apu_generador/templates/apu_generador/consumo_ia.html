@@ -18,6 +18,8 @@
   <div class="card bg-base-100"><div class="card-body p-4"><p class="text-3xl font-semibold leading-none tabular-nums">{% if total.costo is None %}—{% else %}${{ total.costo|floatformat:4 }}{% endif %}</p><p class="mt-1 text-xs text-base-content/60">Costo estimado (USD){% if total.pendientes %} · {{ total.pendientes }} sin medir{% endif %}</p></div></div>
 </div>
 
+{% if total.pendientes and total.motivo %}<div role="alert" class="alert alert-warning alert-soft items-start text-sm">{% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}<span><strong>{{ total.pendientes }} llamada{{ total.pendientes|pluralize }} sin medir.</strong> {{ total.motivo }}</span></div>{% endif %}
+
 <div id="apu-diferencias" class="hidden"></div>
 
 <section class="table-card">

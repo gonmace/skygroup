@@ -154,6 +154,7 @@
     </tbody>
     <tfoot><tr class="font-semibold"><td>Total · {{ consumo.llamadas }} llamada{{ consumo.llamadas|pluralize }} · {{ consumo.duracion_ms|floatformat:0 }} ms</td><td></td><td class="text-right tabular-nums">{{ consumo.entrada }}</td><td class="text-right tabular-nums">{{ consumo.salida }}{% if consumo.costo is not None %} · ${{ consumo.costo|floatformat:4 }}{% endif %}</td></tr></tfoot>
   </table></div>
+  {% if consumo.pendientes and consumo.motivo %}<div role="alert" class="alert alert-warning alert-soft items-start text-sm">{% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}<span>{{ consumo.motivo }}</span></div>{% endif %}
 </div></section>
 {% endif %}
 

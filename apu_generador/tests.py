@@ -435,6 +435,16 @@ class ResultadoTests(Base):
         ajeno = self.insumo('MAT-051', 'X', empresa=self.b)
         self.assertEqual(self.json(f'/tekon/apu/borrador/{b.pk}/precio/', {'insumo': ajeno.pk, 'precio': '1', 'moneda': 'BOB'}).status_code, 400)
 
+    def test_la_pagina_tiene_las_zonas_que_el_js_refresca_sin_recargar(self):
+        b = self.borrador_en_paso5()
+        self.client.force_login(self.coord)
+        html = self.client.get(f'/tekon/apu/borrador/{b.pk}/resultado/').content.decode()
+        self.assertEqual(html.count('data-zona="composicion"'), 1)
+        self.assertEqual(html.count('data-zona="precio"'), 1)
+        self.assertEqual(html.count('<div'), html.count('</div>'))                      # el HTML quedó bien anidado
+        self.assertEqual(html.count('<section'), html.count('</section>'))
+        self.assertLess(html.index('data-progreso'), html.index('data-zona="composicion"'))   # el progreso queda fuera de la zona
+
     def test_pagina_de_resultado_muestra_composicion_y_precio(self):
         b = self.borrador_en_paso5()
         self.client.force_login(self.coord)
@@ -569,6 +579,16 @@ class PreciosEstimadosTests(Base):
         # corregir el valor a mano lo vuelve un precio normal
         self.json(f'/tekon/apu/borrador/{self.b.pk}/precio/', {'insumo': self.sin.pk, 'precio': '90', 'moneda': 'BOB'})
         self.assertFalse(PrecioInsumo.objects.get(insumo=self.sin).estimado)
+
+    def test_con_insumos_sin_precio_la_pagina_tambien_queda_bien_anidada(self):
+        self.client.force_login(self.coord)
+        html = self.client.get(f'/tekon/apu/borrador/{self.b.pk}/resultado/').content.decode()
+        self.assertIn('data-accion="sugerir-precios"', html)
+        self.assertIn('data-precio-fila', html)
+        self.assertEqual(html.count('<div'), html.count('</div>'))
+        self.assertLess(html.index('data-progreso'), html.index('data-zona="composicion"'))
+        self.assertLess(html.index('data-zona="composicion"'), html.index('data-accion="sugerir-precios"'))   # el botón se refresca con la zona
+        self.assertLess(html.index('data-precio-fila'), html.index('data-zona="precio"'))
 
     def test_la_ficha_y_los_insumos_muestran_el_precio_estimado(self):
         PrecioInsumo.objects.create(insumo=self.sin, fecha=date(2026, 1, 1), precio=D('85'), moneda='BOB', estimado=True)

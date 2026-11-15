@@ -19,6 +19,8 @@
       <button type="button" class="btn btn-sm btn-outline gap-1" data-abrir-modal="apu-modificar">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Modificar con IA</button>
     </div>
 
+    {% include "apu_generador/_progreso.html" %}
+    <div data-zona="composicion" class="space-y-4">
     {% if prev.sin_precio %}
     <div role="alert" class="alert alert-warning alert-soft items-start text-sm">
       {% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}
@@ -28,7 +30,6 @@
         <span class="block text-xs text-base-content/60">La IA busca precios de referencia en la web para tu zona. Son <strong>recomendaciones</strong>: tú decides si las usas, y las que guardes quedan marcadas como «estimado».</span>
       </div>
     </div>
-    {% include "apu_generador/_progreso.html" %}
     {% endif %}
     {% if prev.n_estimados %}
     <div role="alert" class="alert alert-info alert-soft text-sm">{{ prev.n_estimados }} precio{{ prev.n_estimados|pluralize }} de este APU {{ prev.n_estimados|pluralize:"es,son" }} estimado{{ prev.n_estimados|pluralize }} por IA. Conviene confirmarlo{{ prev.n_estimados|pluralize }} con precios reales.</div>
@@ -61,9 +62,10 @@
         </tbody>
       </table>
     </div>
+    </div>
   </div></section>
 
-  <section class="card bg-base-100"><div class="card-body gap-4 p-5">
+  <section class="card bg-base-100" data-zona="precio"><div class="card-body gap-4 p-5">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h2 class="font-semibold">Precio unitario</h2>
       {% if proyecto_apu %}<span class="text-sm text-base-content/60">Perfil: {{ proyecto_apu.perfil.nombre }}{% if proyecto_apu.ajustes %} · <span class="badge badge-ghost badge-sm">con incidencias del proyecto</span>{% endif %}{% if puede_incidencias %} · <a class="link" href="{% url 'apu_catalogo:incidencias' borrador.proyecto_id %}">Ajustar incidencias</a>{% endif %}</span>{% endif %}
@@ -106,4 +108,4 @@
 </dialog>
 <script type="application/json" id="apu-cfg">{"hoy": "{{ hoy }}", "region": "{{ borrador.region|escapejs }}", "url_precio": "{% url 'apu_generador:precio' borrador.pk %}", "url_guardar": "{% url 'apu_generador:guardar_apu' borrador.pk %}", "url_sugerir": "{% url 'apu_generador:sugerir_precios' borrador.pk %}"}</script>
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=4" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=5" defer></script>{% endblock %}

@@ -405,7 +405,37 @@
     var progreso = Progreso(raiz);
     // Las sugerencias de la IA son una RECOMENDACIÓN: se muestran junto a cada fila y solo se usan si la persona lo decide.
     var CONFIANZA = { alta: 'badge-success', media: 'badge-warning', baja: 'badge-ghost' };
+    var sugeridas = {};   // lo que la IA recomendó, para volver a mostrarlo tras refrescar la tabla
+    // Vuelve a pedir la página y reemplaza SOLO la composición y el precio unitario (los precios ya cambiaron). Antes se
+    // guarda lo escrito en cada fila y después se restaura, junto con las sugerencias de las filas que siguen sin precio.
+    function refrescar() {
+      var foto = {};
+      raiz.querySelectorAll('[data-precio-fila]').forEach(function (f) {
+        foto[f.getAttribute('data-insumo')] = { precio: f.querySelector('[data-precio]').value, moneda: f.querySelector('[data-moneda]').value,
+          estimado: f.getAttribute('data-estimado'), fuente: f.getAttribute('data-fuente') };
+      });
+      return fetch(window.location.href, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+        .then(function (html) {
+          var doc = new DOMParser().parseFromString(html, 'text/html');
+          ['composicion', 'precio'].forEach(function (z) {
+            var nuevo = doc.querySelector('[data-zona="' + z + '"]'), actual = raiz.querySelector('[data-zona="' + z + '"]');
+            if (nuevo && actual) actual.innerHTML = nuevo.innerHTML;
+          });
+          raiz.querySelectorAll('[data-precio-fila]').forEach(function (f) {
+            var v = foto[f.getAttribute('data-insumo')];
+            if (!v) return;
+            f.querySelector('[data-precio]').value = v.precio;
+            f.querySelector('[data-moneda]').value = v.moneda;
+            if (v.estimado) f.setAttribute('data-estimado', v.estimado);
+            if (v.fuente) f.setAttribute('data-fuente', v.fuente);
+          });
+          mostrarSugerencias(sugeridas);
+        })
+        .catch(function () { window.location.reload(); });   // si algo falla, se recarga como antes
+    }
     function mostrarSugerencias(sug) {
+      Object.keys(sug).forEach(function (id) { sugeridas[id] = sug[id]; });
       Object.keys(sug).forEach(function (id) {
         var fila = raiz.querySelector('[data-precio-fila][data-insumo="' + id + '"]');
         if (!fila) return;
@@ -457,8 +487,8 @@
         post(cfg.url_precio, datos).then(function (res) {
           bloquear(fila, false);
           if (!res.ok) { avisar(res.data.message, 'error'); return; }
-          try { sessionStorage.setItem('apu-aviso', res.data.message); } catch (err) { /* sin storage */ }
-          window.location.reload();
+          avisar(res.data.message, 'success');
+          refrescar();   // sin recargar la página: se conservan las sugerencias y lo ya escrito en las demás filas
         });
         return;
       }

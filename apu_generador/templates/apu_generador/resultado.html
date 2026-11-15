@@ -1,5 +1,5 @@
 {% extends "shell.html" %}
-{% load static %}
+{% load static apu_tags %}
 {% block page_title %}Precios y resultado · APU{% endblock %}
 {% block wrap_class %}space-y-6{% endblock %}
 {% block content_main %}
@@ -54,7 +54,7 @@
               <div class="mt-1 hidden text-left text-xs" data-sugerencia></div>
             </td>
             {% else %}
-            <td class="text-right tabular-nums">{% if f.precio is not None %}{{ f.precio|floatformat:"-4" }} {{ f.moneda }}{% if f.estimado %} <span class="badge badge-info badge-soft badge-sm" title="Estimado por IA: confírmalo con un precio real">Estimado</span>{% endif %}{% else %}—{% endif %}</td>
+            <td class="text-right tabular-nums">{% if f.precio is not None %}{{ f.precio|numlimpio }} {{ f.moneda }}{% if f.estimado %} <span class="badge badge-info badge-soft badge-sm" title="Estimado por IA: confírmalo con un precio real">Estimado</span>{% endif %}{% else %}—{% endif %}</td>
             <td class="text-right tabular-nums">{{ f.costo|floatformat:2 }}</td>
             {% endif %}
           </tr>
@@ -108,4 +108,4 @@
 </dialog>
 <script type="application/json" id="apu-cfg">{"hoy": "{{ hoy }}", "region": "{{ borrador.region|escapejs }}", "url_precio": "{% url 'apu_generador:precio' borrador.pk %}", "url_guardar": "{% url 'apu_generador:guardar_apu' borrador.pk %}", "url_sugerir": "{% url 'apu_generador:sugerir_precios' borrador.pk %}"}</script>
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=5" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=6" defer></script>{% endblock %}

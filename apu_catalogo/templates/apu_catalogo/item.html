@@ -1,5 +1,5 @@
 {% extends "shell.html" %}
-{% load static %}
+{% load static apu_tags %}
 {% block page_title %}{{ item.codigo }} · APU{% endblock %}
 {% block wrap_class %}space-y-6{% endblock %}
 {% block content_main %}
@@ -56,10 +56,15 @@
         </div>
       </div>
       <table class="table">
-        <thead><tr><th>Insumo</th><th class="text-right">Cantidad</th><th class="text-right">Precio</th><th class="text-right">Costo</th><th class="hidden w-28 sm:table-cell">Peso</th></tr></thead>
+        <thead><tr><th>Insumo</th><th class="text-right">Cantidad</th><th class="text-right">Precio</th><th class="text-right">Costo</th><th class="hidden w-28 sm:table-cell">Peso</th>{% if puede_generar %}<th class="w-px"></th>{% endif %}</tr></thead>
         <tbody>
         {% for f in sec.filas %}
-          <tr {% if f.sin_precio %}class="bg-warning/10"{% endif %}>
+          <tr class="{% if f.sin_precio %}bg-warning/10 {% endif %}{% if puede_generar %}cursor-pointer hover:bg-base-content/5{% endif %}"
+              {% if puede_generar %}data-linea="{{ f.linea.pk }}" data-url="{% url 'apu_lineas:linea_editar' item.pk f.linea.pk %}" data-url-quitar="{% url 'apu_lineas:linea_quitar' item.pk f.linea.pk %}"
+              data-nombre="{{ f.nombre }}" data-unidad="{% if f.subitem %}{{ f.linea.subitem.unidad }}{% else %}{{ f.unidad }}{% endif %}" data-cantidad="{{ f.cantidad|numlimpio:'u' }}"
+              data-desperdicio="{{ f.desperdicio_pct|numlimpio:'u' }}" data-precio="{% if f.precio is not None %}{{ f.precio|numlimpio:'u' }}{% endif %}" data-moneda="{{ f.moneda|default:analisis.moneda }}"
+              data-subitem="{% if f.subitem %}{% url 'apu_catalogo:item_detalle' f.linea.subitem_id %}{% endif %}"
+              {% if not f.subitem %}{% url 'apu_catalogo:insumo_editar' f.linea.insumo_id as url_insumo %}data-url-insumo="{{ url_insumo }}"{% endif %}{% endif %}>
             <td>
               {% if f.subitem %}<a class="font-medium hover:underline" href="{% url 'apu_catalogo:item_detalle' f.linea.subitem_id %}">{{ f.nombre }}</a>
               {% else %}<span class="font-medium">{{ f.nombre }}</span>{% endif %}
@@ -69,11 +74,12 @@
                 {% if f.estimado %}<span class="badge badge-info badge-soft badge-xs" title="Estimado por IA: confírmalo con un precio real">Estimado</span>{% endif %}
               </span>
             </td>
-            <td class="text-right tabular-nums">{{ f.cantidad|floatformat:"-4" }} <span class="text-base-content/60">{{ f.unidad }}</span>
-              {% if f.desperdicio_pct %}<span class="block text-xs text-base-content/50">+{{ f.desperdicio_pct|floatformat:"-2" }} % desperdicio</span>{% endif %}</td>
-            <td class="text-right tabular-nums">{% if f.precio is not None %}{{ f.precio|floatformat:"-4" }} <span class="text-xs text-base-content/50">{{ f.moneda }}</span>{% else %}<span class="text-base-content/40">—</span>{% endif %}</td>
+            <td class="text-right tabular-nums">{{ f.cantidad|numlimpio }} <span class="text-base-content/60">{{ f.unidad }}</span>
+              {% if f.desperdicio_pct %}<span class="block text-xs text-base-content/50">+{{ f.desperdicio_pct|numlimpio }} % desperdicio</span>{% endif %}</td>
+            <td class="text-right tabular-nums">{% if f.precio is not None %}{{ f.precio|numlimpio }} <span class="text-xs text-base-content/50">{{ f.moneda }}</span>{% else %}<span class="text-base-content/40">—</span>{% endif %}</td>
             <td class="text-right font-medium tabular-nums">{{ f.costo|floatformat:2 }}</td>
             <td class="hidden sm:table-cell"><div class="flex items-center gap-2"><progress class="progress progress-primary h-1.5 w-14" value="{{ f.pct|floatformat:'2u' }}" max="100" aria-hidden="true"></progress><span class="w-8 text-xs tabular-nums text-base-content/50">{{ f.pct|floatformat:0 }}%</span></div></td>
+            {% if puede_generar %}<td class="w-px"><button type="button" class="btn btn-ghost btn-square btn-sm text-primary-text" data-editar-linea title="Editar" aria-label="Editar {{ f.nombre }}">{% include "components/icon.html" with name="pencil" cls="size-4" %}</button></td>{% endif %}
           </tr>
         {% endfor %}
         </tbody>
@@ -148,6 +154,40 @@
 {% endif %}
 
 {% if puede_generar %}
+<dialog id="apu-editar-linea" class="modal">
+  <div class="modal-box">
+    <form class="space-y-4" data-editar-form>
+      <div>
+        <h3 class="text-lg font-semibold" data-titulo>Editar</h3>
+        <p class="mt-0.5 text-sm text-base-content/60">Por 1 {{ item.unidad }} de «{{ item.descripcion }}».</p>
+      </div>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Cantidad <span data-unidad class="text-base-content/50"></span></span>
+          <input name="cantidad" required inputmode="decimal" class="input input-bordered input-sm w-full tabular-nums"></label>
+        <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Desperdicio (%)</span>
+          <input name="desperdicio_pct" inputmode="decimal" class="input input-bordered input-sm w-full tabular-nums"></label>
+      </div>
+      <div data-bloque-precio class="space-y-1 rounded-box bg-base-200/60 p-3">
+        <div class="grid gap-3 sm:grid-cols-[1fr_6rem]">
+          <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Precio del insumo</span>
+            <input name="precio" inputmode="decimal" class="input input-bordered input-sm w-full tabular-nums" placeholder="Sin precio"></label>
+          <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Moneda</span>
+            <input name="moneda" maxlength="3" class="input input-bordered input-sm w-full uppercase"></label>
+        </div>
+        <p class="text-xs text-base-content/60">Se guarda como el precio de {% if region %}«{{ region }}»{% else %}precios nacionales{% endif %} desde hoy y lo ven <strong>todos los APU que usan este insumo</strong>.</p>
+      </div>
+      <p class="flex flex-wrap gap-x-4 text-sm">
+        <a class="link hidden" data-enlace-insumo href="#">Editar nombre y unidad del insumo</a>
+        <a class="link hidden" data-enlace-sub href="#">Abrir el sub-análisis</a>
+      </p>
+      <div class="modal-action items-center justify-between">
+        <button type="button" class="btn btn-ghost btn-sm text-error gap-1" data-quitar-linea>{% include "components/icon.html" with name="trash" cls="size-4" %} Quitar del APU</button>
+        <div class="flex gap-2"><button type="button" class="btn btn-ghost btn-sm" data-cerrar-modal>Cancelar</button><button type="submit" class="btn btn-primary btn-sm">Guardar</button></div>
+      </div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button aria-label="Cerrar">cerrar</button></form>
+</dialog>
 <dialog id="apu-reutilizar" class="modal">
   <div class="modal-box">
     <form data-apu-form data-url="{% url 'apu_generador:reutilizar' item.pk %}" data-promedio="45000"
@@ -186,4 +226,4 @@
 {% endif %}
 {% endif %}
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=5" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=6" defer></script>{% endblock %}

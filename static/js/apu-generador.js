@@ -507,12 +507,64 @@
     });
   }
 
+  // ── Ficha del APU: clic en un insumo para editar su cantidad, desperdicio y precio, o quitarlo ─────────────────────
+  function iniciarLineas() {
+    var dlg = document.getElementById('apu-editar-linea');
+    if (!dlg) return;
+    var form = dlg.querySelector('[data-editar-form]');
+    var fila = null;
+    function abrir(tr) {
+      fila = tr;
+      var d = tr.dataset, esSub = !!d.subitem;
+      form.querySelector('[data-titulo]').textContent = 'Editar «' + d.nombre + '»';
+      form.querySelector('[data-unidad]').textContent = d.unidad ? '(' + d.unidad + ')' : '';
+      form.elements.cantidad.value = d.cantidad;
+      form.elements.desperdicio_pct.value = d.desperdicio;
+      form.elements.precio.value = d.precio || '';
+      form.elements.moneda.value = d.moneda || '';
+      form.querySelector('[data-bloque-precio]').classList.toggle('hidden', esSub);
+      var ins = form.querySelector('[data-enlace-insumo]'), sub = form.querySelector('[data-enlace-sub]');
+      ins.classList.toggle('hidden', esSub || !d.urlInsumo); if (d.urlInsumo) ins.href = d.urlInsumo;
+      sub.classList.toggle('hidden', !esSub); if (esSub) sub.href = d.subitem;
+      dlg.showModal();
+      form.elements.cantidad.focus();
+    }
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-editar-linea]');
+      var tr = e.target.closest('tr[data-linea]');
+      if (!tr) return;
+      if (!btn && e.target.closest('a, button, input, select, textarea, label, summary')) return;   // enlaces y controles conservan lo suyo
+      abrir(tr);
+    });
+    function terminado(res) {
+      if (!res.ok) { avisar(res.data.message, 'error'); return; }
+      try { sessionStorage.setItem('apu-aviso', res.data.message); } catch (err) { /* sin storage */ }
+      window.location.reload();
+    }
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var el = form.elements;
+      bloquear(form, true);
+      post(fila.dataset.url, { cantidad: el.cantidad.value, desperdicio_pct: el.desperdicio_pct.value, precio: el.precio.value, moneda: el.moneda.value })
+        .then(function (res) { bloquear(form, false); terminado(res); });
+    });
+    form.querySelector('[data-quitar-linea]').addEventListener('click', function () {
+      window.confirmarUI('«' + fila.dataset.nombre + '» dejará de formar parte de este APU. El insumo y su precio no se borran.', { titulo: 'Quitar del APU', aceptar: 'Quitar', tipo: 'peligro' })
+        .then(function (ok) {
+          if (!ok) return;
+          bloquear(form, true);
+          post(fila.dataset.urlQuitar, {}).then(function (res) { bloquear(form, false); terminado(res); });
+        });
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     try {
       var m = sessionStorage.getItem('apu-aviso');
       if (m) { sessionStorage.removeItem('apu-aviso'); avisar(m, 'success'); }
     } catch (e) { /* sin storage */ }
     document.querySelectorAll('form[data-apu-form]').forEach(iniciarFormAjax);
+    iniciarLineas();
     document.querySelectorAll('[data-destino]').forEach(function (sel) {   // reutilizar: pide el perfil si el destino no tiene
       var bloque = sel.closest('form').querySelector('[data-bloque-perfil-destino]');
       sel.addEventListener('change', function () {

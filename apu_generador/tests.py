@@ -1121,6 +1121,108 @@ class SemaforoListaTests(Base):
         self.assertEqual(calculo.analizar(item).estado_precios, 'completo')                   # con la región del proyecto: completo
 
 
+class LineasFichaTests(Base):
+    """Desde la ficha del APU se edita cada línea de la composición (cantidad, desperdicio y precio) o se quita."""
+
+    def setUp(self):
+        super().setUp()
+        b = self.borrador_en_paso5()
+        self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {}, self.su)
+        self.item = ItemModelo.objects.get()
+        self.mat = self.item.lineas.get(insumo__tipo='MAT')
+        self.mo = self.item.lineas.get(insumo__tipo='MO')
+        self.url = f'/tekon/apu/lista/{self.item.pk}/lineas/{self.mat.pk}/'
+
+    def test_la_ficha_ofrece_editar_cada_insumo(self):
+        self.client.force_login(self.su)
+        r = self.client.get(f'/tekon/apu/lista/{self.item.pk}/')
+        html = r.content.decode()
+        self.assertEqual(html.count('data-linea="'), 3)
+        self.assertEqual(html.count('data-editar-linea'), 3)                                      # un lápiz por fila
+        self.assertContains(r, f'data-url="{self.url}"')
+        self.assertContains(r, 'id="apu-editar-linea"')
+        self.assertContains(r, 'data-cantidad="38"')
+        self.assertContains(r, 'data-precio="1.5"')                                               # sin ceros de más
+        self.assertContains(r, 'data-cantidad="0.5"')
+        self.assertNotContains(r, '1,5000')
+        self.client.force_login(self.obs)                                                         # el observador solo ve
+        self.assertNotContains(self.client.get(f'/tekon/apu/lista/{self.item.pk}/'), 'data-linea="')
+
+    def test_editar_cantidad_y_desperdicio_cambia_el_precio_unitario(self):
+        antes = calculo.analizar(self.item).total
+        r = self.json(self.url, {'cantidad': '40,5', 'desperdicio_pct': '8'}, self.su)
+        self.assertEqual(r.status_code, 200)
+        self.mat.refresh_from_db()
+        self.assertEqual((self.mat.cantidad, self.mat.desperdicio_pct), (D('40.5'), D('8')))
+        self.assertGreater(calculo.analizar(self.item).total, antes)
+
+    def test_editar_el_precio_crea_uno_nuevo_en_la_region_del_proyecto_para_todos_los_apu(self):
+        self.pa.region = 'Tarija'
+        self.pa.save()
+        r = self.json(self.url, {'cantidad': '38', 'desperdicio_pct': '5', 'precio': '2,25', 'moneda': 'bob'}, self.su)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('todos los APU', r.json()['message'])
+        p = PrecioInsumo.objects.get(insumo=self.mat.insumo, region='Tarija')
+        self.assertEqual((p.precio, p.moneda, p.estimado), (D('2.25'), 'BOB', False))
+        self.assertEqual(PrecioInsumo.objects.filter(insumo=self.mat.insumo).count(), 2)          # el nacional anterior sigue ahí
+        self.assertEqual(calculo.analizar(self.item).grupos['MAT'], D('38') * D('1.05') * D('2.25'))
+
+    def test_un_precio_ya_estimado_deja_de_serlo_al_corregirlo(self):
+        PrecioInsumo.objects.filter(insumo=self.mat.insumo).update(estimado=True)
+        self.json(self.url, {'cantidad': '38', 'precio': '1.6', 'moneda': 'BOB'}, self.su)
+        self.assertFalse(PrecioInsumo.objects.filter(insumo=self.mat.insumo, region='').latest('fecha').estimado)
+
+    def test_validaciones(self):
+        for datos, texto in (({'cantidad': '0'}, 'mayor que cero'), ({'cantidad': 'abc'}, 'mayor que cero'),
+                             ({'cantidad': '5', 'desperdicio_pct': '150'}, 'entre 0 y 100'),
+                             ({'cantidad': '5', 'precio': '-3', 'moneda': 'BOB'}, 'precio válido'),
+                             ({'cantidad': '5', 'precio': '3', 'moneda': 'B'}, 'moneda')):
+            r = self.json(self.url, datos, self.su)
+            self.assertEqual(r.status_code, 400, datos)
+            self.assertIn(texto, r.json()['message'])
+        self.mat.refresh_from_db()
+        self.assertEqual(self.mat.cantidad, D('38'))                                              # nada cambió
+
+    def test_horas_de_mano_de_obra_editadas_a_mano_dejan_de_depender_de_la_cuadrilla(self):
+        self.assertTrue(self.mo.ayuda)
+        self.json(f'/tekon/apu/lista/{self.item.pk}/lineas/{self.mo.pk}/', {'cantidad': '0.75'}, self.su)
+        self.mo.refresh_from_db()
+        self.assertEqual((self.mo.cantidad, self.mo.ayuda), (D('0.75'), {}))
+        otra = self.item.lineas.get(insumo__tipo='EQ')                                           # equipos: la ayuda no aplica
+        self.json(f'/tekon/apu/lista/{self.item.pk}/lineas/{otra.pk}/', {'cantidad': '0.2'}, self.su)
+
+    def test_el_filtro_de_numeros_no_deja_ceros_de_mas(self):
+        from apu_catalogo.templatetags.apu_tags import numlimpio
+        self.assertEqual([numlimpio(v, 'u') for v in ('1.5000', '830', '0.500000', D('1200000'), '0', None, 'x')],
+                         ['1.5', '830', '0.5', '1200000', '0', '', 'x'])
+        self.assertEqual(numlimpio(D('1.2500')), '1,25')                                          # con el separador del idioma (es)
+
+    def test_quitar_la_linea_no_borra_el_insumo(self):
+        r = self.json(self.url + 'quitar/', {}, self.su)
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(self.item.lineas.filter(pk=self.mat.pk).exists())
+        self.assertTrue(Insumo.objects.filter(pk=self.mat.insumo_id).exists())
+        self.assertTrue(PrecioInsumo.objects.filter(insumo=self.mat.insumo_id).exists())
+
+    def test_permisos_y_aislamiento_por_empresa(self):
+        self.assertEqual(self.json(self.url, {'cantidad': '5'}, self.obs).status_code, 403)
+        self.assertEqual(self.json(self.url + 'quitar/', {}, self.obs).status_code, 403)
+        self.assertEqual(self.json(self.url, {'cantidad': '5'}, self.ajeno).status_code, 403)
+        otra = ItemModelo.objects.create(empresa=self.a, proyecto=self.proyecto, codigo='APU-099', descripcion='Otro', unidad='m2')
+        self.assertEqual(self.json(f'/tekon/apu/lista/{otra.pk}/lineas/{self.mat.pk}/', {'cantidad': '5'}, self.su).status_code, 404)   # línea de otro APU
+        self.mat.refresh_from_db()
+        self.assertEqual(self.mat.cantidad, D('38'))
+
+    def test_editar_un_sub_analisis_solo_cambia_cantidad_y_desperdicio(self):
+        sub = ItemModelo.objects.create(empresa=self.a, codigo='HOR', descripcion='Hormigón', unidad='m3')
+        linea = LineaComposicion.objects.create(item=self.item, subitem=sub, cantidad=D('0.1'))
+        r = self.json(f'/tekon/apu/lista/{self.item.pk}/lineas/{linea.pk}/', {'cantidad': '0.2', 'desperdicio_pct': '3', 'precio': '9', 'moneda': 'BOB'}, self.su)
+        self.assertEqual(r.status_code, 200)
+        linea.refresh_from_db()
+        self.assertEqual((linea.cantidad, linea.desperdicio_pct), (D('0.2'), D('3')))
+        self.assertFalse(PrecioInsumo.objects.filter(precio=D('9')).exists())                    # un sub-análisis no tiene precio propio
+
+
 class TokensTests(Base):
     EJECUCION = {
         'workflowData': {'nodes': [{'name': 'OpenAI Chat Model', 'parameters': {'model': {'value': 'gpt-5.1'}}},

@@ -9,10 +9,10 @@ from django.views.decorators.cache import never_cache
 def index(request):
     empresa = getattr(request, 'empresa', None)
     if empresa is None:
-        from panel.menu import MODULOS
+        from panel.menu import MODULOS, MODULOS_BETA
         return render(request, 'home/index.html', {  # portada pública (sin empresa): los 3 módulos
             'lanzador_publico': [
-                {'codigo': c, **m, 'resalte': m.get('resalte', ''),
+                {'codigo': c, **m, 'beta': c in MODULOS_BETA, 'resalte': m.get('resalte', ''),
                  'nombre_base': m['nombre'].removesuffix(m.get('resalte', '')).rstrip()}
                 for c, m in MODULOS.items()],
         })

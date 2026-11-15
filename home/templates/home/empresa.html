@@ -21,7 +21,7 @@
     {% if m.estado != "no_habilitado" or request.user.is_superuser %}
     {% if m.estado == "disponible" %}<a href="{{ m.url }}" aria-label="Abrir {{ m.nombre }}" {% if m.accion %}data-accion="{{ m.accion }}" aria-haspopup="dialog" aria-controls="msj" {% endif %}class="mod-card group {{ m.clases|cut:'mod-chip' }}">
     {% else %}<div aria-disabled="true" class="mod-card {% if m.estado == 'proximamente' %}mod-card-pronto{% else %}mod-card-off{% endif %} {{ m.clases|cut:'mod-chip' }}">{% endif %}
-      {% if m.estado == "proximamente" %}<span class="mod-cinta">Próximamente</span>{% endif %}
+      {% if m.estado == "proximamente" %}<span class="mod-cinta">Próximamente</span>{% elif m.beta and m.estado == "disponible" %}<span class="mod-cinta">Beta</span>{% endif %}
       <span class="mod-card-glow" aria-hidden="true"></span>
       <span class="mod-card-icon mod-chip">{% include "components/icon.html" with name=m.icono cls="size-8" %}</span>
       <div class="relative min-w-0 flex-1">

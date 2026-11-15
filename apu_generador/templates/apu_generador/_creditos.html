@@ -1,0 +1,6 @@
+{% if creditos.persona or creditos.empresa %}
+<div class="flex flex-wrap items-center gap-2 text-xs" title="Cada APU generado, reutilizado o modificado con IA cuenta como 1 crédito">
+  {% if creditos.persona %}<span class="badge badge-ghost gap-1 py-3">Tú: hoy {{ creditos.persona.0 }}/{{ creditos.persona.1 }} · mes {{ creditos.persona.2 }}/{{ creditos.persona.3 }}</span>{% endif %}
+  {% if creditos.empresa %}<span class="badge badge-ghost gap-1 py-3">Empresa: hoy {{ creditos.empresa.0 }}/{{ creditos.empresa.1 }} · mes {{ creditos.empresa.2 }}/{{ creditos.empresa.3 }}</span>{% endif %}
+</div>
+{% endif %}

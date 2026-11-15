@@ -1,0 +1,45 @@
+{% extends "shell.html" %}
+{% block page_title %}APU{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div class="flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold">Base de APU</h1>
+    <p class="mt-1 max-w-2xl text-sm text-base-content/60">Todos los APU de la empresa. El precio unitario se calcula con las incidencias de su proyecto. Reutilízalos en otros proyectos desde su ficha.</p>
+  </div>
+  {% if puede_generar %}<a href="{% url 'apu_generador:nuevo' %}" class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Nuevo APU</a>{% endif %}
+</div>
+<form class="flex flex-wrap items-end gap-3" method="get">
+  <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Buscar</span><input class="input input-bordered input-sm w-56" type="search" name="q" value="{{ q }}" placeholder="Código o descripción"></label>
+  <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Proyecto</span>
+    <select name="proyecto" class="select select-bordered select-sm"><option value="">Todos</option>{% for p in proyectos %}<option value="{{ p.pk }}" {% if proyecto_sel == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nombre }}</option>{% endfor %}</select></label>
+  <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Categoría</span>
+    <select name="categoria" class="select select-bordered select-sm"><option value="">Todas</option>{% for c in categorias %}<option value="{{ c }}" {% if categoria_sel == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+  <button class="btn btn-sm">Filtrar</button>
+</form>
+<section class="table-card">
+  <table class="table">
+    <thead><tr><th>Código</th><th>Descripción</th><th>Proyecto</th><th>Categoría</th><th class="text-right">Precio unitario</th></tr></thead>
+    <tbody>
+    {% for it in pagina %}
+      <tr class="hover:bg-base-content/5" data-href="{% url 'apu_catalogo:item_detalle' it.pk %}">
+        <td class="font-mono text-sm"><a class="hover:underline" href="{% url 'apu_catalogo:item_detalle' it.pk %}">{{ it.codigo }}</a></td>
+        <td class="font-medium">{{ it.descripcion }} <span class="text-xs font-normal text-base-content/50">[{{ it.unidad }}]</span>{% if it.origen_id %} <span class="badge badge-ghost badge-sm">Reutilizado</span>{% endif %}</td>
+        <td>{{ it.proyecto.nombre|default:"—" }}</td>
+        <td>{% if it.categoria %}<span class="badge badge-outline badge-sm">{{ it.categoria }}</span>{% else %}<span class="text-base-content/40">—</span>{% endif %}</td>
+        <td class="text-right tabular-nums">{% if it.precio_unitario is not None %}{{ it.precio_unitario }} <span class="text-xs text-base-content/50">{{ it.moneda }}</span>{% else %}<span class="text-base-content/40" title="El proyecto aún no tiene perfil de cálculo">—</span>{% endif %}</td>
+      </tr>
+    {% empty %}<tr><td colspan="5" class="py-10 text-center text-base-content/60">No hay APU con esos filtros.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  {% if pagina.has_other_pages %}
+  <div class="flex items-center justify-between border-t border-base-300 px-5 py-3 text-sm">
+    <span class="text-base-content/60">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+    <div class="join">
+      {% if pagina.has_previous %}<a class="btn btn-sm join-item" href="?{{ qs_filtros }}&page={{ pagina.previous_page_number }}">Anterior</a>{% endif %}
+      {% if pagina.has_next %}<a class="btn btn-sm join-item" href="?{{ qs_filtros }}&page={{ pagina.next_page_number }}">Siguiente</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

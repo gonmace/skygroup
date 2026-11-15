@@ -1,0 +1,17 @@
+{# Cabecera del generador: título, contador de créditos e indicador de pasos. Los pasos ya guardados llevan un check y NO son enlaces (no se puede volver atrás). #}
+<div class="flex flex-wrap items-start justify-between gap-4">
+  <div class="min-w-0">
+    <a href="{% url 'apu_catalogo:inicio' %}" class="inline-flex items-center gap-1 text-sm text-base-content/60 hover:text-base-content">{% include "components/icon.html" with name="chevron-left" cls="size-4" %} APU</a>
+    <h1 class="mt-1 text-2xl font-semibold">{% block titulo_generador %}Nuevo APU{% endblock %}</h1>
+    {% if borrador %}<p class="mt-0.5 text-sm text-base-content/60">{{ borrador.actividad }} · <span class="font-medium">{{ borrador.proyecto.nombre }}</span></p>{% endif %}
+  </div>
+  {% include "apu_generador/_creditos.html" %}
+</div>
+<nav aria-label="Pasos del generador" class="card bg-base-100"><div class="card-body p-4">
+  <p class="text-sm font-medium sm:hidden">Paso {{ paso_actual }} de 5 · {% for n, nombre in pasos %}{% if n == paso_actual %}{{ nombre }}{% endif %}{% endfor %}</p>
+  <ul class="steps hidden w-full sm:inline-grid">
+    {% for n, nombre in pasos %}
+    <li class="step {% if n <= paso_actual %}step-primary{% endif %}" {% if n == paso_actual %}aria-current="step"{% endif %} {% if n < paso_actual %}data-content="✓"{% endif %}>{{ nombre }}</li>
+    {% endfor %}
+  </ul>
+</div></nav>

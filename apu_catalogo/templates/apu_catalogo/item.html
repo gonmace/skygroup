@@ -1,0 +1,128 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block page_title %}{{ item.codigo }} · APU{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div class="flex flex-wrap items-start justify-between gap-4">
+  <div class="min-w-0">
+    <a href="{% url 'apu_catalogo:items' %}" class="inline-flex items-center gap-1 text-sm text-base-content/60 hover:text-base-content">{% include "components/icon.html" with name="chevron-left" cls="size-4" %} APU</a>
+    <h1 class="mt-1 text-2xl font-semibold">{{ item.descripcion }} <span class="text-base font-normal text-base-content/50">[{{ item.unidad }}]</span></h1>
+    <div class="mt-2 flex flex-wrap items-center gap-2 text-sm">
+      <span class="badge badge-outline font-mono">{{ item.codigo }}</span>
+      {% if item.proyecto %}<span class="badge badge-ghost">{{ item.proyecto.nombre }}</span>{% endif %}
+      {% if item.categoria %}<span class="badge badge-outline">{{ item.categoria }}</span>{% endif %}
+      {% if item.origen %}<span class="badge badge-ghost">Reutilizado de <a class="link" href="{% url 'apu_catalogo:item_detalle' item.origen.pk %}">{{ item.origen.codigo }}</a></span>{% endif %}
+    </div>
+  </div>
+  {% if puede_generar %}
+  <div class="flex flex-wrap gap-2">
+    {% if item.proyecto_id %}<button class="btn btn-sm btn-outline gap-1" data-abrir-modal="apu-modificar-ficha">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Modificar con IA</button>{% endif %}
+    <button class="btn btn-sm gap-1" data-abrir-modal="apu-reutilizar">{% include "components/icon.html" with name="copy" cls="size-4" %} Reutilizar en otro proyecto</button>
+  </div>
+  {% endif %}
+</div>
+
+{% if analisis.sin_precio %}
+<div role="alert" class="alert alert-warning alert-soft items-start text-sm">{% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}
+  <span>{{ analisis.sin_precio|length }} insumo{{ analisis.sin_precio|length|pluralize }} sin precio: {% for i in analisis.sin_precio %}{{ i.descripcion }}{% if not forloop.last %}, {% endif %}{% endfor %}. El precio unitario no es real hasta cargarlos.</span></div>
+{% endif %}
+{% if not analisis.perfil %}
+<div role="alert" class="alert alert-info alert-soft text-sm">Este APU no tiene proyecto con perfil de cálculo, así que no se calcula su precio unitario.</div>
+{% endif %}
+
+<section class="card bg-base-100"><div class="card-body gap-4 p-5">
+  <h2 class="font-semibold">Composición por 1 {{ item.unidad }}</h2>
+  <div class="table-card">
+    <table class="table">
+      <thead><tr><th>Insumo</th><th>Tipo</th><th class="text-right">Cantidad</th><th class="text-right">Desperdicio</th><th class="text-right">Precio</th><th class="text-right">Costo</th></tr></thead>
+      <tbody>
+      {% for f in analisis.filas %}
+        <tr {% if f.sin_precio %}class="bg-warning/10"{% endif %}>
+          <td>{{ f.nombre }}{% if f.subitem %} <span class="badge badge-ghost badge-sm">Sub-análisis</span>{% endif %}</td>
+          <td>{% if f.tipo == 'MAT' %}Material{% elif f.tipo == 'MO' %}Mano de obra{% elif f.tipo == 'EQ' %}Equipo{% else %}—{% endif %}</td>
+          <td class="text-right tabular-nums">{{ f.cantidad|floatformat:"-6" }} {{ f.unidad }}</td>
+          <td class="text-right tabular-nums">{% if f.desperdicio_pct %}{{ f.desperdicio_pct|floatformat:"-2" }} %{% else %}—{% endif %}</td>
+          <td class="text-right tabular-nums">{% if f.precio is not None %}{{ f.precio|floatformat:"-4" }} {{ f.moneda }}{% else %}—{% endif %}</td>
+          <td class="text-right tabular-nums">{{ f.costo|floatformat:2 }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="6" class="py-6 text-center text-base-content/60">Este APU aún no tiene composición.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div></section>
+
+{% if desglose %}
+<section class="card bg-base-100"><div class="card-body gap-4 p-5">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <h2 class="font-semibold">Precio unitario</h2>
+    <span class="text-sm text-base-content/60">Perfil: {{ proyecto_apu.perfil.nombre }}{% if proyecto_apu.ajustes %} · <span class="badge badge-ghost badge-sm">con incidencias del proyecto</span>{% endif %}{% if puede_incidencias %} · <a class="link" href="{% url 'apu_catalogo:incidencias' item.proyecto_id %}">Ajustar incidencias</a>{% endif %}</span>
+  </div>
+  <div class="table-card">
+    <table class="table"><tbody>
+    {% for l in desglose %}
+      <tr {% if l.total %}class="bg-primary/10 font-semibold"{% elif l.tipo == 'subtotal' %}class="bg-base-content/5 font-medium"{% endif %}>
+        <td>{{ l.nombre }}{% if l.total %} <span class="badge badge-primary badge-sm ml-1">{% if l.nivel == 'presupuesto' %}Total del presupuesto{% else %}Precio unitario{% endif %}</span>{% endif %}</td>
+        <td class="text-right tabular-nums">{{ l.valor|floatformat:2 }} {{ analisis.moneda }}</td>
+      </tr>
+    {% endfor %}
+    </tbody></table>
+  </div>
+  <p class="text-right text-3xl font-semibold tabular-nums">{{ analisis.total }} <span class="text-base font-normal text-base-content/60">{{ analisis.moneda }} / {{ item.unidad }}</span></p>
+</div></section>
+{% endif %}
+
+{% if consumo %}
+<section class="card bg-base-100"><div class="card-body gap-3 p-5">
+  <h2 class="font-semibold">Consumo de IA <span class="badge badge-warning badge-soft badge-sm align-middle">Superusuario</span></h2>
+  <div class="table-card"><table class="table table-sm">
+    <thead><tr><th>Modelo</th><th class="text-right">Llamadas</th><th class="text-right">Tokens de entrada</th><th class="text-right">Tokens de salida</th></tr></thead>
+    <tbody>
+    {% for m in consumo.modelos %}<tr><td class="font-mono text-sm">{{ m.modelo }}</td><td class="text-right tabular-nums">{{ m.llamadas }}</td><td class="text-right tabular-nums">{{ m.entrada }}</td><td class="text-right tabular-nums">{{ m.salida }}</td></tr>
+    {% empty %}<tr><td colspan="4" class="py-4 text-center text-base-content/60">Sin consumo medido{% if consumo.pendientes %} ({{ consumo.pendientes }} llamada{{ consumo.pendientes|pluralize }} pendiente{{ consumo.pendientes|pluralize }} de medir){% endif %}.</td></tr>{% endfor %}
+    </tbody>
+    <tfoot><tr class="font-semibold"><td>Total · {{ consumo.llamadas }} llamada{{ consumo.llamadas|pluralize }} · {{ consumo.duracion_ms|floatformat:0 }} ms</td><td></td><td class="text-right tabular-nums">{{ consumo.entrada }}</td><td class="text-right tabular-nums">{{ consumo.salida }}{% if consumo.costo is not None %} · ${{ consumo.costo|floatformat:4 }}{% endif %}</td></tr></tfoot>
+  </table></div>
+</div></section>
+{% endif %}
+
+{% if puede_generar %}
+<dialog id="apu-reutilizar" class="modal">
+  <div class="modal-box">
+    <form data-apu-form data-url="{% url 'apu_generador:reutilizar' item.pk %}" data-promedio="45000"
+          data-mensajes="Copiando la composición…|Aplicando tu instrucción…|Verificando los cambios…" class="space-y-4">
+      {% csrf_token %}
+      <h3 class="text-lg font-semibold">Reutilizar en otro proyecto</h3>
+      <p class="text-sm text-base-content/60">Se copia este APU al proyecto elegido. Cuesta 1 crédito; si además pides cambios a la IA, cuesta 1 más.</p>
+      <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Proyecto de destino</span>
+        <select name="proyecto" required class="select select-bordered select-sm w-full" data-destino>
+          <option value="">Elige un proyecto…</option>{% for p in proyectos %}<option value="{{ p.pk }}" data-tiene="{% if p.pk in con_apu %}1{% endif %}">{{ p.nombre }}</option>{% endfor %}
+        </select></label>
+      <label class="flex hidden flex-col gap-1" data-bloque-perfil-destino><span class="text-xs font-medium text-base-content/70">Perfil de cálculo del proyecto</span>
+        <select name="perfil" class="select select-bordered select-sm w-full"><option value="">Elige un perfil…</option>{% for p in perfiles %}<option value="{{ p.pk }}">{{ p.nombre }} · {{ p.moneda }}</option>{% endfor %}</select></label>
+      <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">¿Quieres que la IA lo ajuste? (opcional)</span>
+        <textarea name="instruccion" rows="3" class="textarea textarea-bordered w-full text-sm" placeholder="Ej.: Cambia el ladrillo por bloque de hormigón y reduce el rendimiento de la cuadrilla."></textarea></label>
+      {% include "apu_generador/_progreso.html" %}
+      <div class="modal-action"><button type="button" class="btn btn-ghost btn-sm" data-cerrar-modal>Cancelar</button><button type="submit" class="btn btn-primary btn-sm">Reutilizar</button></div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button aria-label="Cerrar">cerrar</button></form>
+</dialog>
+{% if item.proyecto_id %}
+<dialog id="apu-modificar-ficha" class="modal">
+  <div class="modal-box">
+    <form data-apu-form data-url="{% url 'apu_generador:modificar_apu' item.pk %}" data-promedio="45000"
+          data-mensajes="Leyendo la composición actual…|Aplicando tu instrucción…|Comparando con el catálogo de la empresa…|Verificando los cambios…" class="space-y-4">
+      {% csrf_token %}
+      <h3 class="text-lg font-semibold">Modificar con IA</h3>
+      <p class="text-sm text-base-content/60">La IA propone cambios para este APU y tú eliges cuáles aplicar. Cuesta 1 crédito.</p>
+      <textarea name="instruccion" rows="4" required minlength="5" class="textarea textarea-bordered w-full text-sm" placeholder="Describe qué quieres cambiar."></textarea>
+      {% include "apu_generador/_progreso.html" %}
+      <div class="modal-action"><button type="button" class="btn btn-ghost btn-sm" data-cerrar-modal>Cancelar</button><button type="submit" class="btn btn-primary btn-sm">Proponer cambios</button></div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button aria-label="Cerrar">cerrar</button></form>
+</dialog>
+{% endif %}
+{% endif %}
+{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}" defer></script>{% endblock %}

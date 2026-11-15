@@ -13,8 +13,8 @@
     </header>
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {% for m in lanzador_publico %}
-      <div class="mod-card {{ m.clases|cut:'mod-chip' }}{% if m.codigo == 'apu' %} mod-card-pronto{% endif %}">
-        {% if m.codigo == "apu" %}<span class="mod-cinta">Próximamente</span>{% endif %}
+      <div class="mod-card {{ m.clases|cut:'mod-chip' }}{% if m.beta %} mod-card-pronto{% endif %}">
+        {% if m.beta %}<span class="mod-cinta">Beta</span>{% endif %}
         <span class="mod-card-glow" aria-hidden="true"></span>
         <span class="mod-card-icon mod-chip">{% include "components/icon.html" with name=m.icono cls="size-8" %}</span>
         <div class="relative min-w-0 flex-1">

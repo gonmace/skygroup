@@ -1,3 +1,4 @@
+import copy
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -72,12 +73,24 @@ class ItemModelo(models.Model):
     unidad = models.CharField('Unidad', max_length=20)
     categoria = models.CharField('Categoría', max_length=80, blank=True, help_text='Obra gruesa, acabados…')
     activo = models.BooleanField('Activo', default=True)
+    proyecto = models.ForeignKey('proyectos.Proyecto', null=True, blank=True, on_delete=models.PROTECT,
+                                 related_name='apu_items',
+                                 help_text='Proyecto al que pertenece el APU. Vacío solo en sub-análisis cargados por admin.')
+    origen = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='copias',
+                               help_text='APU del que se copió al reutilizarlo en otro proyecto.')
+    creado_por = models.ForeignKey('cuentas.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    creado = models.DateTimeField(auto_now_add=True, null=True)
 
     class Meta:
         ordering = ['codigo']
-        verbose_name = 'Ítem modelo'
-        verbose_name_plural = 'Ítems modelo'
-        constraints = [models.UniqueConstraint(fields=['empresa', 'codigo'], name='apu_item_codigo_unico')]
+        verbose_name = 'APU'
+        verbose_name_plural = 'APU'
+        constraints = [
+            models.UniqueConstraint(fields=['empresa', 'proyecto', 'codigo'], name='apu_item_codigo_unico',
+                                    condition=Q(proyecto__isnull=False)),
+            models.UniqueConstraint(fields=['empresa', 'codigo'], name='apu_item_codigo_sin_proyecto_unico',
+                                    condition=Q(proyecto__isnull=True)),
+        ]
 
     def __str__(self):
         return f'{self.codigo} · {self.descripcion} [{self.unidad}]'
@@ -202,3 +215,44 @@ class PerfilCalculo(models.Model):
             nombre = f'{self.nombre} ({n})'
         return PerfilCalculo.objects.create(empresa=empresa, nombre=nombre, pais=self.pais, moneda=self.moneda,
                                             datos=self.datos)
+
+
+class ProyectoAPU(models.Model):
+    """Incidencias de un proyecto: el perfil de cálculo base y los ajustes propios (p. ej. Gastos generales 12 %
+    en vez de 10 %). Todos los APU del proyecto se calculan con `perfil_efectivo()`; el precio no se guarda."""
+    proyecto = models.OneToOneField('proyectos.Proyecto', on_delete=models.CASCADE, related_name='apu')
+    perfil = models.ForeignKey(PerfilCalculo, on_delete=models.PROTECT, related_name='proyectos')
+    ajustes = models.JSONField('Ajustes', blank=True, default=dict,
+                               help_text='{código de línea: valor}. Porcentaje (0.12 = 12 %) o factor, según la línea.')
+
+    class Meta:
+        verbose_name = 'Incidencias del proyecto'
+        verbose_name_plural = 'Incidencias de proyectos'
+
+    def __str__(self):
+        return f'{self.proyecto} · {self.perfil.nombre}'
+
+    def datos_efectivos(self):
+        """`datos` del perfil base con los ajustes aplicados (sin validar). Un código que ya no existe se ignora."""
+        datos = copy.deepcopy(self.perfil.datos)
+        for linea in datos.get('lineas', []):
+            if linea.get('cod') in self.ajustes:
+                clave = 'factor' if linea.get('tipo') == 'suma' else 'pct'
+                if linea.get('tipo') in ('suma', 'porcentaje'):
+                    linea[clave] = self.ajustes[linea['cod']]
+        return datos
+
+    def perfil_efectivo(self):
+        """El perfil con los ajustes, validado y listo para `apu_motor.calcular`."""
+        return validar_perfil({**self.datos_efectivos(), 'perfil': self.perfil.nombre, 'moneda': self.perfil.moneda})
+
+    def ajustes_huerfanos(self):
+        """Códigos con ajuste que el perfil base ya no tiene (o que no admiten ajuste)."""
+        validos = {l['cod'] for l in self.perfil.datos.get('lineas', []) if l.get('tipo') in ('suma', 'porcentaje')}
+        return sorted(set(self.ajustes) - validos)
+
+    def clean(self):
+        try:
+            self.perfil_efectivo()
+        except PerfilInvalido as e:
+            raise ValidationError({'ajustes': str(e)})

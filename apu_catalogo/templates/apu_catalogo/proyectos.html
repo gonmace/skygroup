@@ -1,0 +1,25 @@
+{% extends "shell.html" %}
+{% block page_title %}Proyectos · APU{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div>
+  <h1 class="text-2xl font-semibold">Proyectos con APU</h1>
+  <p class="mt-1 max-w-2xl text-sm text-base-content/60">Cada proyecto tiene su propio perfil de cálculo y sus incidencias (por ejemplo, Gastos generales 12 % en vez de 10 %). Al cambiarlas se actualiza el precio de todos sus APU.</p>
+</div>
+<section class="table-card">
+  <table class="table">
+    <thead><tr><th>Proyecto</th><th>Perfil de cálculo</th><th class="text-right">APU</th><th>Incidencias</th><th class="w-px"></th></tr></thead>
+    <tbody>
+    {% for p in proyectos %}
+      <tr class="hover:bg-base-content/5">
+        <td class="font-medium">{{ p.nombre }}{% if p.codigo %} <span class="font-mono text-xs font-normal text-base-content/50">{{ p.codigo }}</span>{% endif %}</td>
+        <td>{% if p.apu %}{{ p.apu.perfil.nombre }} <span class="font-mono text-xs text-base-content/50">{{ p.apu.perfil.moneda }}</span>{% else %}<span class="text-base-content/40">Sin perfil</span>{% endif %}</td>
+        <td class="text-right tabular-nums"><a class="hover:underline" href="{% url 'apu_catalogo:items' %}?proyecto={{ p.pk }}">{{ p.n_apu }}</a></td>
+        <td>{% if p.apu and p.apu.ajustes %}<span class="badge badge-warning badge-soft badge-sm">{{ p.apu.ajustes|length }} ajustada{{ p.apu.ajustes|length|pluralize }}</span>{% else %}<span class="text-base-content/40">Las del perfil</span>{% endif %}</td>
+        <td>{% if puede_incidencias %}<a href="{% url 'apu_catalogo:incidencias' p.pk %}" class="btn btn-sm gap-1">{% include "components/icon.html" with name="settings" cls="size-4" %} Incidencias</a>{% endif %}</td>
+      </tr>
+    {% empty %}<tr><td colspan="5" class="py-10 text-center text-base-content/60">Todavía no hay proyectos con APU. Crea uno con «Nuevo APU».</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "shell.html" %}
+{% block page_title %}Revisar cambios · APU{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+{% include "apu_generador/_cabecera.html" %}
+<form method="post" class="space-y-4">{% csrf_token %}
+  <section class="card bg-base-100"><div class="card-body gap-4 p-5">
+    <div>
+      <h2 class="font-semibold">Cambios propuestos por la IA</h2>
+      <p class="mt-0.5 text-sm text-base-content/60">Tu instrucción: «{{ mod.instruccion }}». Marca los cambios que quieres aplicar; lo demás queda como está.</p>
+    </div>
+    {% if mod.resumen_cambios %}<div role="alert" class="alert alert-info alert-soft text-sm">{{ mod.resumen_cambios }}</div>{% endif %}
+    <div class="table-card">
+      <table class="table">
+        <thead><tr><th class="w-8"></th><th>Cambio</th><th>Detalle</th></tr></thead>
+        <tbody>
+        {% for c in cambios %}
+          <tr>
+            <td><input type="checkbox" name="cambio" value="{{ c.id }}" class="checkbox checkbox-sm checkbox-primary" checked aria-label="Aplicar: {{ c.texto }}"></td>
+            <td>
+              <span class="badge badge-sm {% if c.clase == 'agregado' %}badge-success badge-soft{% elif c.clase == 'quitado' %}badge-ghost{% else %}badge-info badge-soft{% endif %} mr-1">{% if c.clase == 'agregado' %}Agregar{% elif c.clase == 'quitado' %}Quitar{% else %}Cambiar{% endif %}</span>
+              {{ c.texto }}
+            </td>
+            <td class="text-sm text-base-content/70">
+              {% if c.fila %}
+                {% if c.fila.personas %}{{ c.fila.personas }} persona(s){% elif c.fila.cantidad %}{{ c.fila.cantidad }} {{ c.fila.unidad }}{% endif %}
+                {% if c.anterior %}<span class="text-base-content/50"> (antes {% if c.anterior.personas %}{{ c.anterior.personas }}{% else %}{{ c.anterior.cantidad }}{% endif %}{% if c.anterior.desperdicio_pct %}, desperdicio {{ c.anterior.desperdicio_pct }} %{% endif %})</span>{% endif %}
+                {% if c.fila.desperdicio_pct and c.fila.desperdicio_pct != '0' %} · desperdicio {{ c.fila.desperdicio_pct }} %{% endif %}
+                {% if c.fila.justificacion %}<span class="block text-xs text-base-content/50">{{ c.fila.justificacion }}</span>{% endif %}
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <p class="text-xs text-base-content/60">Al confirmar vuelves al paso de precios y resultado. Esta modificación ya descontó 1 crédito.</p>
+      <button class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="check" cls="size-4" %} Aplicar los cambios marcados</button>
+    </div>
+  </div></section>
+</form>
+{% endblock %}

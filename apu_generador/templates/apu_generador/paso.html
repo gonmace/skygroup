@@ -1,0 +1,61 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block page_title %}{{ nombre_paso }} · APU{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+{% include "apu_generador/_cabecera.html" %}
+
+<div data-apu-pagina="paso" class="space-y-4">
+  <section class="card bg-base-100"><div class="card-body gap-4 p-5">
+    <div>
+      <h2 class="font-semibold">{{ nombre_paso }}</h2>
+      <p class="mt-0.5 max-w-3xl text-sm text-base-content/60">
+        {% if tipo == 'materiales' %}Revisa los materiales que propone la IA para <strong>una unidad</strong> de «{{ borrador.actividad }}» ({{ borrador.unidad }}). Marca los que van, corrige cantidades y desperdicios, o agrega los tuyos.
+        {% elif tipo == 'mano_obra' %}Indica la cuadrilla y su rendimiento. Las horas por unidad se calculan solas: personas × horas de jornada ÷ rendimiento.
+        {% else %}Revisa los equipos y las horas-máquina por unidad. Las herramientas menores no van aquí: el perfil de cálculo ya las cubre.{% endif %}
+      </p>
+    </div>
+
+    {% include "apu_generador/_progreso.html" %}
+    <div data-consultas class="space-y-3"></div>
+
+    {% if tipo == 'mano_obra' %}
+    <div class="grid gap-4 rounded-box bg-base-200/50 p-4 sm:grid-cols-2">
+      <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Rendimiento de la cuadrilla ({{ borrador.unidad }} por jornada)</span>
+        <input class="input input-bordered input-sm w-full tabular-nums" data-rendimiento inputmode="decimal" value="{{ mano_obra.rendimiento }}"></label>
+      <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Horas de la jornada</span>
+        <input class="input input-bordered input-sm w-full tabular-nums" data-horas inputmode="decimal" value="{{ mano_obra.horas_jornada|default:'8' }}"></label>
+    </div>
+    {% endif %}
+
+    <div class="table-card">
+      <table class="table">
+        <thead><tr>
+          <th></th><th>{% if tipo == 'materiales' %}Material{% elif tipo == 'mano_obra' %}Oficio{% else %}Equipo{% endif %}</th>
+          {% if tipo != 'mano_obra' %}<th>Unidad</th>{% endif %}
+          <th class="text-right">{% if tipo == 'mano_obra' %}Personas{% elif tipo == 'equipos' %}Horas por unidad{% else %}Cantidad por unidad{% endif %}</th>
+          {% if tipo == 'materiales' %}<th class="text-right">Desperdicio %</th>{% endif %}
+          {% if tipo == 'mano_obra' %}<th class="text-right">Horas por unidad</th>{% endif %}
+          <th>Origen</th><th></th>
+        </tr></thead>
+        <tbody data-tabla></tbody>
+      </table>
+    </div>
+    <datalist id="apu-catalogo-lista">{% for c in catalogo %}<option value="{{ c.descripcion }}">{{ c.codigo }} · {{ c.unidad }}</option>{% endfor %}</datalist>
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" class="btn btn-sm gap-1" data-accion="agregar">{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar fila</button>
+        <button type="button" class="btn btn-sm btn-outline gap-1" data-accion="repetir">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Proponer de nuevo</button>
+        <span class="text-xs text-base-content/60" data-contador></span>
+      </div>
+      <button type="button" class="btn btn-primary btn-sm gap-1" data-accion="guardar">Guardar y continuar {% include "components/icon.html" with name="arrow-right" cls="size-4" %}</button>
+    </div>
+    <p class="text-xs text-base-content/50">Los términos nuevos que marques se agregan al catálogo de insumos de tu empresa, para que los próximos APU usen siempre las mismas palabras.</p>
+  </div></section>
+</div>
+<script type="application/json" id="apu-cfg">{"tipo": "{{ tipo }}", "max_repeticiones": {{ max_repeticiones }}, "promedio_ms": {{ promedio_ms }}, "url_proponer": "{% url 'apu_generador:proponer' borrador.pk slug %}", "url_guardar": "{% url 'apu_generador:guardar' borrador.pk slug %}"}</script>
+{{ estado|json_script:"apu-estado" }}
+{{ catalogo|json_script:"apu-catalogo" }}
+{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}" defer></script>{% endblock %}

@@ -19,6 +19,8 @@ Cada entrada del menú (`panel/menu.py`) lleva un `nivel`:
 - **`coordinador`** → contorno suave **violeta** (`nav-nivel badge-rol-0`): la entrada exige una capacidad que el Ejecutor
   (`RolBase.MIEMBRO`) **no** tiene por defecto. Se calcula solo con `cuentas.capacidades.solo_coordinador(capacidad)`;
   no se marca a mano.
+- **`administrador`** → contorno suave **rosa** (`nav-nivel badge-plat-admin`): solo superusuario y administradores de
+  sistema de la empresa (`registrar_item(..., solo_admin=True)`; p. ej. APU → Usuarios).
 - **`superusuario`** → contorno suave **ámbar** (`nav-nivel badge-plat-super`): entradas de Plataforma, `solo_superusuario=True`
   y las que solo ve el superusuario dentro de una empresa (p. ej. Nextcloud).
 - **Sin nivel** → sin contorno: accesos que también tiene el Ejecutor.
@@ -74,3 +76,30 @@ nuevo en ese modelo + su formulario en `panel/forms.py` (`CredencialesForm`); el
 Todo `<textarea>` (también los que se insertan por JS) recibe solo un botón de micrófono: `static/js/dictado.js`
 (Web Speech API del navegador; sin soporte, p. ej. Firefox, no aparece). Escribe en la posición del cursor y dispara
 `input`. Para excluir uno: `data-sin-dictado`. Estilos `.dictado-*` en `styles.css`. Los errores salen como toast.
+
+## APU (Análisis de Precios Unitarios, módulo `apu`, en Beta)
+Se llama **APU** en toda la interfaz. La palabra «especificación» no se usa en este módulo (modelos, URLs, plantillas,
+campos ni textos): queda reservada para el futuro módulo de especificaciones. Tampoco se agrega nada a la app `proyectos`;
+el APU solo se enlaza al proyecto por FK (`ItemModelo.proyecto`).
+- **Apps**: `apu_motor` (cálculo en Python puro, sin país), `apu_catalogo` (insumos, precios, APU = `ItemModelo`,
+  perfiles, incidencias por proyecto `ProyectoAPU`, base de APU) y `apu_generador` (asistente con IA, créditos, consumo).
+- **Se entra desde el módulo APU** (menú lateral), no desde el proyecto. Todo APU pertenece a un proyecto; la base de APU
+  se reutiliza en otros proyectos (copia con `origen`) y se puede modificar con un prompt.
+- **La IA vive SOLO en n8n** (`n8n/workflows/APU_*.json`, ver su README): Django arma el payload, llama con
+  `core.n8n.llamar_webhook_seguro` (vía `apu_generador/ia.py`), normaliza y guarda. Nada de SDKs de LLM ni prompts en
+  Python. Los workflows se construyen con **nodos nativos editables** (sin nodos Code; prompts en nodos «Prompt · …» de
+  Edit Fields; sticky notes) en el n8n de desarrollo (Docker) y luego se migran a producción. Modelo: API de OpenAI.
+- **Generador** (`apu_generador`): borrador `APUBorrador` que guarda el paso; cada paso tiene un endpoint «proponer»
+  (llama a n8n, no guarda) y otro «guardar» (solo lo marcado). **Sin vuelta atrás**: un paso guardado queda cerrado
+  (409) y su URL redirige al paso actual. Si se corta, queda en *Pendientes*.
+- **Vocabulario por empresa**: lo confirmado se agrega al catálogo `Insumo` de la empresa (sin duplicar por mayúsculas,
+  tildes o espacios) y la IA debe reutilizar el término exacto. La IA pregunta ante dudas (consultas `opciones`/`dato`).
+- **Créditos** (`apu_generador/creditos.py`): 1 crédito por generar (al guardar), reutilizar y cada modificación con IA.
+  Límite por persona (3/día, 10/mes por defecto) y por empresa (20/día, 100/mes); si la empresa lo agota, nadie genera.
+  Superusuario no consume; el administrador no tiene límite personal pero sí consume el de la empresa.
+- **Jornada**: si la empresa tiene Asistencia (`jor`), todo APU exige jornada en curso (`acceso_apu`); exentos
+  superusuario y administradores. Usar `acceso_apu(...)` en toda vista nueva del módulo, nunca `acceso_modulo` directo.
+- **Incidencias por proyecto** (`ProyectoAPU`): ajustes de porcentaje/factor del perfil solo para ese proyecto; el precio
+  unitario no se guarda, se calcula con `apu_catalogo.calculo.analizar`.
+- **Tokens y costo** (solo superusuario): `LlamadaIA` guarda la ejecución de n8n; el uso se lee de la API de n8n
+  (`N8N_API_URL`/`N8N_API_KEY`) y el costo sale de `TarifaModeloIA` (botón «Verificar tarifas»).

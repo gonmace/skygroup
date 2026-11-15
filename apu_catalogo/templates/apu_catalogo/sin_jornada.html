@@ -1,0 +1,12 @@
+{% extends "shell.html" %}
+{% block page_title %}APU{% endblock %}
+{% block content_main %}
+<div class="card bg-base-100 mx-auto max-w-lg">
+  <div class="card-body items-center gap-3 py-12 text-center">
+    <span class="grid size-14 place-items-center rounded-box bg-primary/10 text-primary-text">{% include "components/icon.html" with name="clock" cls="size-7" %}</span>
+    <h2 class="text-lg font-semibold">Inicia tu jornada para usar APU</h2>
+    <p class="max-w-sm text-sm text-base-content/60">Este módulo se habilita mientras tienes una jornada en curso. Inicia tu jornada y vuelve aquí.</p>
+    <a href="{% url 'jor_diario:inicio' %}" class="btn btn-primary btn-sm mt-2 gap-1">{% include "components/icon.html" with name="clock" cls="size-4" %} Iniciar jornada</a>
+  </div>
+</div>
+{% endblock %}

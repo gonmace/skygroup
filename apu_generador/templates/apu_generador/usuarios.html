@@ -1,0 +1,62 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block page_title %}Usuarios · APU{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div>
+  <h1 class="text-2xl font-semibold">Usuarios de APU</h1>
+  <p class="mt-1 max-w-3xl text-sm text-base-content/60">Cada APU generado, reutilizado o modificado con IA cuenta como 1 crédito. Si la empresa agota su límite, nadie puede generar aunque tenga créditos personales. Los administradores no tienen límite personal pero sí consumen el de la empresa.</p>
+</div>
+
+<section class="card bg-base-100"><div class="card-body gap-3 p-5">
+  <div class="flex flex-wrap items-start justify-between gap-2">
+    <h2 class="font-semibold">Límite de la empresa</h2>
+    <span class="text-sm text-base-content/60">Usado: hoy {{ empresa_limite.dia }} · este mes {{ empresa_limite.mes }}</span>
+  </div>
+  <form class="flex flex-wrap items-end gap-3" data-limite data-url="{% url 'apu_generador:limite_empresa' %}">
+    <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Por día</span>
+      <input class="input input-bordered input-sm w-28 tabular-nums" name="max_dia" type="number" min="0" value="{{ empresa_limite.max_dia }}" {% if not puede_empresa %}disabled{% endif %}></label>
+    <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Por mes</span>
+      <input class="input input-bordered input-sm w-28 tabular-nums" name="max_mes" type="number" min="0" value="{{ empresa_limite.max_mes }}" {% if not puede_empresa %}disabled{% endif %}></label>
+    <label class="flex items-center gap-2 pb-1.5 text-sm"><input class="checkbox checkbox-sm" type="checkbox" name="activo" {% if empresa_limite.activo %}checked{% endif %} {% if not puede_empresa %}disabled{% endif %}> Aplicar límite</label>
+    {% if puede_empresa %}<button class="btn btn-primary btn-sm">Guardar</button>{% else %}<span class="pb-1.5 text-xs text-base-content/50">Solo el superusuario cambia el límite de la empresa.</span>{% endif %}
+  </form>
+</div></section>
+
+<section class="table-card">
+  <table class="table">
+    <thead><tr><th>Persona</th><th>Cargo</th><th class="text-right">Usado hoy</th><th class="text-right">Usado este mes</th><th>Límite por día</th><th>Límite por mes</th><th class="w-px"></th></tr></thead>
+    <tbody>
+    {% for f in miembros %}
+      <tr>
+        <td class="font-medium">{{ f.m.user }}</td>
+        <td><span class="badge badge-outline badge-sm {{ f.m.clase_color }}">{{ f.m.cargo_visible }}</span></td>
+        <td class="text-right tabular-nums">{{ f.dia }}</td>
+        <td class="text-right tabular-nums">{{ f.mes }}</td>
+        {% if f.exento %}
+          <td colspan="3" class="text-sm text-base-content/60">Sin límite personal (consume el de la empresa)</td>
+        {% else %}
+          <td><input form="lim-{{ f.m.pk }}" class="input input-bordered input-sm w-24 tabular-nums" name="max_dia" type="number" min="0" value="{{ f.max_dia }}" aria-label="Límite por día de {{ f.m.user }}"></td>
+          <td><input form="lim-{{ f.m.pk }}" class="input input-bordered input-sm w-24 tabular-nums" name="max_mes" type="number" min="0" value="{{ f.max_mes }}" aria-label="Límite por mes de {{ f.m.user }}"></td>
+          <td><form id="lim-{{ f.m.pk }}" data-limite data-url="{% url 'apu_generador:limite_persona' f.m.pk %}"><button class="btn btn-primary btn-sm">Guardar</button></form></td>
+        {% endif %}
+      </tr>
+    {% empty %}
+      <tr><td colspan="7" class="py-8 text-center text-base-content/60">No hay personas en la empresa.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="table-card">
+  <div class="border-b border-base-300 px-5 py-4"><h2 class="text-base font-semibold">Últimos consumos</h2></div>
+  <table class="table">
+    <thead><tr><th>Fecha</th><th>Persona</th><th>Acción</th><th>Referencia</th></tr></thead>
+    <tbody>
+    {% for c in consumos %}<tr><td class="text-sm">{{ c.fecha|date:"d/m/Y H:i" }}</td><td>{{ c.usuario|default:"—" }}</td><td>{{ c.get_tipo_display }}</td><td class="font-mono text-xs text-base-content/60">{{ c.referencia }}</td></tr>
+    {% empty %}<tr><td colspan="4" class="py-6 text-center text-base-content/60">Todavía no hay consumos.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-admin.js' %}" defer></script>{% endblock %}

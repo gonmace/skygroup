@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'notificaciones',
     'mje_mensajes',
     'apu_catalogo',
+    'apu_generador',
     'tar_tickets',
     'tar_adjuntos',
     'reg_base',
@@ -185,6 +186,9 @@ INTERNAL_API_TOKEN = config('INTERNAL_API_TOKEN', default='')
 N8N_BASE_URL = config('N8N_BASE_URL', default='http://n8n:5678')
 N8N_WEBHOOK_TOKEN = config('N8N_WEBHOOK_TOKEN', default='')
 N8N_WEBHOOK_TOKEN_HEADER = config('N8N_WEBHOOK_TOKEN_HEADER', default='X-Webhook-Token')
+# API pública de n8n (solo para medir los tokens de cada ejecución; ver apu_generador.ia). Vacías = no se mide.
+N8N_API_URL = config('N8N_API_URL', default='')
+N8N_API_KEY = config('N8N_API_KEY', default='')
 DISK_ALERT_PERCENT = config('DISK_ALERT_PERCENT', default=85, cast=int)
 
 FOTO_MAX_SIZE = config('FOTO_MAX_SIZE', default=25 * 1024 * 1024, cast=int)  # 25 MB por foto (Registros)

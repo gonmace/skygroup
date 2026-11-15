@@ -36,6 +36,7 @@ urlpatterns = [
     path('', include('jor_reportes.urls')),
     path('', include('mje_mensajes.urls')),
     path('', include('apu_catalogo.urls')),
+    path('', include('apu_generador.urls')),
     path('', include('home.urls')),
 ]
 

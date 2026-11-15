@@ -19,3 +19,6 @@ class ApuCatalogoConfig(AppConfig):
 
         from panel.menu import registrar_item
         registrar_item('apu', 'Inicio', 'apu_catalogo:inicio', 'calculator', capacidad='apu.ver', orden=10, exacto=True)
+        registrar_item('apu', 'APU', 'apu_catalogo:items', 'list', capacidad='apu.ver', orden=30)
+        registrar_item('apu', 'Proyectos', 'apu_catalogo:proyectos', 'folder', capacidad='apu.ver', orden=40)
+        registrar_item('apu', 'Insumos', 'apu_catalogo:insumos', 'tag', capacidad='apu.ver', orden=50)

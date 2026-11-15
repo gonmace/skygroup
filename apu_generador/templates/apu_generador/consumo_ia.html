@@ -1,0 +1,48 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block page_title %}Consumo IA · APU{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div class="flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold">Consumo de IA</h1>
+    <p class="mt-1 max-w-3xl text-sm text-base-content/60">Tokens y costo de cada llamada a la API de OpenAI que hacen los workflows de APU (últimas 1000 llamadas).{% if not medicion_activa %} <strong>La medición está desactivada</strong>: define <code>N8N_API_URL</code> y <code>N8N_API_KEY</code> para leer los tokens de n8n.{% endif %}</p>
+  </div>
+  <button class="btn btn-outline btn-sm gap-1" data-verificar-tarifas data-url="{% url 'apu_generador:tarifas_verificar' %}">{% include "components/icon.html" with name="search" cls="size-4" %} Verificar tarifas</button>
+</div>
+
+<div class="grid grid-cols-1 gap-3 sm:grid-cols-4">
+  <div class="card bg-base-100"><div class="card-body p-4"><p class="text-3xl font-semibold leading-none tabular-nums">{{ total.llamadas }}</p><p class="mt-1 text-xs text-base-content/60">Llamadas</p></div></div>
+  <div class="card bg-base-100"><div class="card-body p-4"><p class="text-3xl font-semibold leading-none tabular-nums">{{ total.entrada }}</p><p class="mt-1 text-xs text-base-content/60">Tokens de entrada</p></div></div>
+  <div class="card bg-base-100"><div class="card-body p-4"><p class="text-3xl font-semibold leading-none tabular-nums">{{ total.salida }}</p><p class="mt-1 text-xs text-base-content/60">Tokens de salida</p></div></div>
+  <div class="card bg-base-100"><div class="card-body p-4"><p class="text-3xl font-semibold leading-none tabular-nums">{% if total.costo is None %}—{% else %}${{ total.costo|floatformat:4 }}{% endif %}</p><p class="mt-1 text-xs text-base-content/60">Costo estimado (USD){% if total.pendientes %} · {{ total.pendientes }} sin medir{% endif %}</p></div></div>
+</div>
+
+<div id="apu-diferencias" class="hidden"></div>
+
+<section class="table-card">
+  <div class="border-b border-base-300 px-5 py-4"><h2 class="text-base font-semibold">Tarifas por modelo</h2>
+    <p class="mt-0.5 text-sm text-base-content/60">USD por millón de tokens. «Verificar tarifas» consulta los precios publicados y te muestra las diferencias antes de aplicarlas.</p></div>
+  <table class="table">
+    <thead><tr><th>Modelo</th><th>Entrada</th><th>Salida</th><th>Verificada</th><th class="w-px"></th></tr></thead>
+    <tbody>
+    {% for t in tarifas %}
+      <tr>
+        <td class="font-mono text-sm">{{ t.modelo }}</td>
+        <td><input form="tar-{{ t.pk }}" class="input input-bordered input-sm w-28 tabular-nums" name="entrada" value="{{ t.entrada_usd_mtok|floatformat:'-4' }}" inputmode="decimal" aria-label="Entrada {{ t.modelo }}"></td>
+        <td><input form="tar-{{ t.pk }}" class="input input-bordered input-sm w-28 tabular-nums" name="salida" value="{{ t.salida_usd_mtok|floatformat:'-4' }}" inputmode="decimal" aria-label="Salida {{ t.modelo }}"></td>
+        <td class="text-sm text-base-content/70">{% if t.verificada_en %}{{ t.verificada_en|date:"d/m/Y H:i" }}{% else %}Nunca{% endif %}</td>
+        <td><form id="tar-{{ t.pk }}" data-limite data-url="{% url 'apu_generador:tarifa_editar' t.pk %}"><button class="btn btn-sm">Guardar</button></form></td>
+      </tr>
+    {% empty %}<tr><td colspan="5" class="py-6 text-center text-base-content/60">Aún no hay tarifas. Usa «Verificar tarifas» para traerlas.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<div class="grid gap-6 lg:grid-cols-3">
+  {% include "apu_generador/_tabla_consumo.html" with titulo="Por empresa" filas=por_empresa %}
+  {% include "apu_generador/_tabla_consumo.html" with titulo="Por persona" filas=por_persona %}
+  {% include "apu_generador/_tabla_consumo.html" with titulo="Por mes" filas=por_mes %}
+</div>
+{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-admin.js' %}" defer></script>{% endblock %}

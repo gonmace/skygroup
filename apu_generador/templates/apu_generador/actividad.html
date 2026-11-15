@@ -1,0 +1,83 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block page_title %}Nuevo APU{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+{% include "apu_generador/_cabecera.html" %}
+
+<section class="card bg-base-100" data-apu-pagina="actividad">
+  <form class="card-body gap-5 p-5" data-apu-form data-url="{% if borrador %}{% url 'apu_generador:actividad' borrador.pk %}{% else %}{% url 'apu_generador:nuevo' %}{% endif %}"
+        data-url-repetir="{% url 'apu_generador:actividad' 0 %}" data-promedio="{{ promedio_ms }}"
+        data-mensajes="Revisando la descripción del proyecto…|Comprobando que la actividad es coherente…|Clasificando la actividad…">
+    {% csrf_token %}
+    <div>
+      <h2 class="font-semibold">Actividad</h2>
+      <p class="mt-0.5 text-sm text-base-content/60">Indica qué actividad quieres analizar. La IA usa la descripción del proyecto para ajustar cada APU a lo que se construye.</p>
+    </div>
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      <label class="flex flex-col gap-1 sm:col-span-2">
+        <span class="text-xs font-medium text-base-content/70">Proyecto <span class="text-error" aria-hidden="true">*</span></span>
+        {% if proyectos|length > 8 %}<input type="search" class="input input-bordered input-sm w-full" placeholder="Buscar proyecto…" data-filtro-proyecto aria-label="Buscar proyecto">{% endif %}
+        <select name="proyecto" class="select select-bordered select-sm w-full" required {% if borrador %}disabled{% endif %}>
+          <option value="">Elige un proyecto…</option>
+          {% for p in proyectos %}<option value="{{ p.pk }}" {% if inicial.proyecto|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nombre }}{% if p.codigo %} · {{ p.codigo }}{% endif %}</option>{% endfor %}
+        </select>
+        {% if borrador %}<input type="hidden" name="proyecto" value="{{ borrador.proyecto_id }}">{% endif %}
+        <span class="text-xs text-base-content/50" data-perfil-actual></span>
+      </label>
+
+      <div class="hidden sm:col-span-2" data-bloque-descripcion>
+        <label class="flex flex-col gap-1">
+          <span class="text-xs font-medium text-base-content/70">Descripción del proyecto <span class="text-error" aria-hidden="true">*</span></span>
+          <textarea name="proyecto_descripcion" rows="3" class="textarea textarea-bordered w-full text-sm" data-proyecto-descripcion
+                    placeholder="Describe brevemente qué se construye, dónde y para qué."></textarea>
+          <span class="text-xs text-base-content/50">Se guarda en el proyecto y la IA la usa en todos sus APU. Mínimo 15 palabras.</span>
+        </label>
+      </div>
+
+      <div class="hidden sm:col-span-2" data-bloque-perfil>
+        <label class="flex flex-col gap-1">
+          <span class="text-xs font-medium text-base-content/70">Perfil de cálculo del proyecto <span class="text-error" aria-hidden="true">*</span></span>
+          <select name="perfil" class="select select-bordered select-sm w-full">
+            <option value="">Elige un perfil…</option>
+            {% for p in perfiles %}<option value="{{ p.pk }}">{{ p.nombre }}{% if p.es_plantilla %} (plantilla){% endif %} · {{ p.moneda }}</option>{% endfor %}
+          </select>
+          <span class="text-xs text-base-content/50">Define los recargos (gastos generales, utilidad, impuestos…). Después puedes ajustar cada porcentaje solo para este proyecto.</span>
+        </label>
+      </div>
+
+      <label class="flex flex-col gap-1 sm:col-span-2">
+        <span class="text-xs font-medium text-base-content/70">Actividad <span class="text-error" aria-hidden="true">*</span></span>
+        <input name="actividad" maxlength="200" required class="input input-bordered input-sm w-full" value="{{ borrador.actividad }}" placeholder="Ej.: Muro de ladrillo 6H e=12 cm">
+      </label>
+      <label class="flex flex-col gap-1">
+        <span class="text-xs font-medium text-base-content/70">Unidad <span class="text-error" aria-hidden="true">*</span></span>
+        <input name="unidad" maxlength="20" required class="input input-bordered input-sm w-full" value="{{ borrador.unidad }}" placeholder="m², m³, ml, kg, pza…">
+      </label>
+      <label class="flex flex-col gap-1">
+        <span class="text-xs font-medium text-base-content/70">Región o ciudad de los precios</span>
+        <input name="region" maxlength="80" class="input input-bordered input-sm w-full" value="{{ borrador.region }}" placeholder="Vacío = precios nacionales">
+      </label>
+      <label class="flex flex-col gap-1 sm:col-span-2">
+        <span class="text-xs font-medium text-base-content/70">Detalles de la actividad (opcional)</span>
+        <textarea name="descripcion" rows="3" class="textarea textarea-bordered w-full text-sm" placeholder="Especificaciones, espesores, dosificaciones, condiciones de la obra…">{{ borrador.descripcion }}</textarea>
+      </label>
+    </div>
+
+    <div role="alert" class="alert alert-warning alert-soft hidden items-start text-sm" data-aviso-ia>
+      {% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}
+      <span data-aviso-texto></span>
+    </div>
+
+    {% include "apu_generador/_progreso.html" %}
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <p class="text-xs text-base-content/60">Generar el APU cuesta 1 crédito: se descuenta al guardarlo, no al empezar.</p>
+      <button type="submit" class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Comprobar y continuar</button>
+    </div>
+  </form>
+</section>
+{{ info_proyectos|json_script:"apu-info-proyectos" }}
+{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}" defer></script>{% endblock %}

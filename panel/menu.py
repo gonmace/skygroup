@@ -19,7 +19,7 @@ usuario; si la empresa tiene el módulo pero aún no hay entradas, se muestra «
 """
 from django.urls import NoReverseMatch, reverse
 
-from cuentas.capacidades import solo_coordinador, tiene_capacidad
+from cuentas.capacidades import administra, solo_coordinador, tiene_capacidad
 
 # El color de cada módulo (pastel fijo) vive en theme/static_src/src/styles.css: `.mod-chip` + `.mod-<código>`.
 # El orden de este diccionario es el del selector de aplicaciones y el del lanzador de Inicio.
@@ -38,11 +38,12 @@ MODULOS = {
                 clases='mod-chip mod-msj',
                 # No tiene páginas ni entradas de barra lateral: abre una ventana flotante sobre la pantalla actual.
                 flotante=True, capacidad='msj.usar', accion='mensajeria', url_name='mje_mensajes:bandeja'),
-    # Aún sin pantallas: el lanzador lo muestra como «Próximamente» (módulo activo sin entradas de menú).
     'apu': dict(nombre='APU IA', icono='calculator', segmento='apu', resalte='IA',
                 descripcion='Análisis de Precios Unitarios con IA: costo de cada partida con materiales, mano de obra, equipos y rendimientos, calculado con inteligencia artificial.',
                 clases='mod-chip mod-apu'),
 }
+# Módulos disponibles pero aún en pruebas: el lanzador y el selector los marcan con «Beta».
+MODULOS_BETA = {'apu'}
 SISTEMA = {
     'inicio': dict(nombre='Inicio', icono='home', clases='bg-base-300 text-base-content'),
     'plataforma': dict(nombre='Plataforma', icono='building', clases='bg-base-300 text-base-content'),
@@ -53,7 +54,8 @@ _ITEMS = []  # dicts: modulo, nombre, url_name, icono, capacidad, orden
 
 
 def registrar_item(modulo, nombre, url_name, icono, capacidad=None, orden=100, exacto=False,
-                   solo_superusuario=False, por_tipo=False, seccion=None, activo_en=(), condicion=None):
+                   solo_superusuario=False, por_tipo=False, seccion=None, activo_en=(), condicion=None,
+                   solo_admin=False):
     """`exacto=True`: la entrada solo se marca activa en su URL exacta (p. ej. el tablero, que es
     prefijo de las demás rutas del módulo). `solo_superusuario=True`: la entrada es de administración de la
     plataforma; se separa con una línea del resto del menú y solo la ve el superusuario. `por_tipo=True`: la
@@ -63,10 +65,11 @@ def registrar_item(modulo, nombre, url_name, icono, capacidad=None, orden=100, e
     la entrada en la barra lateral (las entradas sin sección van primero, sin encabezado; el orden lo da `orden`).
     `activo_en`: url_names adicionales cuyas rutas también marcan activa esta entrada (p. ej. las pestañas).
     `condicion`: `fn(request) -> bool`; la entrada solo se muestra si devuelve True (p. ej. que la empresa tenga
-    activo un tipo de registro)."""
+    activo un tipo de registro). `solo_admin=True`: solo la ven el superusuario y los administradores de sistema de la
+    empresa (contorno rosa)."""
     _ITEMS.append(dict(modulo=modulo, nombre=nombre, url_name=url_name, icono=icono, capacidad=capacidad,
                        orden=orden, exacto=exacto, solo_superusuario=solo_superusuario, por_tipo=por_tipo,
-                       seccion=seccion, activo_en=tuple(activo_en), condicion=condicion))
+                       seccion=seccion, activo_en=tuple(activo_en), condicion=condicion, solo_admin=solo_admin))
 
 
 def _terminos(texto, empresa):
@@ -81,11 +84,14 @@ def _url(url_name):
         return None
 
 
-def _nivel_item(capacidad=None, solo_super=False):
-    """Quién accede a la entrada, para el contorno de la barra lateral: 'superusuario' (ámbar) · 'coordinador'
-    (violeta, lo que el Ejecutor no tiene) · '' (accesos comunes, sin contorno)."""
+def _nivel_item(capacidad=None, solo_super=False, solo_admin=False):
+    """Quién accede a la entrada, para el contorno de la barra lateral: 'superusuario' (ámbar) · 'administrador'
+    (rosa, administradores de sistema) · 'coordinador' (violeta, lo que el Ejecutor no tiene) · '' (accesos comunes,
+    sin contorno)."""
     if solo_super:
         return 'superusuario'
+    if solo_admin:
+        return 'administrador'
     return 'coordinador' if solo_coordinador(capacidad) else ''
 
 
@@ -119,6 +125,7 @@ def _items_modulo(request, codigo):
     user, empresa = request.user, request.empresa
     visibles = [i for i in _ITEMS if i['modulo'] == codigo
                 and (not i.get('solo_superusuario') or user.is_superuser)
+                and (not i.get('solo_admin') or user.is_superuser or administra(user, empresa.pk))
                 and (i.get('condicion') is None or i['condicion'](request))
                 and _permitido(user, i['capacidad'], empresa)]
     # Primero las entradas generales y al final las de superusuario (el menú las separa con una línea).
@@ -131,7 +138,7 @@ def _items_modulo(request, codigo):
                          grupo='superusuario' if i.get('solo_superusuario') else 'general',
                          seccion=_terminos(i.get('seccion') or '', empresa),
                          activo_en=i.get('activo_en', ()),
-                         nivel=_nivel_item(i['capacidad'], i.get('solo_superusuario')))
+                         nivel=_nivel_item(i['capacidad'], i.get('solo_superusuario'), i.get('solo_admin')))
             if item:
                 salida.append(item)
             continue
@@ -142,7 +149,7 @@ def _items_modulo(request, codigo):
         for t in tipos:
             salida.append({'nombre': f"{i['nombre']} {t.nombre}", 'url': f'{base}?tipo={t.pk}', 'icono': i['icono'],
                            'activo': request.path.startswith(base) and elegido == str(t.pk), 'grupo': 'general',
-                           'seccion': i.get('seccion') or '', 'nivel': _nivel_item(i['capacidad'], i.get('solo_superusuario'))})
+                           'seccion': i.get('seccion') or '', 'nivel': _nivel_item(i['capacidad'], i.get('solo_superusuario'), i.get('solo_admin'))})
     return salida
 
 
@@ -189,6 +196,7 @@ def construir_menu(request):
         apps.append({'nivel': nivel,
             'codigo': codigo, 'nombre': meta['nombre'], 'icono': meta['icono'], 'clases': meta['clases'],
             'url': url, 'disponible': disponible, 'activa': codigo == activa, 'accion': accion,
+            'beta': codigo in MODULOS_BETA,
         })
 
     if empresa is not None:
@@ -249,6 +257,7 @@ def construir_lanzador(request, apps):
             'codigo': codigo, 'nombre': meta['nombre'], 'icono': meta['icono'], 'clases': meta['clases'],
             'descripcion': meta['descripcion'], 'estado': estado,
             # `resalte`: parte final del nombre que la tarjeta destaca (p. ej. «con IA»); `nombre_base` es el resto.
+            'beta': codigo in MODULOS_BETA,
             'resalte': meta.get('resalte', ''), 'nombre_base': meta['nombre'].removesuffix(meta.get('resalte', '')).rstrip(),
             # `accion`: la tarjeta no navega, abre la ventana flotante (el href queda como respaldo sin JS).
             'accion': meta.get('accion', '') if estado == 'disponible' else '',

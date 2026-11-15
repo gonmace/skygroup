@@ -246,20 +246,20 @@ class PanelTests(TestCase):
         self.assertEqual(estados, {'reg': 'no_habilitado', 'tar': 'disponible', 'jor': 'proximamente', 'msj': 'no_habilitado',
                                    'apu': 'no_habilitado'})
 
-    def test_apu_se_anuncia_como_proximamente(self):
-        # Módulo activo y sin pantallas: tarjeta «Próximamente», sin enlace y sin entradas en la barra lateral.
+    def test_apu_se_anuncia_como_beta(self):
+        # Módulo disponible y en pruebas: tarjeta con la cinta «Beta» (ya no «Próximamente») y con enlace.
         Empresa.objects.filter(pk=self.a.pk).update(modulos=['tar', 'apu'])
         from django.core.cache import cache
         cache.clear()
         self.client.force_login(self.pmo)
         r = self.client.get('/tekon/')
         tarjeta = next(t for t in r.context['lanzador_modulos'] if t['codigo'] == 'apu')
-        self.assertEqual((tarjeta['estado'], tarjeta['url'], tarjeta['nombre']),
-                         ('proximamente', '', 'APU IA'))
+        self.assertEqual((tarjeta['estado'], tarjeta['nombre'], tarjeta['beta']), ('disponible', 'APU IA', True))
+        self.assertTrue(tarjeta['url'])
         self.assertContains(r, 'Análisis de Precios Unitarios')
         self.assertContains(r, 'class="mod-ia"')                  # «con IA» resaltado dentro del título
-        self.assertContains(r, '<span class="mod-cinta">Próximamente</span>')   # cinta en la esquina de la tarjeta
-        self.assertNotContains(r, 'badge badge-ghost badge-sm">Próximamente')
+        self.assertContains(r, '<span class="mod-cinta">Beta</span>')
+        self.assertNotContains(r, 'Próximamente')
 
     def test_cada_modulo_tiene_su_propio_color_pastel(self):
         self.vaciar_modulo('jor')

@@ -1,0 +1,62 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block page_title %}Incidencias · {{ proyecto.nombre }}{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div>
+  <a href="{% url 'apu_catalogo:proyectos' %}" class="inline-flex items-center gap-1 text-sm text-base-content/60 hover:text-base-content">{% include "components/icon.html" with name="chevron-left" cls="size-4" %} Proyectos con APU</a>
+  <h1 class="mt-1 text-2xl font-semibold">Incidencias de «{{ proyecto.nombre }}»</h1>
+  <p class="mt-1 max-w-3xl text-sm text-base-content/60">Ajusta los porcentajes y factores del perfil <strong>solo para este proyecto</strong>. Los demás proyectos y el perfil base no cambian. El precio de los {{ n_apu }} APU del proyecto se recalcula al guardar; no se descuentan créditos.</p>
+</div>
+
+<form method="post" class="space-y-6">{% csrf_token %}
+  {% if errores.general %}<div role="alert" class="alert alert-error alert-soft text-sm">{{ errores.general }}</div>{% endif %}
+  {% if huerfanos %}<div role="alert" class="alert alert-warning alert-soft text-sm">Estos ajustes ya no existen en el perfil base y se ignoran: {{ huerfanos|join:", " }}.</div>{% endif %}
+
+  <section class="card bg-base-100"><div class="card-body gap-4 p-5">
+    <label class="flex max-w-md flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Perfil de cálculo base</span>
+      <select name="perfil" class="select select-bordered select-sm w-full">
+        {% for p in perfiles %}<option value="{{ p.pk }}" {% if p.pk == perfil.pk %}selected{% endif %}>{{ p.nombre }}{% if p.es_plantilla %} (plantilla){% endif %} · {{ p.moneda }}</option>{% endfor %}
+      </select>
+      <span class="text-xs text-base-content/50">Si lo cambias, pulsa «Probar» para ver sus líneas.</span></label>
+
+    <div class="table-card">
+      <table class="table">
+        <thead><tr><th>Concepto</th><th class="text-right">Perfil base</th><th class="w-40">En este proyecto</th><th></th></tr></thead>
+        <tbody>
+        {% for l in lineas %}
+          <tr>
+            <td>{{ l.nombre }} <span class="font-mono text-xs text-base-content/50">{{ l.cod }}</span>{% if l.cod in ajustados %} <span class="badge badge-warning badge-soft badge-sm ml-1">Ajustado</span>{% endif %}</td>
+            <td class="text-right tabular-nums text-base-content/70">{{ l.base_txt }}{% if l.es_pct %} %{% else %} ×{% endif %}</td>
+            <td>
+              <div class="flex items-center gap-1">
+                <input name="aj_{{ l.cod }}" value="{{ l.valor_txt }}" inputmode="decimal" class="input input-bordered input-sm w-24 text-right tabular-nums {% if l.error %}input-error{% endif %}" aria-label="{{ l.nombre }}" data-base="{{ l.base_txt }}">
+                <span class="text-sm text-base-content/60">{% if l.es_pct %}%{% else %}×{% endif %}</span>
+              </div>
+              {% if l.error %}<p class="mt-1 text-xs text-error">{{ l.error }}</p>{% endif %}
+            </td>
+            <td class="w-px"><button type="button" class="btn btn-ghost btn-xs" data-restablecer title="Volver al valor del perfil">Restablecer</button></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div></section>
+
+  {% if vista_previa %}
+  <section class="card bg-base-100"><div class="card-body gap-3 p-5">
+    <h2 class="font-semibold">Vista previa del precio unitario</h2>
+    <div class="table-card"><table class="table table-sm">
+      <thead><tr><th>APU</th><th class="text-right">Antes</th><th class="text-right">Con estos ajustes</th></tr></thead>
+      <tbody>{% for v in vista_previa %}<tr><td>{{ v.item.codigo }} · {{ v.item.descripcion }}</td><td class="text-right tabular-nums">{{ v.antes|default:"—" }} {{ v.moneda }}</td><td class="text-right font-semibold tabular-nums">{{ v.despues|default:"—" }} {{ v.moneda }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </div></section>
+  {% endif %}
+
+  <div class="flex flex-wrap justify-end gap-2">
+    <button name="accion" value="probar" class="btn btn-sm">Probar</button>
+    <button name="accion" value="guardar" class="btn btn-primary btn-sm" data-confirmar-envio="Cambia el precio de los {{ n_apu }} APU de este proyecto.">Guardar incidencias</button>
+  </div>
+</form>
+{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}" defer></script>{% endblock %}

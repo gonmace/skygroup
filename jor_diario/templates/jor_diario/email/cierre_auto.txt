@@ -1,0 +1,12 @@
+{% autoescape off %}Hola {{ nombre }},
+
+Tu jornada del {{ fecha }} quedó abierta y el sistema la cerró automáticamente a las 17:00.
+Es la {{ n }}.ª vez este mes ({{ mes }}) que una jornada tuya se cierra así.
+
+Una jornada cerrada por el sistema queda como «Incompleta» y aparece como «No cerró jornada»
+en tus reportes y certificados, así que las horas registradas pueden no reflejar lo que trabajaste.
+
+Este es un aviso automático; no hace falta responderlo.
+
+SkyLog
+{% endautoescape %}

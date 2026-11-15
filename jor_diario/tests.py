@@ -176,6 +176,53 @@ class ServiciosTests(JornadasBase):
         call_command('cerrar_jornadas_vencidas')
 
 
+    def _vencidas(self, perfil, dias_atras):
+        for d in dias_atras:
+            dia = timezone.make_aware(datetime.combine(timezone.localdate() - timedelta(days=d), datetime.min.time()))
+            Jornada.objects.create(empresa=self.a, perfil=perfil, inicio=dia.replace(hour=9))
+
+    def _antiguas_auto(self, perfil, cuantas, meses_atras):
+        base = timezone.localdate().replace(day=1)
+        for _ in range(meses_atras):
+            base = (base - timedelta(days=1)).replace(day=1)
+        for i in range(cuantas):
+            ini = timezone.make_aware(datetime.combine(base + timedelta(days=i), datetime.min.time())).replace(hour=9)
+            Jornada.objects.create(empresa=self.a, perfil=perfil, inicio=ini, fin=ini.replace(hour=17),
+                                   estado='incompleta', cierre_auto=True, duracion_min=480)
+
+    def test_correo_desde_el_tercer_cierre_automatico_del_mes(self):
+        from django.core import mail
+        p = self.perfil(self.emp)
+        hoy = timezone.localdate()
+        # Mes pasado: dos cierres automáticos que NO cuentan para este mes.
+        self._antiguas_auto(p, 2, 1)
+        base = timezone.make_aware(datetime.combine(hoy.replace(day=1), datetime.min.time())).replace(hour=9)
+        for i in range(3):  # una abierta por perfil: el cron las cierra noche a noche
+            Jornada.objects.create(empresa=self.a, perfil=p, inicio=base + timedelta(days=i))
+            servicios.cerrar_vencidas(ahora=base + timedelta(days=i + 1))
+        notifs = list(Notificacion.objects.filter(destinatario=self.emp).order_by('id').values_list('mensaje', flat=True))
+        self.assertEqual(len(notifs), 3)
+        self.assertNotIn('vez este mes', notifs[0])
+        self.assertIn('(2.ª vez este mes)', notifs[1])
+        self.assertIn('(3.ª vez este mes)', notifs[2])
+        self.assertEqual(len(mail.outbox), 1)
+        msg = mail.outbox[0]
+        self.assertEqual(msg.to, [self.emp.email])
+        self.assertEqual(msg.cc, ['rrhh@redlinegs.com'])
+        # La copia sale de Plataforma → Correo: otra dirección la reemplaza y vacía = sin copia.
+        from cuentas.models import CorreoConfig
+        CorreoConfig(copia_rrhh_cierre_auto='otra@x.com').save()
+        Jornada.objects.create(empresa=self.a, perfil=p, inicio=base + timedelta(days=3))
+        servicios.cerrar_vencidas(ahora=base + timedelta(days=4))
+        self.assertEqual(mail.outbox[1].cc, ['otra@x.com'])
+        CorreoConfig(copia_rrhh_cierre_auto='').save()
+        Jornada.objects.create(empresa=self.a, perfil=p, inicio=base + timedelta(days=4))
+        servicios.cerrar_vencidas(ahora=base + timedelta(days=5))
+        self.assertEqual(mail.outbox[2].cc, [])
+        self.assertIn('3.ª vez este mes', msg.subject)
+        self.assertTrue(msg.body.rstrip().endswith('SkyLog'))
+
+
 class VistasTests(JornadasBase):
     def test_iniciar_y_finalizar_desde_la_web(self):
         r = self.ir(self.emp, '')

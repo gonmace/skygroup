@@ -380,6 +380,10 @@ class CorreoConfig(models.Model):
         help_text='Desde dónde salen los correos (si la empresa no define uno propio en su Marca). Muchos proveedores '
                   'solo aceptan remitentes de su dominio.')
     remitente_nombre = models.CharField('Nombre del remitente', max_length=100, blank=True)
+    copia_rrhh_cierre_auto = models.EmailField(
+        'Copia a RR. HH. por cierres automáticos de jornada', blank=True, default='rrhh@redlinegs.com',
+        help_text='Recibe copia del correo que se manda a quien deja la jornada sin cerrar 3 o más veces en el mes. '
+                  'Vacío = el correo sale sin copia.')
     actualizada = models.DateTimeField(auto_now=True)
 
     class Meta:

@@ -9,7 +9,7 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "375efd15-6830-45e6-a4f6-5b050c5349f2",
+      "id": "c7f8292a-0c69-4a44-9963-71d2637b3a1b",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -17,7 +17,7 @@
         0,
         300
       ],
-      "webhookId": "0ce976d2-3e3f-4fa5-ad14-d1d49392de5a",
+      "webhookId": "a328b3f4-1e14-4a24-a6a0-bb2ceb7e0ece",
       "notes": "Lo llama skygroup (apu_generador/ia.py) con el payload descrito en n8n/workflows/README.md."
     },
     {
@@ -25,9 +25,9 @@
         "assignments": {
           "assignments": [
             {
-              "id": "b0695e67-cb7e-463d-b08c-67560584f8a8",
+              "id": "a39eb138-062b-4223-b7c7-103c53785c34",
               "name": "system_prompt",
-              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Recibes un APU ya armado (materiales, mano de obra y equipos por UNA unidad de la actividad) y una instrucción de la persona para modificarlo.\n\nDevuelve el APU COMPLETO modificado, con la misma estructura: «materiales», «mano_obra» (con «rendimiento» y «horas_jornada») y «equipos». Cambia solo lo que la instrucción pide y mantén lo demás igual.\n- Conserva exactamente la descripción de las filas que no cambian. Usa los términos del catálogo de la empresa cuando existan (codigo_catalogo) y marca nuevo=true solo si agregas un término que no está en el catálogo.\n- Materiales y equipos: cantidad por unidad de la actividad (y desperdicio_pct en materiales). Mano de obra: «personas» por oficio y el rendimiento de la cuadrilla.\n- Si la instrucción es ambigua, aplica la interpretación más razonable y explícala en «resumen_cambios».\n- «resumen_cambios»: 2-4 frases claras con lo que cambiaste.\nResponde SOLO con el JSON pedido. Los números van sin unidades.",
+              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Recibes un APU ya armado (materiales, mano de obra y equipos por UNA unidad de la actividad) y una instrucción de la persona para modificarlo.\n\nDevuelve el APU COMPLETO modificado, con la misma estructura: «materiales», «mano_obra» (con «rendimiento» y «horas_jornada») y «equipos». Cambia solo lo que la instrucción pide y mantén lo demás igual.\n- Conserva exactamente la descripción de las filas que no cambian. Usa los términos del catálogo de la empresa cuando existan (codigo_catalogo) y marca nuevo=true solo si agregas un término que no está en el catálogo.\n- Materiales y equipos: cantidad por unidad de la actividad (y desperdicio_pct en materiales). Mano de obra: «personas» por oficio y el rendimiento de la cuadrilla.\n- Si la instrucción es ambigua, aplica la interpretación más razonable y explícala en «resumen_cambios».\n- TÍTULO: devuelve «actividad» con el título del APU. Si tu modificación cambia lo que el título describe (resistencia, elemento, material, dimensiones, espesor, sistema…), ajústalo para que siga siendo fiel a la composición resultante (p. ej. «Hormigón H21 en columnas» → «Hormigón H25 en vigas»). Si no cambia lo que describe, devuelve el MISMO título exacto. Devuelve SOLO el título: sin la unidad, sin paréntesis ni aclaraciones, con el mismo estilo del original; no agregues datos que la composición no respalde.\n- «resumen_cambios»: 2-4 frases claras con lo que cambiaste (incluye el cambio de título si lo hubo).\nResponde SOLO con el JSON pedido. Los números van sin unidades.",
               "type": "string"
             }
           ]
@@ -35,7 +35,7 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "518cf6e9-c86e-469c-a913-ab0f97f4d711",
+      "id": "90c6998a-c3f4-48c1-ad5f-3f122d08e558",
       "name": "Prompt · Modificar",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -55,7 +55,7 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "d7c8c6bd-596a-4421-97dd-b096fe8d30ff",
+      "id": "15bb59fd-bcc1-443c-9fbd-e74e2f3417ec",
       "name": "Modelo principal",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
@@ -73,9 +73,9 @@
     {
       "parameters": {
         "schemaType": "manual",
-        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"materiales\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"mano_obra\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        },\n        \"rendimiento\": {\n          \"type\": \"number\"\n        },\n        \"horas_jornada\": {\n          \"type\": \"number\"\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"equipos\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"resumen_cambios\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"materiales\",\n    \"mano_obra\",\n    \"equipos\",\n    \"resumen_cambios\"\n  ]\n}"
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"materiales\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"mano_obra\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        },\n        \"rendimiento\": {\n          \"type\": \"number\"\n        },\n        \"horas_jornada\": {\n          \"type\": \"number\"\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"equipos\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"actividad\": {\n      \"type\": \"string\"\n    },\n    \"resumen_cambios\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"materiales\",\n    \"mano_obra\",\n    \"equipos\",\n    \"actividad\",\n    \"resumen_cambios\"\n  ]\n}"
       },
-      "id": "2c0684f2-9b7f-4b6a-a349-c042ed469bbc",
+      "id": "994eb4e8-6714-4b69-a1f4-71919c70de49",
       "name": "Esquema · APU modificado",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
@@ -94,7 +94,7 @@
           "systemMessage": "={{ $json.system_prompt }}"
         }
       },
-      "id": "d8dc177d-e931-47c0-bbf6-c551d6594a8d",
+      "id": "c8bafe49-ad9f-4c64-895d-842df8e0eb9a",
       "name": "Agente · Modificar APU",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -109,7 +109,7 @@
         "responseBody": "={{ { ...$json.output, \"ejecucion_id\": $execution.id } }}",
         "options": {}
       },
-      "id": "7b9dca0e-c035-4504-8cc2-cc8f07c850e3",
+      "id": "6448f054-cdd5-4f33-bdfb-433ad32c7b34",
       "name": "Responder",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
@@ -126,7 +126,7 @@
         "width": 560,
         "color": 4
       },
-      "id": "f1182b32-414b-431b-b878-f5c784116adf",
+      "id": "1a1d378d-0577-4b61-8215-15c2a57647d0",
       "name": "Nota · Modificar con IA",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -200,7 +200,7 @@
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all"
   },
-  "versionId": "19bd6b57-a1cf-4e83-ae8d-a5b07e795c28",
+  "versionId": "86c26733-ffae-436b-b839-b58b3dfdd6e4",
   "meta": {
     "templateCredsSetupCompleted": true
   },

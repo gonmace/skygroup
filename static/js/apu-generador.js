@@ -496,7 +496,8 @@
         window.confirmarUI('Se guardará el APU en el proyecto y se descontará 1 crédito (si aún no se cobró).', { titulo: 'Guardar APU', aceptar: 'Guardar APU' }).then(function (ok) {
           if (!ok) return;
           bloquear(raiz, true);
-          post(cfg.url_guardar, {}).then(function (res) {
+          var titulo = raiz.querySelector('[data-actividad]');
+          post(cfg.url_guardar, { actividad: titulo ? titulo.value : '' }).then(function (res) {
             bloquear(raiz, false);
             if (!res.ok) { avisar(res.data.message, 'error'); return; }
             avisar(res.data.message, 'success');

@@ -368,6 +368,12 @@ def guardar_apu(request, pk):
     borrador = _borrador(request, pk)
     if borrador.paso < 5:
         return _json(False, 'Termina los pasos anteriores primero.', 409, continuar_url=_url_paso(borrador))
+    titulo = ' '.join(str(_datos(request).get('actividad') or '').split())
+    if len(titulo) > 200:
+        return _json(False, 'El título no puede superar los 200 caracteres.', 400)
+    if titulo and titulo != borrador.actividad:        # la persona verificó o corrigió el título en el paso 5
+        borrador.actividad = titulo
+        borrador.save(update_fields=['actividad', 'actualizado'])
     try:
         item = asistente.guardar_apu(borrador, request.user)
     except creditos.SinCreditos as e:
@@ -432,6 +438,7 @@ def _proponer_modificacion(request, borrador, instruccion):
     propuesta = {t: ia.normalizar_propuesta(crudo.get(t) or {}, t, con_defectos=False) for t in ia.TIPOS_INSUMO}
     for v in propuesta.values():
         v.pop('consultas', None)
+    propuesta['actividad'] = asistente.limpiar_titulo(crudo.get('actividad'))      # el título también puede cambiar (se revisa)
     if not asistente.diferencias(borrador, propuesta):
         creditos.revertir(request.user, request.empresa, ConsumoAPU.Tipo.MODIFICAR, referencia)
         return 'La IA no encontró cambios que aplicar con esa instrucción. No se descontó ningún crédito.', 200

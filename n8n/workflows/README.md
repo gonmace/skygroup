@@ -49,7 +49,10 @@ Un segundo agente (modelo mini) deja `check:false` en las filas no esenciales.
 
 ### `apu-modificar`
 Entrada: `{instruccion, actividad, unidad, proyecto, apu:{materiales,mano_obra,equipos}, catalogo, catalogo_items}`.
-Salida: `{materiales:{filas}, mano_obra:{filas, rendimiento, horas_jornada}, equipos:{filas}, resumen_cambios, ejecucion_id}`.
+Salida: `{materiales:{filas}, mano_obra:{filas, rendimiento, horas_jornada}, equipos:{filas}, actividad, resumen_cambios,
+ejecucion_id}`. `actividad` es el título del APU: la IA lo ajusta si la instrucción cambia lo que describe (p. ej. «Hormigón H21
+en columnas» → «Hormigón H25 en vigas») y lo devuelve igual si no; solo el título, sin unidad ni paréntesis. En skygroup es un cambio
+más de la página de revisión, y el título también se puede editar en el paso 5.
 
 ### `apu-tarifas`
 Entrada: `{modelos:[…]}`. Salida: `{tarifas:[{modelo, entrada_usd_mtok, salida_usd_mtok}], fuente, ejecucion_id}`.

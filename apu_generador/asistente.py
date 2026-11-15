@@ -392,6 +392,12 @@ def crear_borrador_reutilizado(item, proyecto, user, empresa, *, edita_el_mismo=
         clasificacion={'categoria': item.categoria}, apu_guardado=item if edita_el_mismo else None, **pasos)
 
 
+def limpiar_titulo(texto):
+    """El título propuesto por la IA, sin la unidad ni aclaraciones entre paréntesis al final (p. ej. «(unidad: m3)»)."""
+    texto = re.sub(r'\s*\((?:unidad|un\.?|u\.)[^)]*\)\s*$', '', str(texto or ''), flags=re.IGNORECASE)
+    return re.sub(r'\s+', ' ', texto).strip()[:200]
+
+
 def _clave_fila(fila):
     return clave_texto(fila.get('descripcion'))
 
@@ -400,6 +406,10 @@ def diferencias(borrador, propuesta):
     """Cambios entre lo actual y lo propuesto por `apu-modificar`: agregados, quitados y cambiados, por paso.
     Cada cambio lleva un `id` estable para que la persona marque cuáles aplica."""
     cambios = []
+    nuevo_titulo = limpiar_titulo(propuesta.get('actividad'))
+    if nuevo_titulo and clave_texto(nuevo_titulo) != clave_texto(borrador.actividad):
+        cambios.append({'id': 'actividad', 'tipo': 'actividad', 'clase': 'cambiado', 'anterior': borrador.actividad,
+                        'nuevo': nuevo_titulo, 'texto': 'Cambiar el título del APU'})
     for tipo in ia.TIPOS_INSUMO:
         actuales = {_clave_fila(f): f for f in borrador.filas(tipo)}
         nuevas = {_clave_fila(f): f for f in (propuesta.get(tipo) or {}).get('filas', [])}
@@ -430,6 +440,9 @@ def aplicar_cambios(borrador, propuesta, seleccionados):
     """Aplica al borrador solo los cambios marcados. Las filas nuevas pasan por el vocabulario de la empresa."""
     por_id = {c['id']: c for c in diferencias(borrador, propuesta)}
     elegidos = [por_id[i] for i in seleccionados if i in por_id]
+    for c in elegidos:
+        if c['id'] == 'actividad':
+            borrador.actividad = c['nuevo']
     for tipo in ia.TIPOS_INSUMO:
         filas = list(borrador.filas(tipo))
         for c in [c for c in elegidos if c['tipo'] == tipo and 'fila' in c]:

@@ -10,6 +10,13 @@
   <div role="alert" class="alert alert-info alert-soft text-sm">La IA propuso cambios que aún no revisaste. <a class="link font-medium" href="{% url 'apu_generador:revision' borrador.pk %}">Revisar cambios</a></div>
   {% endif %}
 
+  <section class="card bg-base-100"><div class="card-body gap-2 p-5">
+    <label class="flex flex-col gap-1"><span class="text-sm font-semibold">Título del APU</span>
+      <input data-actividad maxlength="200" value="{{ borrador.actividad }}" class="input input-bordered input-sm w-full" aria-describedby="ayuda-titulo"></label>
+    <p id="ayuda-titulo" class="text-xs text-base-content/60">Verifica que el título describa lo que hace este APU: si cambiaste la resistencia, el elemento, el material o las dimensiones, ajústalo. Se guarda al guardar el APU.
+      {% if borrador.origen %}<span class="block">Reutilizado de <a class="link" href="{% url 'apu_catalogo:item_detalle' borrador.origen_id %}">{{ borrador.origen.codigo }}</a> · «{{ borrador.origen.descripcion }}».</span>{% endif %}</p>
+  </div></section>
+
   <section class="card bg-base-100"><div class="card-body gap-4 p-5">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
@@ -108,4 +115,4 @@
 </dialog>
 <script type="application/json" id="apu-cfg">{"hoy": "{{ hoy }}", "region": "{{ borrador.region|escapejs }}", "url_precio": "{% url 'apu_generador:precio' borrador.pk %}", "url_guardar": "{% url 'apu_generador:guardar_apu' borrador.pk %}", "url_sugerir": "{% url 'apu_generador:sugerir_precios' borrador.pk %}"}</script>
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=6" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=7" defer></script>{% endblock %}

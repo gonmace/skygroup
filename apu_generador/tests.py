@@ -958,6 +958,99 @@ class ReutilizarTests(Base):
         self.assertFalse(APUBorrador.objects.filter(modo='reutilizar').exists())
 
 
+class TituloAlReutilizarTests(Base):
+    """Al reutilizar o modificar un APU se verifica su título: la IA lo ajusta al prompt y la persona lo revisa."""
+
+    def setUp(self):
+        super().setUp()
+        b = self.borrador_en_paso5(actividad='Hormigón H21 en columnas')
+        self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {}, self.su)
+        self.item = ItemModelo.objects.get()
+        self.destino = Proyecto.objects.create(empresa=self.a, nombre='Colegio', descripcion=DESCRIPCION)
+        ProyectoAPU.objects.create(proyecto=self.destino, perfil=self.perfil)
+
+    def propuesta(self, titulo, cantidad='38'):
+        return {'actividad': titulo, 'resumen_cambios': 'x',
+                'materiales': {'filas': [{'descripcion': 'Ladrillo 6H', 'unidad': 'pza', 'cantidad': cantidad, 'desperdicio_pct': '5'}]},
+                'mano_obra': {'filas': [{'descripcion': 'Albañil', 'personas': '2'}]},
+                'equipos': {'filas': [{'descripcion': 'Mezcladora', 'cantidad': '0.1'}]}}
+
+    def reutilizar(self, titulo, instruccion='cambia a vigas H25'):
+        with mock.patch(LLAMAR, return_value=self.propuesta(titulo)):
+            r = self.json(f'/tekon/apu/lista/{self.item.pk}/reutilizar/', {'proyecto': self.destino.pk, 'instruccion': instruccion}, self.su)
+        return r, APUBorrador.objects.get(modo='reutilizar')
+
+    def test_el_titulo_propuesto_aparece_como_un_cambio_mas_para_revisar(self):
+        r, b = self.reutilizar('Hormigón H25 en vigas')
+        self.assertEqual(r.status_code, 200)
+        cambios = asistente.diferencias(b, b.instrucciones[0]['propuesta'])
+        self.assertEqual(cambios[0]['id'], 'actividad')
+        self.assertEqual((cambios[0]['anterior'], cambios[0]['nuevo']), ('Hormigón H21 en columnas', 'Hormigón H25 en vigas'))
+        self.client.force_login(self.su)
+        self.assertContains(self.client.get(r.json()['continuar_url']), '«Hormigón H25 en vigas»')
+
+    def test_aplicar_el_cambio_de_titulo_lo_lleva_al_apu_guardado(self):
+        r, b = self.reutilizar('Hormigón H25 en vigas')
+        self.client.force_login(self.su)
+        self.client.post(r.json()['continuar_url'], {'cambio': ['actividad']})
+        b.refresh_from_db()
+        self.assertEqual(b.actividad, 'Hormigón H25 en vigas')
+        self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {'actividad': b.actividad})
+        copia = ItemModelo.objects.get(proyecto=self.destino)
+        self.assertEqual(copia.descripcion, 'Hormigón H25 en vigas')
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.descripcion, 'Hormigón H21 en columnas')                       # el original no cambia
+
+    def test_si_no_se_marca_el_cambio_el_titulo_se_conserva(self):
+        r, b = self.reutilizar('Hormigón H25 en vigas')
+        self.client.force_login(self.su)
+        self.client.post(r.json()['continuar_url'], {'cambio': []})
+        b.refresh_from_db()
+        self.assertEqual(b.actividad, 'Hormigón H21 en columnas')
+
+    def test_un_titulo_que_solo_cambia_la_unidad_o_el_formato_no_es_un_cambio(self):
+        for titulo in ('Hormigón H21 en columnas (unidad: m3)', '  hormigón  h21 en  COLUMNAS ', 'Hormigón H21 en columnas (un. m3)', ''):
+            self.assertEqual(asistente.diferencias(self.borrador(actividad='Hormigón H21 en columnas'), {'actividad': titulo}), [], titulo)
+        self.assertEqual(asistente.limpiar_titulo('Muro de ladrillo (unidad: m2)'), 'Muro de ladrillo')
+        self.assertEqual(asistente.limpiar_titulo('Muro (ladrillo visto) e=12'), 'Muro (ladrillo visto) e=12')   # otros paréntesis se respetan
+        self.assertEqual(len(asistente.limpiar_titulo('x' * 500)), 200)
+
+    def test_cambiar_solo_el_titulo_ya_cuenta_como_una_modificacion(self):
+        with mock.patch(LLAMAR, return_value=self.propuesta('Hormigón H25 en vigas')):         # la composición propuesta es igual a la actual
+            r = self.json(f'/tekon/apu/lista/{self.item.pk}/reutilizar/', {'proyecto': self.destino.pk, 'instruccion': 'cambia a vigas H25'}, self.coord)
+        b = APUBorrador.objects.get(modo='reutilizar')
+        self.assertEqual([c['id'] for c in asistente.diferencias(b, b.instrucciones[0]['propuesta'])][:1], ['actividad'])
+        self.assertIn('/revision/', r.json()['continuar_url'])
+        self.assertEqual(sorted(ConsumoAPU.objects.values_list('tipo', flat=True)), ['modificar', 'reutilizar'])   # se cobró: hubo un cambio real
+
+    def test_sin_cambios_ni_de_titulo_no_cobra(self):
+        b = asistente.crear_borrador_reutilizado(self.item, self.proyecto, self.su, self.a, edita_el_mismo=True)
+        igual = {t: {'filas': getattr(b, t)['filas']} for t in ('materiales', 'mano_obra', 'equipos')}
+        igual['mano_obra'].update(rendimiento=b.mano_obra['rendimiento'], horas_jornada=b.mano_obra['horas_jornada'])
+        igual['actividad'] = 'Hormigón H21 en columnas'
+        with mock.patch(LLAMAR, return_value=igual):
+            r = self.json(f'/tekon/apu/borrador/{b.pk}/modificar/', {'instruccion': 'no cambies nada'}, self.su)
+        self.assertTrue(r.json().get('sin_cambios'))
+
+    def test_el_paso_5_deja_verificar_y_editar_el_titulo(self):
+        r = self.json(f'/tekon/apu/lista/{self.item.pk}/reutilizar/', {'proyecto': self.destino.pk}, self.su)
+        b = APUBorrador.objects.get(modo='reutilizar')
+        pag = self.client.get(f'/tekon/apu/borrador/{b.pk}/resultado/')
+        self.assertContains(pag, 'data-actividad')
+        self.assertContains(pag, 'Título del APU')
+        self.assertContains(pag, f'Reutilizado de')
+        self.assertContains(pag, 'Hormigón H21 en columnas')
+        self.assertEqual(self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {'actividad': 'x' * 201}).status_code, 400)
+        self.assertEqual(self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {'actividad': '  Hormigón   H25 en   vigas '}).status_code, 200)
+        self.assertEqual(ItemModelo.objects.get(proyecto=self.destino).descripcion, 'Hormigón H25 en vigas')
+
+    def test_un_titulo_vacio_conserva_el_actual(self):
+        self.json(f'/tekon/apu/lista/{self.item.pk}/reutilizar/', {'proyecto': self.destino.pk}, self.su)
+        b = APUBorrador.objects.get(modo='reutilizar')
+        self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {'actividad': '   '})
+        self.assertEqual(ItemModelo.objects.get(proyecto=self.destino).descripcion, 'Hormigón H21 en columnas')
+
+
 class CalculoTests(Base):
     def test_sub_items_desperdicio_region_e_insumos_sin_precio(self):
         cemento = self.insumo('MAT-1', 'Cemento', unidad='kg', precio='2')

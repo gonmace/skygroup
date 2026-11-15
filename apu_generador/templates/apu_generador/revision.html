@@ -22,7 +22,8 @@
               {{ c.texto }}
             </td>
             <td class="text-sm text-base-content/70">
-              {% if c.fila %}
+              {% if c.id == 'actividad' %}«{{ c.anterior }}» → <strong class="text-base-content">«{{ c.nuevo }}»</strong>
+              {% elif c.fila %}
                 {% if c.fila.personas %}{{ c.fila.personas }} persona(s){% elif c.fila.cantidad %}{{ c.fila.cantidad }} {{ c.fila.unidad }}{% endif %}
                 {% if c.anterior %}<span class="text-base-content/50"> (antes {% if c.anterior.personas %}{{ c.anterior.personas }}{% else %}{{ c.anterior.cantidad }}{% endif %}{% if c.anterior.desperdicio_pct %}, desperdicio {{ c.anterior.desperdicio_pct }} %{% endif %})</span>{% endif %}
                 {% if c.fila.desperdicio_pct and c.fila.desperdicio_pct != '0' %} · desperdicio {{ c.fila.desperdicio_pct }} %{% endif %}

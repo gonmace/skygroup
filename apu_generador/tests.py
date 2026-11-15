@@ -597,6 +597,15 @@ class PreciosEstimadosTests(Base):
             self.assertEqual(self.json(self.url, {}, self.coord).status_code, 502)
         self.assertEqual(self.json(self.url, {}, self.obs).status_code, 403)
 
+    def test_los_numeros_nunca_salen_en_notacion_cientifica(self):
+        r = ia.normalizar_precios({'precios': [{'id': 1, 'precio': 830, 'moneda': 'BOB', 'confianza': 'alta'},
+                                               {'id': 2, 'precio': 1200000, 'moneda': 'BOB', 'confianza': 'alta'},
+                                               {'id': 3, 'precio': 85.50, 'moneda': 'BOB', 'confianza': 'alta'},
+                                               {'id': 4, 'precio': 0.0000012, 'moneda': 'BOB', 'confianza': 'alta'}]}, {1, 2, 3, 4}, 'BOB')
+        self.assertEqual([r[i]['precio'] for i in (1, 2, 3, 4)], ['830', '1200000', '85.5', '0.0000012'])
+        fila = ia.normalizar_fila({'descripcion': 'Ladrillo', 'unidad': 'pza', 'cantidad': 100, 'desperdicio_pct': 10}, 'materiales')
+        self.assertEqual((fila['cantidad'], fila['desperdicio_pct']), ('100', '10'))
+
     def test_normalizar_precios(self):
         r = ia.normalizar_precios({'precios': [{'id': '7', 'precio': '1,5', 'moneda': 'clp', 'confianza': 'rara'}, 'basura', {'id': None}]}, {7}, 'BOB')
         self.assertEqual(r, {7: {'precio': '1.5', 'moneda': 'CLP', 'confianza': 'baja', 'fuente': '', 'nota': ''}})

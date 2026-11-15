@@ -61,6 +61,11 @@ def numero(valor, defecto=None):
         return defecto
 
 
+def texto_numero(valor):
+    """Un Decimal como texto normal, sin ceros de más ni notación científica (830, no 8.3E+2)."""
+    return format(valor.normalize(), 'f') if valor else '0'
+
+
 def clave_texto(texto):
     """Para comparar términos: sin tildes, en minúsculas y con los espacios normalizados."""
     sin = unicodedata.normalize('NFKD', str(texto or '')).encode('ascii', 'ignore').decode()
@@ -87,11 +92,11 @@ def normalizar_fila(crudo, tipo):
     if crudo.get('codigo_subitem'):
         fila['codigo_subitem'] = _texto(crudo.get('codigo_subitem'), 30)
     if tipo == 'mano_obra':
-        fila['personas'] = str(numero(crudo.get('personas'), Decimal(1)))
+        fila['personas'] = texto_numero(numero(crudo.get('personas'), Decimal(1)))
     else:
-        fila['cantidad'] = str(numero(crudo.get('cantidad'), Decimal(0)))
+        fila['cantidad'] = texto_numero(numero(crudo.get('cantidad'), Decimal(0)))
     if tipo == 'materiales':
-        fila['desperdicio_pct'] = str(numero(crudo.get('desperdicio_pct'), Decimal(0)))
+        fila['desperdicio_pct'] = texto_numero(numero(crudo.get('desperdicio_pct'), Decimal(0)))
     return fila
 
 
@@ -141,7 +146,7 @@ def normalizar_propuesta(datos, tipo, con_defectos=True):
         for campo, defecto in (('rendimiento', None), ('horas_jornada', Decimal(8) if con_defectos else None)):
             valor = numero(datos.get(campo), defecto)
             if valor is not None and valor > 0:
-                propuesta[campo] = str(valor)
+                propuesta[campo] = texto_numero(valor)
     return propuesta
 
 
@@ -160,7 +165,7 @@ def normalizar_precios(datos, permitidos, moneda):
         if pk not in permitidos or precio is None or precio <= 0:
             continue
         confianza = str(c.get('confianza') or '').lower()
-        salida[pk] = {'precio': str(precio.normalize() if precio == precio.to_integral() else precio), 'moneda': (str(c.get('moneda') or moneda)[:3] or moneda).upper(),
+        salida[pk] = {'precio': texto_numero(precio), 'moneda': (str(c.get('moneda') or moneda)[:3] or moneda).upper(),
                       'confianza': confianza if confianza in ('alta', 'media', 'baja') else 'baja',
                       'fuente': _texto(c.get('fuente'), 200), 'nota': _texto(c.get('nota'), 300)}
     return salida

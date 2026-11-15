@@ -15,6 +15,18 @@ document.addEventListener('change', function (e) {
   if (form.requestSubmit) form.requestSubmit(); else form.submit();
 });
 
+// Interruptor «aceptar imágenes sin fecha ni ubicación» (solo administradores): se recuerda mientras dure la pestaña,
+// porque la página se recarga tras cada subida.
+document.addEventListener('DOMContentLoaded', function () {
+  var tg = document.querySelector('[data-sin-metadatos]');
+  if (!tg) return;
+  var clave = 'sin-metadatos:' + location.pathname;
+  try { tg.checked = sessionStorage.getItem(clave) === '1'; } catch (e) {}
+  tg.addEventListener('change', function () {
+    try { sessionStorage.setItem(clave, tg.checked ? '1' : '0'); } catch (e) {}
+  });
+});
+
 (function () {
   'use strict';
   var grid = document.querySelector('[data-fotos-grid]');

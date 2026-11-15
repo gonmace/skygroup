@@ -36,7 +36,8 @@ POR_PAGINA = 60
 MAX_ELIMINAR = 100           # por petición: el cliente envía lotes (gunicorn corta a los 60 s)
 MAX_COMPRIMIR = 25
 MAX_ZIP = 300
-CALIDAD_DEFECTO, CALIDAD_MIN, CALIDAD_MAX = 85, 10, 95
+CALIDAD_DEFECTO, CALIDAD_MIN, CALIDAD_MAX = 80, 10, 95
+LADO_DEFECTO, LADO_MIN = 8000, 1000   # lado largo máximo en px (0 = no cambiar la resolución); 8000 px ≈ 36 MP en 3:2
 CALIDAD_PNG = 85         # al convertir una PNG a JPEG nunca se baja de aquí: ya ahorra ~88 % y menos solo añade artefactos
 AHORRO_MINIMO = 0.10     # si no se ahorra al menos esto, la foto no se reescribe (solo añadiría pérdida)
 ORDENES = {
@@ -237,6 +238,7 @@ class MetadataNoConservable(Exception):
 _XMP_PNG = 'XML:com.adobe.xmp'
 _IFDS = (0x8769, 0x8825, 0xA005)                     # Exif, GPS, Interoperabilidad
 _DESPLAZAMIENTOS = {0x8769, 0x8825, 0xA005, 0x0201, 0x0202}   # punteros internos: cambian al reescribir, no son datos
+_DIMENSIONES = {0xA002, 0xA003}      # PixelXDimension/PixelYDimension: cambian a propósito al reducir la resolución
 
 
 def calidad_estimada(img):
@@ -258,7 +260,7 @@ def _exif_valores(img):
             sub = ex.get_ifd(ifd)
         except Exception:
             sub = {}
-        valores.update({(ifd, k): v for k, v in sub.items() if k not in _DESPLAZAMIENTOS})
+        valores.update({(ifd, k): v for k, v in sub.items() if k not in _DESPLAZAMIENTOS and k not in _DIMENSIONES})
     return valores
 
 
@@ -311,14 +313,28 @@ def _verificar(firma, datos):
                 raise MetadataNoConservable(clave)
 
 
-def comprimir_foto(foto, calidad):
-    """Vuelve a guardar la foto como JPEG con la calidad pedida, misma resolución y SIN perder metadata.
+def _exif_con_dimensiones(exif, tamano):
+    """EXIF con PixelXDimension/PixelYDimension al día tras reducir la resolución (el resto, intacto)."""
+    from PIL import Image
+    ex = exif if isinstance(exif, Image.Exif) else Image.Exif()
+    if not isinstance(exif, Image.Exif):
+        ex.load(exif)
+    sub = ex.get_ifd(0x8769)
+    if 0xA002 in sub or 0xA003 in sub:
+        sub[0xA002], sub[0xA003] = tamano
+    return ex
+
+
+def comprimir_foto(foto, calidad, lado_max=0):
+    """Vuelve a guardar la foto como JPEG con la calidad pedida y SIN perder metadata (la resolución solo baja si se pide `lado_max`).
 
     - Las JPEG se recomprimen; las PNG (capturas, panorámicas) se CONVIERTEN a JPEG (calidad mínima `CALIDAD_PNG`, el alfa
       se compone sobre blanco y el archivo pasa a `.jpg`).
     - Se conserva el EXIF completo (GPS y fecha incluidos), el perfil ICC, el XMP (dron), el comentario y los DPI, y se
       VERIFICA en el archivo nuevo antes de reemplazar; si algo no se pudiera mantener lanza `MetadataNoConservable` y la
       foto queda intacta.
+    - `lado_max` (px, 0 = no tocar): si el lado largo lo supera, se reduce proporcionalmente (LANCZOS) y se actualizan
+      las dimensiones del EXIF; es lo que de verdad baja el peso de las fotos de dron/panorámicas (decenas de MP).
     - No se recomprime lo que ya está en esa calidad o menos (solo añadiría pérdida) ni si no ahorra `AHORRO_MINIMO`.
     Devuelve los bytes ahorrados (0 si no se tocó). La versión nueva se escribe PRIMERO y solo después se borra la anterior."""
     from PIL import Image
@@ -328,7 +344,8 @@ def comprimir_foto(foto, calidad):
         original = f.read()
     with Image.open(io.BytesIO(original)) as img:
         es_jpeg = img.format in ('JPEG', 'MPO')
-        if es_jpeg:
+        reducir = bool(lado_max) and max(img.size) > lado_max
+        if es_jpeg and not reducir:
             previa = calidad_estimada(img)
             if previa is not None and previa <= calidad + 1:
                 return 0                                   # ya está en esa calidad o menos
@@ -341,6 +358,12 @@ def comprimir_foto(foto, calidad):
             img.paste(rgba, mask=rgba.split()[3])
         elif img.mode not in ('RGB', 'L'):
             img = img.convert('RGB')
+        if reducir:
+            img.load()
+            img = img.copy() if img.mode in ('RGB', 'L') else img
+            img.thumbnail((lado_max, lado_max), Image.LANCZOS)
+            if kw.get('exif') is not None:
+                kw['exif'] = _exif_con_dimensiones(kw['exif'], img.size)
         salida = io.BytesIO()
         img.save(salida, 'JPEG', quality=calidad, optimize=True, **kw)
     datos = salida.getvalue()
@@ -371,10 +394,15 @@ def comprimir(request):
         calidad = max(CALIDAD_MIN, min(int(datos.get('quality', CALIDAD_DEFECTO)), CALIDAD_MAX))
     except (TypeError, ValueError):
         calidad = CALIDAD_DEFECTO
+    try:
+        lado = int(datos.get('max_side', LADO_DEFECTO))
+        lado = 0 if lado <= 0 else max(LADO_MIN, lado)
+    except (TypeError, ValueError):
+        lado = LADO_DEFECTO
     hechas = omitidas = ahorro = sin_ahorro = conservadas = 0
     for foto in _fotos_de_la_empresa(request, ids):
         try:
-            ahorrado = comprimir_foto(foto, calidad)
+            ahorrado = comprimir_foto(foto, calidad, lado)
         except MetadataNoConservable as exc:
             logger.warning('Foto %s intacta: no se podía conservar su metadata (%s)', foto.pk, exc)
             conservadas += 1

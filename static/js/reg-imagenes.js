@@ -110,11 +110,13 @@
   async function comprimir() {
     var ids = seleccion(), cal = parseInt(document.getElementById('imagenes-calidad').value, 10) || 85;
     cal = Math.max(10, Math.min(95, cal));
-    if (!await window.confirmarUI('¿Comprimir ' + ids.length + ' foto(s) al ' + cal + ' % de calidad? Se conserva la resolución y toda la metadata (EXIF, GPS, color, XMP). ' +
+    var lado = parseInt(document.getElementById('imagenes-lado').value, 10) || 0;
+    if (!await window.confirmarUI('¿Comprimir ' + ids.length + ' foto(s) al ' + cal + ' % de calidad' +
+                 (lado ? ', reduciendo a ' + lado + ' px de lado largo las que lo superen' : ' sin cambiar la resolución') + '? Se conserva toda la metadata (EXIF, GPS, color, XMP). ' +
                  'Las PNG se convierten a JPEG (la transparencia pasa a blanco); las que ya están en esa calidad no se tocan.', { titulo: 'Comprimir', aceptar: 'Comprimir' })) return;
     ocupado(true);
     try {
-      var t = await porLotes(raiz.dataset.urlComprimir, ids, +raiz.dataset.maxComprimir, { quality: cal }, 'Comprimiendo');
+      var t = await porLotes(raiz.dataset.urlComprimir, ids, +raiz.dataset.maxComprimir, { quality: cal, max_side: lado }, 'Comprimiendo');
       var texto = t.ok + ' foto(s) comprimida(s), ahorro ' + Math.round(t.ahorro / 1024) + ' KB.' +
         (t.sinAhorro ? ' ' + t.sinAhorro + ' ya estaban optimizadas: recomprimir al ' + cal + ' % no las reduce lo suficiente (prueba una calidad menor).' : '') +
         (t.conservadas ? ' ' + t.conservadas + ' se dejaron intactas porque no se podía conservar toda su metadata.' : '') +

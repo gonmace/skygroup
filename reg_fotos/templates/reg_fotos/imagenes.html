@@ -46,6 +46,13 @@
     <button type="button" class="btn btn-info btn-sm" data-accion="descargar">{% include "components/icon.html" with name="arrow-down" cls="size-4" %} Descargar ZIP</button>
     <label class="flex items-center gap-1 text-xs text-base-content/70">Calidad
       <input id="imagenes-calidad" type="number" min="10" max="95" value="{{ calidad }}" class="input input-bordered input-xs w-16 text-right"></label>
+    <label class="flex items-center gap-1 text-xs text-base-content/70">Lado máx.
+      <select id="imagenes-lado" class="select select-bordered select-xs">
+        <option value="0">Sin cambiar</option>
+        <option value="8000" selected>8000 px</option>
+        <option value="6000">6000 px</option>
+        <option value="4000">4000 px</option>
+      </select></label>
     <button type="button" class="btn btn-warning btn-sm" data-accion="comprimir">{% include "components/icon.html" with name="archive" cls="size-4" %} Comprimir</button>
     <button type="button" class="btn btn-error btn-sm" data-accion="eliminar">{% include "components/icon.html" with name="trash" cls="size-4" %} Eliminar</button>
   </div>

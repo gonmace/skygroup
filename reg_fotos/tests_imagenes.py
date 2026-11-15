@@ -166,6 +166,15 @@ class ComprimirTests(ImagenesBase):
         d = self.post(self.admin, 'comprimir', [self.f1.pk], quality=40).json()
         self.assertEqual((d['comprimidas'], d['omitidas']), (1, 0))
 
+    def test_reduce_la_resolucion_si_supera_el_lado_maximo(self):
+        from PIL import Image
+        from .imagenes import comprimir_foto
+        self.assertGreater(comprimir_foto(self.f1, 80, lado_max=200), 0)
+        self.f1.refresh_from_db()
+        with Image.open(self.f1.imagen.open('rb')) as img:
+            self.assertEqual(img.size, (200, 150))                  # proporcional al lado largo
+        self.assertEqual(self.f1.tamano, self.f1.imagen.size)
+
     def test_explica_por_que_no_comprimio(self):
         """Una foto ya comprimida a esa calidad no se reduce más: se informa «ya optimizadas», no solo «0»."""
         self.post(self.admin, 'comprimir', [self.f1.pk], quality=40)

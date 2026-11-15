@@ -47,9 +47,12 @@ def _bloqueo_de_paso(registro, clave, paso):
 
 
 def _solo(request, a):
-    """Slug del componente si se abre/guarda uno solo (?w=…); None = el paso completo. 404 si no es del paso."""
+    """Slug del componente si se abre/guarda uno solo (?w=…); None = el paso completo. Al guardar, 404 si no es del
+    paso; al abrir se ignora (un enlace viejo, p. ej. a un componente que se reemplazó, abre el paso completo)."""
     w = request.POST.get('w') or request.GET.get('w') or ''
     if w and not a.paso.widgets.filter(widget_slug=w).exists():
+        if request.method == 'GET':
+            return None
         raise Http404('Ese componente no pertenece al paso.')
     return w or None
 

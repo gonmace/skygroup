@@ -2,8 +2,9 @@
 <div data-reg-lista data-max="{{ b.max_items }}" class="space-y-3">
   <ol class="space-y-2" data-reg-lista-filas>
     {% for i in b.items %}{% include "reg_actividades/widgets/_fila_lista.html" with valor=i %}{% endfor %}
-    {% if not b.items %}{% include "reg_actividades/widgets/_fila_lista.html" with valor="" %}{% endif %}
+    {% for v in b.filas_vacias %}{% include "reg_actividades/widgets/_fila_lista.html" with valor=v %}{% endfor %}
   </ol>
+  {% if b.minimo %}<p class="text-xs text-base-content/60">Mínimo {{ b.minimo }} elemento{{ b.minimo|pluralize }}; agrega los que necesites.</p>{% endif %}
   <button type="button" class="btn btn-soft btn-success btn-sm gap-1" data-reg-lista-agregar>{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar</button>
 </div>
 {% elif b.items %}

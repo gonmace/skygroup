@@ -19,6 +19,33 @@ def pendientes_de_seguimiento(visita):
             .select_related('visita').order_by('numero'))
 
 
+PASOS_ARRASTRADOS = ('cb_actividades', 'cb_recursos')
+
+
+def importar_de_anterior(visita):
+    """Una visita nueva parte con las actividades y los recursos presentes de la visita anterior del proyecto
+    (solo el texto de las listas, no las fotos). Los hallazgos pendientes no se copian: ya aparecen en el paso de
+    verificación (`pendientes_de_seguimiento`). Devuelve la visita anterior usada, o None."""
+    from django.contrib.contenttypes.models import ContentType
+    from reg_actividades.models import DatoPaso
+    if not visita.proyecto_id:
+        return None
+    anterior = (RegConstruccionBase.objects.filter(empresa_id=visita.empresa_id, proyecto_id=visita.proyecto_id,
+                                                   is_deleted=False, rev_vigente=True, numero__lt=visita.numero)
+                .order_by('-numero').first())
+    if anterior is None:
+        return None
+    ct = ContentType.objects.get_for_model(RegConstruccionBase)
+    for d in DatoPaso.objects.filter(content_type=ct, object_id=anterior.pk, paso_nombre__in=PASOS_ARRASTRADOS):
+        listas = {slug: {**bloque, 'importado': True} for slug, bloque in (d.datos or {}).items()
+                  if slug == 'lista_widget' and (bloque or {}).get('entradas')}
+        if listas:
+            DatoPaso.objects.get_or_create(
+                empresa_id=visita.empresa_id, content_type=ct, object_id=visita.pk, paso_nombre=d.paso_nombre,
+                defaults={'datos': listas, 'tiene_datos': True})
+    return anterior
+
+
 def _revertir(seguimiento):
     """Deshace el efecto de un seguimiento sobre el estado del hallazgo."""
     h = seguimiento.hallazgo

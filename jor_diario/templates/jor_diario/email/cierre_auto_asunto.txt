@@ -1,0 +1,1 @@
+Tu jornada volvió a cerrarse automáticamente ({{ n }}.ª vez este mes)

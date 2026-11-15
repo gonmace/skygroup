@@ -9,6 +9,7 @@ from .models import Jornada, ReporteDiario
 from .verificacion import MOTIVOS, mejor_lectura
 
 HORA_CIERRE_AUTO = time(17, 0)
+CIERRES_AUTO_PARA_CORREO = 3  # desde el N.º cierre automático del mes se avisa también por correo
 
 
 def lleva_jornada(user, empresa):
@@ -201,6 +202,14 @@ def decidir_excepcion(jornada_id, empresa, revisor, aprobar, adoptar_equipo=Fals
     return j
 
 
+def _cierres_auto_del_mes(j, inicio_local):
+    """Cuántas jornadas de esta persona se cerraron solas en el mes de `j` (incluida `j`)."""
+    ini = timezone.make_aware(datetime(inicio_local.year, inicio_local.month, 1))
+    sig = timezone.make_aware(datetime(inicio_local.year + (inicio_local.month == 12), inicio_local.month % 12 + 1, 1))
+    return Jornada.objects.filter(perfil=j.perfil, empresa=j.empresa, cierre_auto=True,
+                                  inicio__gte=ini, inicio__lt=sig).count()
+
+
 def cerrar_vencidas(ahora=None, empresa=None):
     """Cierra como INCOMPLETA toda jornada abierta que empezó antes del día actual: fin = 17:00 de su día
     (o un minuto después del inicio si empezó más tarde) y avisa a la persona. Devuelve cuántas cerró."""
@@ -223,9 +232,13 @@ def cerrar_vencidas(ahora=None, empresa=None):
             j.fin, j.estado, j.cierre_auto = fin, Jornada.Estado.INCOMPLETA, True
             j.duracion_min = max(1, int((fin - j.inicio).total_seconds() // 60))
             j.save(update_fields=['fin', 'estado', 'cierre_auto', 'duracion_min'])
+        n = _cierres_auto_del_mes(j, inicio_local)
+        texto = f'Tu jornada del {inicio_local:%d/%m/%Y} quedó abierta y se cerró automáticamente a las 17:00'
+        texto += f' ({n}.ª vez este mes).' if n >= 2 else '.'
         from mje_mensajes.servicios import aviso_sistema
-        aviso_sistema(j.empresa, j.perfil.membresia.user,
-                      f'Tu jornada del {inicio_local:%d/%m/%Y} quedó abierta y se cerró automáticamente a las 17:00.',
-                      url='/jornadas/')
+        aviso_sistema(j.empresa, j.perfil.membresia.user, texto, url='/jornadas/')
+        if n >= CIERRES_AUTO_PARA_CORREO:
+            from .correos import enviar_aviso_cierre_auto
+            enviar_aviso_cierre_auto(j, n)
         cerradas += 1
     return cerradas

@@ -611,7 +611,11 @@ class PasosMovilTests(TestCase):
         base = f'/tekon/registros/txtss/{self.reg.pk}/paso/sitio/'
         r = self.client.get(base + '?w=ubicacion_widget')
         self.assertEqual([b['pw'].widget_slug for b in r.context['bloques']], ['ubicacion_widget'])
-        self.assertEqual(self.client.get(base + '?w=no_existe').status_code, 404)
+        # un enlace viejo a un componente que ya no está abre el paso completo; al guardar sí es 404
+        viejo = self.client.get(base + '?w=no_existe')
+        self.assertEqual(viejo.status_code, 200)
+        self.assertGreater(len(viejo.context['bloques']), 1)
+        self.assertEqual(self.client.post(base + 'guardar/', {'w': 'no_existe'}).status_code, 404)
         # guardar un componente no pisa los datos de los demás
         self.client.post(base + 'guardar/', {'comentario_widget__comentario': 'hola'})
         r = self.client.post(base + 'guardar/', {'w': 'ubicacion_widget', 'ubicacion_widget__lat': '-33.4',

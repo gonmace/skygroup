@@ -107,6 +107,7 @@ def nueva(request):
         except ValidationError as exc:
             form.add_error(None, exc.messages[0])
         else:
+            servicios.importar_de_anterior(r)
             messages.success(request, f'Visita {r.numero} de {r.proyecto.nombre} creada.')
             return redirect('reg_construccion_base:detalle', pk=r.pk)
     return render(request, 'reg_construccion_base/nueva.html', {'form': form})
@@ -226,6 +227,7 @@ def nueva_visita(request, pk):
     except ValidationError as exc:
         messages.error(request, exc.messages[0])
         return redirect('reg_construccion_base:detalle', pk=pk)
+    servicios.importar_de_anterior(nueva_)
     messages.success(request, f'Visita {nueva_.numero} del {fecha:%d/%m/%Y} creada.')
     return redirect('reg_construccion_base:detalle', pk=nueva_.pk)
 

@@ -20,21 +20,24 @@
 {% if puede_escribir %}
 <form method="post" action="{% url 'reg_fotos:subir' tipo.clave r.pk etapa %}" enctype="multipart/form-data" class="card mb-4 bg-base-100">
   <div class="card-body gap-3 p-4 sm:gap-4 sm:p-6">{% csrf_token %}
-    {# Cada ficha abre su origen y sube al elegir (reg-fotos.js). `capture` abre la cámara del celular; donde se exigen metadatos no hay galería. #}
-    <div class="grid gap-3 {% if not exigir_metadatos %}grid-cols-2{% endif %}">
-      <label class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-box border-2 border-dashed border-primary/40 bg-primary/5 px-3 py-5 text-center sm:px-4 sm:py-7 transition hover:border-primary hover:bg-primary/10 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary">
+    {# Cada ficha abre su origen y sube al elegir (reg-fotos.js). `capture` abre la cámara del celular; con ratón (PC) no tiene sentido y solo queda «Elegir imágenes». #}
+    <div class="grid grid-cols-2 gap-3 pointer-fine:grid-cols-1">
+      <label class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-box border-2 border-dashed border-primary/40 pointer-fine:hidden bg-primary/5 px-3 py-5 text-center sm:px-4 sm:py-7 transition hover:border-primary hover:bg-primary/10 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary">
         <span class="grid size-14 place-items-center rounded-full bg-primary text-primary-content shadow">{% include "components/icon.html" with name="camera" cls="size-7" %}</span>
         <span class="text-sm font-semibold sm:text-base">Capturar Imágenes</span>
         <input type="file" name="fotos" accept="image/*" capture="environment" class="sr-only" data-fotos-auto>
       </label>
-      {% if not exigir_metadatos %}
       <label class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-box border-2 border-dashed border-base-content/20 bg-base-200/60 px-3 py-5 text-center sm:px-4 sm:py-7 transition hover:border-base-content/40 hover:bg-base-200 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary">
         <span class="grid size-14 place-items-center rounded-full bg-base-300 text-base-content/70">{% include "components/icon.html" with name="layers" cls="size-7" %}</span>
-        <span class="text-sm font-semibold sm:text-base">Elegir de la galería</span>
+        <span class="text-sm font-semibold sm:text-base"><span class="pointer-fine:hidden">Elegir de la galería</span><span class="hidden pointer-fine:inline">Elegir imágenes</span></span>
         <input type="file" name="fotos" multiple accept="image/*" class="sr-only" data-fotos-auto>
       </label>
-      {% endif %}
     </div>
+    {% if exigir_metadatos %}<p class="text-xs text-base-content/60">Cada imagen debe traer fecha y ubicación (GPS): se rechazan las reenviadas por WhatsApp o sin esos datos.</p>{% endif %}
+    {% if exigir_metadatos and puede_omitir_metadatos %}
+      <label class="flex cursor-pointer items-center gap-3 text-sm"><input type="checkbox" name="sin_metadatos" value="1" class="toggle toggle-sm toggle-primary" data-sin-metadatos>
+        <span>Aceptar imágenes sin fecha ni ubicación <span class="text-base-content/60">(solo administradores)</span></span></label>
+    {% endif %}
     <label class="text-sm"><span class="mb-1 block text-base-content/60">Descripción (opcional)</span>
       <input type="text" name="descripcion" {% if pedidas %}list="descripciones-pedidas" autocomplete="off" {% endif %}maxlength="128" value="{{ request.GET.descripcion|default:'' }}" placeholder="Se agrega a las imágenes que subas ahora" class="input input-bordered h-12 w-full text-base"></label>
     <noscript><button class="btn btn-primary">Subir</button></noscript>

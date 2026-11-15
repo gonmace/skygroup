@@ -113,6 +113,8 @@ def contexto(registro, columnas):
         'coord_lat': _dms(lat, 'N', 'S'), 'coord_lon': _dms(lon, 'E', 'O'),
         'coord_lat_deg': _decimal(lat), 'coord_lon_deg': _decimal(lon),
         'actividades': _lista(registro, ct, 'cb_actividades'),
+        'recursos': _lista(registro, ct, 'cb_recursos'),
+        # Visitas anteriores al cambio a lista: los dos campos fijos de entonces.
         'trabajadores': _buscar(d_rec, 'trabajadores'), 'equipo_pesado': _buscar(d_rec, 'equipo_pesado') or '',
         'hallazgos': hallazgos, 'sin_hallazgos': sin_hallazgos, 'seguimientos': seguimientos,
         'resumen': _resumen_abiertos(registro),

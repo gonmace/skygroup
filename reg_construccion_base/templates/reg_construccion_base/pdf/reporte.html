@@ -1,14 +1,14 @@
 {% load l10n %}
 <!DOCTYPE html>
 <html lang="es">
-<head><meta charset="UTF-8"><title>Reporte de visita — {{ codigo }}</title></head>
+<head><meta charset="UTF-8"><title>Reporte inspección - supervisión — {{ codigo }}</title></head>
 <body>
 {% if borrador %}<div class="marca-agua">BORRADOR</div>{% endif %}
 
 <div id="page-header">
   <table class="header-table"><tr>
     <td class="header-logo left">{% if logo_empresa %}<img src="{{ logo_empresa }}" alt="{{ empresa.nombre }}">{% endif %}</td>
-    <td class="header-title"><h1>Reporte de Visita de Supervisión<br>{{ codigo }} · Visita N° {{ registro.numero }}{% if registro.rev_numero %} · Rev. {{ registro.rev_numero }}{% endif %}</h1></td>
+    <td class="header-title"><h1>Reporte Inspección - Supervisión<br>{% if codigo %}{{ codigo }} · {% endif %}{{ proyecto.nombre }}{% if registro.rev_numero %} · Rev. {{ registro.rev_numero }}{% endif %}</h1></td>
     <td class="header-logo right">{% if logo_proveedor %}<img src="{{ logo_proveedor }}" alt="{{ proveedor|default:'Proveedor' }}">{% endif %}</td>
   </tr></table>
 </div>
@@ -18,7 +18,6 @@
     <table class="datos-2col">
       <tr><th>Nombre:</th><td>{{ proyecto.nombre }}</td></tr>
       <tr><th>Código:</th><td>{{ codigo }}</td></tr>
-      <tr><th>Código Operador:</th><td>{{ proyecto.codigo_operador|default:"—" }}</td></tr>
       <tr><th>Tipo:</th><td>{{ proyecto.tipo.nombre|default:"—" }}</td></tr>
       <tr><th>Primera visita:</th><td>{{ fecha_inicio|date:"d/m/Y"|default:"—" }}</td></tr>
       <tr><th>Contratista:</th><td>{{ registro.contratista.nombre|default:"—" }}</td></tr>
@@ -31,7 +30,7 @@
       <tr><th>Fecha:</th><td>{{ registro.fecha|date:"d/m/Y" }}</td></tr>
       <tr><th>Semana:</th><td>{{ registro.fecha|date:"W" }}</td></tr>
       <tr><th>Días transcurridos:</th><td>{{ dias_transcurridos|default_if_none:"—" }}</td></tr>
-      <tr><th>Motivo:</th><td>{{ motivo|default:"—" }}</td></tr>
+      <tr><th>Objeto:</th><td>{{ motivo|default:"—" }}</td></tr>
       {% if registro.concluido and registro.emitido_en %}<tr><th>Emitida:</th><td>{{ registro.emitido_en|date:"d/m/Y H:i" }}</td></tr>{% endif %}
     </table>
     <h2>Coordenadas</h2>
@@ -50,13 +49,14 @@
   {% else %}<p class="sin-datos">Sin actividades registradas.</p>{% endif %}
 </article>
 
-{% if trabajadores or equipo_pesado %}
+{% if recursos or trabajadores or equipo_pesado %}
 <article id="recursos">
   <h2>Recursos Presentes</h2>
-  <table class="datos-2col">
+  {% if recursos %}<ul class="lista-puntos">{% for r in recursos %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+  {% if trabajadores or equipo_pesado %}<table class="datos-2col">
     {% if trabajadores %}<tr><th>Trabajadores (aprox.):</th><td>{{ trabajadores|floatformat:"0" }}</td></tr>{% endif %}
     {% if equipo_pesado %}<tr><th>Equipo pesado:</th><td>{{ equipo_pesado }}</td></tr>{% endif %}
-  </table>
+  </table>{% endif %}
 </article>
 {% endif %}
 

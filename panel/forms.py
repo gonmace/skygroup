@@ -393,7 +393,8 @@ class CorreoForm(EstiloMixin, forms.ModelForm):
 
     class Meta:
         model = CorreoConfig
-        fields = ('activo', 'host', 'puerto', 'seguridad', 'usuario', 'password', 'remitente', 'remitente_nombre')
+        fields = ('activo', 'host', 'puerto', 'seguridad', 'usuario', 'password', 'remitente', 'remitente_nombre',
+                  'copia_rrhh_cierre_auto')
 
     def clean_password(self):
         return self.cleaned_data['password'] or self.instance.password

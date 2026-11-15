@@ -11,9 +11,9 @@ CLAVE = 'construccion-base'
 NOMBRE_PLANTILLA = 'Supervisión Campo (estándar)'
 # (nombre, título, descripción, [(widget_slug, config), …]) en el orden de la plantilla. Cada widget es un BOTÓN del paso.
 PASOS = [
-    ('cb_datos', 'Datos de la visita', 'Motivo de la visita y ubicación de llegada.', [
-        ('form_dinamico_widget', {'label': 'Motivo de la visita', 'solo_obligatorios': True, 'campos': (
-            'motivo | select | Motivo de la visita | Rutinaria,Inspección de actividad,Recepción,'
+    ('cb_datos', 'Datos de la visita', 'Objetivo de la visita y ubicación de llegada.', [
+        ('form_dinamico_widget', {'label': 'Objetivo de la Visita', 'solo_obligatorios': True, 'campos': (
+            'motivo | select | Objetivo de la Visita | Rutinaria,Inspección de actividad,Recepción,'
             'Prueba o ensayo,Verificación de observaciones,Otro | *\n'
             'comentario | textarea | Comentario')}),
         ('ubicacion_widget', {'label': 'Ubicación GPS de llegada', 'opcional': True}),
@@ -25,9 +25,9 @@ PASOS = [
         ('camera_widget', {'label': 'Imágenes de las actividades', 'foto_min': 4, 'exigir_metadatos': True}),
     ]),
     ('cb_recursos', 'Recursos presentes', 'Personal y equipo pesado que se vio en el frente.', [
-        ('form_dinamico_widget', {'label': 'Recursos', 'solo_obligatorios': True, 'campos': (
-            'trabajadores | number | Número de trabajadores (aprox.) | | *\n'
-            'equipo_pesado | text | Equipo pesado | Ej.: 1 retroexcavadora, 1 grúa')}),
+        # Una línea por recurso (personal y equipo), mínimo dos, y se pueden ir agregando más.
+        ('lista_widget', {'label': 'Recursos presentes', 'numerada': False, 'min_items': 2, 'max_items': 50,
+                          'placeholder': 'Ej.: 12 trabajadores · 1 retroexcavadora'}),
     ]),
     ('cb_hallazgos', 'Hallazgos y observaciones',
      'Lo encontrado en esta visita: código, descripción, tipo, severidad, responsable y plazo.', [

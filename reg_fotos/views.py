@@ -47,6 +47,25 @@ def _respuesta(request, destino, ok, mensaje, status=200, **extra):
     return redirect(destino)
 
 
+def _puede_omitir_metadatos(request):
+    from .imagenes import puede_gestionar_imagenes   # import local: `imagenes` importa este módulo
+    return puede_gestionar_imagenes(request.user, request.empresa)
+
+
+def _puede_escribir_fotos(request, registro):
+    """Subir, describir, ordenar y eliminar fotos: quien puede cargar datos en el registro, y además el superusuario y los
+    administradores de la empresa aunque no sean miembros (su rol de sistema no incluye `reg.cargar_datos`).
+    Un registro concluido es de solo lectura para todos."""
+    if puede_escribir(request.user, registro):
+        return True
+    return not registro.concluido and _puede_omitir_metadatos(request)
+
+
+def _exigir_escritura_fotos(request, registro):
+    if not _puede_escribir_fotos(request, registro):
+        raise PermissionDenied
+
+
 def _exige_metadatos(registro, clave, etapa):
     """¿El botón de fotos de esta etapa exige fecha y ubicación en cada foto? (lo define su configuración)"""
     from reg_actividades.servicios import exige_metadatos
@@ -63,9 +82,11 @@ def galeria(request, clave, pk, etapa):
     return render(request, 'reg_fotos/galeria.html', {
         'tipo': t, 'r': registro, 'etapa': etapa, 'fotos': fotos,
         'total_fotos': len(fotos), 'pedidas': pedidas, 'minimo_fotos': minimo_fotos(registro, t.clave, etapa),
-        'puede_escribir': puede_escribir(request.user, registro),
+        'puede_escribir': _puede_escribir_fotos(request, registro),
         'url_detalle': t.url_detalle,
         'exigir_metadatos': _exige_metadatos(registro, t.clave, etapa),
+        # Solo superusuario y administradores pueden saltarse la exigencia de fecha y GPS (interruptor en la galería).
+        'puede_omitir_metadatos': _puede_omitir_metadatos(request),
     })
 
 
@@ -73,13 +94,16 @@ def galeria(request, clave, pk, etapa):
 @_acceso
 def subir(request, clave, pk, etapa):
     t, registro = _registro(request, clave, pk)
-    acciones.exigir_escritura(request.user, registro)
+    _exigir_escritura_fotos(request, registro)
     destino = 'reg_fotos:galeria'
     archivos = request.FILES.getlist('fotos')
     if not archivos:
         return _respuesta(request, redirect(destino, clave=clave, pk=pk, etapa=etapa).url, False, 'No se recibieron archivos.', 400)
     subidas, errores = [], []
     exigir = _exige_metadatos(registro, t.clave, etapa)
+    # El interruptor «sin metadatos» solo vale para superusuario y administradores (se comprueba aquí, no en la plantilla).
+    if exigir and request.POST.get('sin_metadatos') and _puede_omitir_metadatos(request):
+        exigir = False
     for f in archivos:
         try:
             foto = servicios.guardar_foto(f, autor=request.user, registro=registro, etapa=etapa,
@@ -101,7 +125,7 @@ def subir(request, clave, pk, etapa):
 
 def _foto_editable(request, clave, pk, etapa, foto_id):
     t, registro = _registro(request, clave, pk)
-    acciones.exigir_escritura(request.user, registro)
+    _exigir_escritura_fotos(request, registro)
     return registro, get_object_or_404(_fotos(registro, etapa), pk=foto_id)
 
 
@@ -131,7 +155,7 @@ def eliminar(request, clave, pk, etapa, foto_id):
 @_acceso
 def orden(request, clave, pk, etapa):
     t, registro = _registro(request, clave, pk)
-    acciones.exigir_escritura(request.user, registro)
+    _exigir_escritura_fotos(request, registro)
     try:
         ids = [int(i) for i in json.loads(request.body)['order']]
     except (ValueError, KeyError, TypeError):

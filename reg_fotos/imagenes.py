@@ -36,7 +36,10 @@ POR_PAGINA = 60
 MAX_ELIMINAR = 100           # por petición: el cliente envía lotes (gunicorn corta a los 60 s)
 MAX_COMPRIMIR = 25
 MAX_ZIP = 300
-CALIDAD_DEFECTO, CALIDAD_MIN, CALIDAD_MAX = 70, 10, 95
+CALIDAD_DEFECTO, CALIDAD_MIN, CALIDAD_MAX = 80, 10, 95
+LADO_DEFECTO, LADO_MIN = 8000, 1000   # lado largo máximo en px (0 = no cambiar la resolución); 8000 px ≈ 36 MP en 3:2
+CALIDAD_PNG = 85         # al convertir una PNG a JPEG nunca se baja de aquí: ya ahorra ~88 % y menos solo añade artefactos
+AHORRO_MINIMO = 0.10     # si no se ahorra al menos esto, la foto no se reescribe (solo añadiría pérdida)
 ORDENES = {
     '': ('-creada', '-id'), 'antiguas': ('creada', 'id'),
     'mayor': ('-tamano', '-id'), 'menor': ('tamano', 'id'),
@@ -228,31 +231,151 @@ def descargar(request):
     return FileResponse(tmp, as_attachment=True, filename='fotos.zip', content_type='application/zip')
 
 
-def comprimir_foto(foto, calidad):
-    """Vuelve a guardar la foto JPEG con menos calidad (misma resolución, conserva el EXIF).
+class MetadataNoConservable(Exception):
+    """La foto lleva algo (EXIF, ICC, XMP, comentario, mapa HDR…) que el nuevo archivo no podría mantener."""
 
-    Devuelve los bytes ahorrados; 0 si no se tocó (no es JPEG, o no se reducía). La nueva versión se escribe PRIMERO
-    y solo después se borra la anterior, así un fallo a medias nunca deja la foto sin archivo."""
+
+_XMP_PNG = 'XML:com.adobe.xmp'
+_IFDS = (0x8769, 0x8825, 0xA005)                     # Exif, GPS, Interoperabilidad
+_DESPLAZAMIENTOS = {0x8769, 0x8825, 0xA005, 0x0201, 0x0202}   # punteros internos: cambian al reescribir, no son datos
+_DIMENSIONES = {0xA002, 0xA003}      # PixelXDimension/PixelYDimension: cambian a propósito al reducir la resolución
+
+
+def calidad_estimada(img):
+    """Calidad JPEG aproximada (1-100) con la que se guardó la imagen, según su tabla de cuantización; None si no se sabe.
+    La tabla estándar de luminancia promedia 57,7: media = 57,7·escala/100 (34,5 ↔ calidad 70, 7,2 ↔ ~94)."""
+    tablas = getattr(img, 'quantization', None)
+    if not tablas or 0 not in tablas:
+        return None
+    escala = (sum(tablas[0]) / len(tablas[0])) / 57.6875 * 100
+    return (200 - escala) / 2 if escala <= 100 else 5000 / escala
+
+
+def _exif_valores(img):
+    """Todas las etiquetas EXIF (incluidos Exif, GPS e Interoperabilidad) como {(ifd, etiqueta): valor}."""
+    ex = img.getexif()
+    valores = {('base', k): v for k, v in ex.items() if k not in _DESPLAZAMIENTOS}
+    for ifd in _IFDS:
+        try:
+            sub = ex.get_ifd(ifd)
+        except Exception:
+            sub = {}
+        valores.update({(ifd, k): v for k, v in sub.items() if k not in _DESPLAZAMIENTOS and k not in _DIMENSIONES})
+    return valores
+
+
+def _metadatos(img):
+    """Lo que la foto lleva además de los píxeles, como argumentos de `Image.save(…, 'JPEG')`, más su «firma» para
+    comprobar después que no se perdió nada. Las PNG aportan su eXIf, ICC, XMP y sus textos (pasan al comentario)."""
+    img.load()
+    info = img.info
+    es_jpeg = img.format in ('JPEG', 'MPO')
+    kw = {}
+    exif = info.get('exif') if es_jpeg else None
+    if exif:
+        kw['exif'] = exif                                  # bytes originales: conserva hasta las notas del fabricante
+    elif len(img.getexif()):
+        kw['exif'] = img.getexif()
+    if info.get('icc_profile'):
+        kw['icc_profile'] = info['icc_profile']
+    xmp = info.get('xmp') or (info.get(_XMP_PNG) or '').encode() or None
+    if xmp:
+        kw['xmp'] = xmp if isinstance(xmp, bytes) else xmp.encode()
+    dpi = info.get('dpi')
+    if dpi and all(d and d > 0 for d in dpi):
+        kw['dpi'] = dpi
+    if es_jpeg:
+        comentario = info.get('comment')
+    else:
+        textos = [f'{k}: {v}' for k, v in info.items() if isinstance(v, str) and k != _XMP_PNG]
+        comentario = '\n'.join(textos).encode('utf-8', 'replace') if textos else None
+    if comentario:
+        kw['comment'] = comentario
+    firma = {'exif': _exif_valores(img), 'icc': kw.get('icc_profile'), 'xmp': kw.get('xmp'), 'comment': kw.get('comment')}
+    if img.format == 'MPO' and xmp and (b'hdrgm' in xmp or b'GainMap' in xmp):
+        raise MetadataNoConservable('mapa de ganancia HDR')   # el fotograma secundario es imagen, no un adorno: no se descarta
+    return kw, firma
+
+
+def _verificar(firma, datos):
+    """Reabre el JPEG nuevo y comprueba que conserva TODO lo que traía el original; si falta algo, no se reemplaza."""
+    from PIL import Image
+    with Image.open(io.BytesIO(datos)) as nuevo:
+        nuevo.load()
+        exif = _exif_valores(nuevo)
+        # repr: hay fotos con racionales 0/0 (NaN, p. ej. GPS vacío) y NaN != NaN aunque los bytes sean idénticos
+        faltan = [k for k, v in firma['exif'].items() if k not in exif or repr(exif[k]) != repr(v)]
+        if faltan:
+            raise MetadataNoConservable(f'EXIF {faltan[:3]}')
+        for clave, valor in (('icc', nuevo.info.get('icc_profile')), ('xmp', nuevo.info.get('xmp')),
+                             ('comment', nuevo.info.get('comment'))):
+            if firma[clave] and firma[clave] != valor:
+                raise MetadataNoConservable(clave)
+
+
+def _exif_con_dimensiones(exif, tamano):
+    """EXIF con PixelXDimension/PixelYDimension al día tras reducir la resolución (el resto, intacto)."""
+    from PIL import Image
+    ex = exif if isinstance(exif, Image.Exif) else Image.Exif()
+    if not isinstance(exif, Image.Exif):
+        ex.load(exif)
+    sub = ex.get_ifd(0x8769)
+    if 0xA002 in sub or 0xA003 in sub:
+        sub[0xA002], sub[0xA003] = tamano
+    return ex
+
+
+def comprimir_foto(foto, calidad, lado_max=0):
+    """Vuelve a guardar la foto como JPEG con la calidad pedida y SIN perder metadata (la resolución solo baja si se pide `lado_max`).
+
+    - Las JPEG se recomprimen; las PNG (capturas, panorámicas) se CONVIERTEN a JPEG (calidad mínima `CALIDAD_PNG`, el alfa
+      se compone sobre blanco y el archivo pasa a `.jpg`).
+    - Se conserva el EXIF completo (GPS y fecha incluidos), el perfil ICC, el XMP (dron), el comentario y los DPI, y se
+      VERIFICA en el archivo nuevo antes de reemplazar; si algo no se pudiera mantener lanza `MetadataNoConservable` y la
+      foto queda intacta.
+    - `lado_max` (px, 0 = no tocar): si el lado largo lo supera, se reduce proporcionalmente (LANCZOS) y se actualizan
+      las dimensiones del EXIF; es lo que de verdad baja el peso de las fotos de dron/panorámicas (decenas de MP).
+    - No se recomprime lo que ya está en esa calidad o menos (solo añadiría pérdida) ni si no ahorra `AHORRO_MINIMO`.
+    Devuelve los bytes ahorrados (0 si no se tocó). La versión nueva se escribe PRIMERO y solo después se borra la anterior."""
     from PIL import Image
     campo = foto.imagen
     viejo = campo.name
-    if not viejo.lower().endswith(('.jpg', '.jpeg')):
-        return 0
     with campo.open('rb') as f:
         original = f.read()
     with Image.open(io.BytesIO(original)) as img:
-        exif = img.info.get('exif', b'')
-        if img.mode not in ('RGB', 'L'):
+        es_jpeg = img.format in ('JPEG', 'MPO')
+        reducir = bool(lado_max) and max(img.size) > lado_max
+        if es_jpeg and not reducir:
+            previa = calidad_estimada(img)
+            if previa is not None and previa <= calidad + 1:
+                return 0                                   # ya está en esa calidad o menos
+        else:
+            calidad = max(calidad, CALIDAD_PNG)
+        kw, firma = _metadatos(img)
+        if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+            rgba = img.convert('RGBA')
+            img = Image.new('RGB', rgba.size, (255, 255, 255))
+            img.paste(rgba, mask=rgba.split()[3])
+        elif img.mode not in ('RGB', 'L'):
             img = img.convert('RGB')
+        if reducir:
+            img.load()
+            img = img.copy() if img.mode in ('RGB', 'L') else img
+            img.thumbnail((lado_max, lado_max), Image.LANCZOS)
+            if kw.get('exif') is not None:
+                kw['exif'] = _exif_con_dimensiones(kw['exif'], img.size)
         salida = io.BytesIO()
-        img.save(salida, 'JPEG', quality=calidad, optimize=True, exif=exif)
+        img.save(salida, 'JPEG', quality=calidad, optimize=True, **kw)
     datos = salida.getvalue()
-    if len(datos) >= len(original):
+    if len(datos) > len(original) * (1 - AHORRO_MINIMO):
         return 0
+    _verificar(firma, datos)
     nombre = re.sub(r'^[0-9a-f]{12}-', '', os.path.basename(viejo))   # quita el sufijo aleatorio anterior
+    if not nombre.lower().endswith(('.jpg', '.jpeg')) or not es_jpeg:
+        nombre = os.path.splitext(nombre)[0] + '.jpg'                # PNG (o JPEG con extensión falsa) → .jpg
     campo.save(nombre, ContentFile(datos), save=False)
     foto.tamano = len(datos)
-    foto.save(update_fields=['imagen', 'tamano'])
+    foto.save(update_fields=['imagen', 'tamano'])                    # exif_lat/lon/fecha de la base no se tocan
     try:
         campo.storage.delete(viejo)
     except Exception:
@@ -271,21 +394,46 @@ def comprimir(request):
         calidad = max(CALIDAD_MIN, min(int(datos.get('quality', CALIDAD_DEFECTO)), CALIDAD_MAX))
     except (TypeError, ValueError):
         calidad = CALIDAD_DEFECTO
-    hechas = omitidas = ahorro = 0
+    try:
+        lado = int(datos.get('max_side', LADO_DEFECTO))
+        lado = 0 if lado <= 0 else max(LADO_MIN, lado)
+    except (TypeError, ValueError):
+        lado = LADO_DEFECTO
+    hechas = omitidas = ahorro = sin_ahorro = conservadas = 0
     for foto in _fotos_de_la_empresa(request, ids):
         try:
-            ahorrado = comprimir_foto(foto, calidad)
+            ahorrado = comprimir_foto(foto, calidad, lado)
+        except MetadataNoConservable as exc:
+            logger.warning('Foto %s intacta: no se podía conservar su metadata (%s)', foto.pk, exc)
+            conservadas += 1
+            continue
         except Exception:
             logger.exception('No se pudo comprimir la foto %s', foto.pk)
             omitidas += 1
             continue
-        hechas += 1 if ahorrado else 0
+        if ahorrado:
+            hechas += 1
+        else:
+            sin_ahorro += 1
         ahorro += ahorrado
         gc.collect()          # libera el bitmap decodificado antes de la siguiente foto
     logger.info('imágenes: %s comprimió %s foto(s) de %s (%s bytes)', request.user.pk, hechas, request.empresa.slug, ahorro)
     return JsonResponse({'success': True, 'comprimidas': hechas, 'omitidas': omitidas, 'ahorro': ahorro,
-                         'message': f'{hechas} foto(s) comprimida(s), ahorro {ahorro // 1024} KB.'
-                                    + (f' {omitidas} con error.' if omitidas else '')})
+                         'sin_ahorro': sin_ahorro, 'conservadas': conservadas,
+                         'message': mensaje_compresion(hechas, ahorro, sin_ahorro, omitidas, calidad, conservadas)})
+
+
+def mensaje_compresion(hechas, ahorro, sin_ahorro, con_error, calidad, conservadas=0):
+    """Resumen legible: dice POR QUÉ las fotos que no se comprimieron se dejaron como estaban."""
+    partes = [f'{hechas} foto(s) comprimida(s), ahorro {ahorro // 1024} KB.']
+    if sin_ahorro:
+        partes.append(f'{sin_ahorro} ya estaban optimizadas: recomprimir al {calidad} % no las reduce lo suficiente '
+                      '(prueba una calidad menor).')
+    if conservadas:
+        partes.append(f'{conservadas} se dejaron intactas porque no se podía conservar toda su metadata.')
+    if con_error:
+        partes.append(f'{con_error} con error.')
+    return ' '.join(partes)
 
 
 @require_POST

@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Aviso creado por código (acciones AJAX): mismo aspecto que los mensajes que pinta el servidor.
   // tipo: «success», «error», «warning» o «info» (la etiqueta del mensaje de Django).
-  window.avisar = function (texto, tipo) {
+  window.avisar = function (texto, tipo, opciones) {
     var region = document.querySelector('.toast[aria-label="Avisos"]');
     if (!region) {
       region = document.createElement('div');
@@ -145,7 +145,8 @@ document.addEventListener('DOMContentLoaded', function () {
     b.type = 'button'; b.className = 'btn btn-ghost btn-xs btn-square'; b.setAttribute('data-accion', 'cerrar-aviso');
     b.setAttribute('aria-label', 'Cerrar aviso'); b.textContent = '✕';
     el.appendChild(span); el.appendChild(b); region.appendChild(el);
-    armarAviso(el);
+    if (!(opciones && opciones.fijo)) armarAviso(el);   // «fijo»: progreso, lo cierra quien lo creó
+    return el;
   };
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-accion="cerrar-aviso"]');

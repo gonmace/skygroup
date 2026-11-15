@@ -3,9 +3,11 @@ import tempfile
 from datetime import date, timedelta
 from importlib import import_module
 from pathlib import Path
+
 from unittest import mock
 
 from django.apps import apps as django_apps
+from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.http import QueryDict
@@ -306,6 +308,26 @@ class HallazgosTests(Base):
         self.assertRedirects(r, f'/tekon/registros/hallazgos/{h.pk}/')
         self.assertEqual((h.visita, h.proyecto, h.creado_por), (self.v, self.p1, self.ito1))
 
+    def test_visita_nueva_importa_actividades_y_recursos_de_la_anterior(self):
+        post = lambda **kw: kw
+        pasos.guardar_paso(self.v, self.paso('cb_actividades'), post(lista_widget__entradas='Hormigonado\nEnfierradura'), {})
+        pasos.guardar_paso(self.v, self.paso('cb_recursos'), post(lista_widget__entradas='12 obreros\n1 grúa'), {})
+        h = self.hallazgo()
+        v2 = self.visita_nueva(self.p1)
+        anterior = servicios.importar_de_anterior(v2)
+        self.assertEqual(anterior, self.v)
+        d = {x.paso_nombre: x.datos for x in DatoPaso.objects.filter(object_id=v2.pk)}
+        self.assertEqual(d['cb_actividades']['lista_widget']['entradas'], ['Hormigonado', 'Enfierradura'])
+        self.assertEqual(d['cb_recursos']['lista_widget']['entradas'], ['12 obreros', '1 grúa'])
+        self.assertEqual(list(servicios.pendientes_de_seguimiento(v2)), [h])   # el hallazgo queda en verificación
+        # Importado = parcial; sin cambios sigue parcial, y al cambiarlo queda completo.
+        act = self.paso('cb_actividades')
+        nivel = lambda: pasos._datos_por_paso(v2)['cb_actividades'].datos['lista_widget']
+        pasos.guardar_paso(v2, act, post(lista_widget__entradas='Hormigonado\nEnfierradura'), {})
+        self.assertTrue(nivel().get('importado'))
+        pasos.guardar_paso(v2, act, post(lista_widget__entradas='Hormigonado\nRelleno'), {})
+        self.assertFalse(nivel().get('importado'))
+
     def test_seguimiento_cierra_cambia_y_se_deshace(self):
         h = self.hallazgo()
         v2 = self.visita_nueva(self.p1, date.today() + timedelta(days=7))
@@ -369,8 +391,7 @@ class HallazgosTests(Base):
 class RevisionesTests(Base):
     def cargar(self):
         """Datos en un paso de la visita."""
-        pasos.guardar_paso(self.v, self.paso('cb_recursos'), post(
-            form_dinamico_widget__trabajadores='12', form_dinamico_widget__equipo_pesado='1 retroexcavadora'), {})
+        pasos.guardar_paso(self.v, self.paso('cb_recursos'), post(lista_widget__entradas='12 trabajadores\n1 retroexcavadora'), {})
 
     def foto(self, visita, etapa):
         from reg_fotos.servicios import guardar_foto
@@ -495,7 +516,7 @@ class ContenidoDelReporteTests(Base):
                                  'cb_instrucciones'])
         self.assertEqual(self.botones('cb_datos'), ['form_dinamico_widget', 'ubicacion_widget'])
         self.assertEqual(self.botones('cb_actividades'), ['lista_widget', 'camera_widget'])
-        self.assertEqual(self.botones('cb_recursos'), ['form_dinamico_widget'])
+        self.assertEqual(self.botones('cb_recursos'), ['lista_widget'])
         self.assertEqual(self.botones('cb_hallazgos'), ['hallazgos_widget', 'camera_widget'])
         self.assertEqual(self.botones('cb_seguimiento'), ['seguimiento_widget', 'camera_widget'])
         self.assertEqual(self.botones('cb_instrucciones'), ['lista_widget', 'camera_libro_widget'])
@@ -519,11 +540,30 @@ class ContenidoDelReporteTests(Base):
         self.assertEqual(campo['opciones'], ['Rutinaria', 'Inspección de actividad', 'Recepción', 'Prueba o ensayo',
                                              'Verificación de observaciones', 'Otro'])
 
-    def test_recursos_pide_trabajadores_y_equipo_pesado_es_texto(self):
+    def test_recursos_es_una_lista_con_minimo_de_dos(self):
         paso = self.paso('cb_recursos')
-        self.assertFalse(pasos.guardar_paso(self.v, paso, post(form_dinamico_widget__equipo_pesado='Grúa'), {})[0])
-        self.assertTrue(pasos.guardar_paso(self.v, paso, post(form_dinamico_widget__trabajadores='8,5'), {})[0])
-        self.assertEqual(DatoPaso.objects.get(object_id=self.v.pk, paso_nombre='cb_recursos').datos['form_dinamico_widget']['trabajadores'], 8.5)
+        cfg = paso.widgets.get().config
+        self.assertEqual((cfg['min_items'], cfg['max_items']), (2, 50))
+        w = obtener('lista_widget')
+        self.assertEqual([w.nivel({'entradas': e}, cfg, None) for e in ([], ['12 trabajadores'], ['12 trabajadores', '1 grúa'],
+                                                                         ['a', 'b', 'c'])], [1, 2, 3, 3])
+        self.assertTrue(pasos.guardar_paso(self.v, paso, post(lista_widget__entradas='12 trabajadores\n1 retroexcavadora\n1 grúa'), {})[0])
+        self.assertEqual(DatoPaso.objects.get(object_id=self.v.pk, paso_nombre='cb_recursos').datos['lista_widget']['entradas'],
+                         ['12 trabajadores', '1 retroexcavadora', '1 grúa'])
+
+    def test_la_lista_muestra_tantas_filas_vacias_como_el_minimo(self):
+        w, cfg = obtener('lista_widget'), self.paso('cb_recursos').widgets.get().config
+        ctx = mock.Mock(puede_escribir=True)
+        self.assertEqual(len(w.contexto({}, cfg, ctx)['filas_vacias']), 2)
+        self.assertEqual(len(w.contexto({'entradas': ['a']}, cfg, ctx)['filas_vacias']), 1)
+        self.assertEqual(len(w.contexto({'entradas': ['a', 'b']}, cfg, ctx)['filas_vacias']), 0)
+        self.assertEqual(len(w.contexto({}, {}, ctx)['filas_vacias']), 1)   # sin mínimo: una fila, como siempre
+
+    def test_min_items_debe_ser_entero_y_no_superar_el_maximo(self):
+        w = obtener('lista_widget')
+        self.assertEqual(w.validar_config({'min_items': 2, 'max_items': 5}), [])
+        self.assertTrue(w.validar_config({'min_items': 'dos'}))
+        self.assertTrue(w.validar_config({'min_items': 6, 'max_items': 5}))
 
     def test_actividades_es_una_lista_y_pide_cuatro_imagenes_con_metadatos(self):
         configs = {pw.widget_slug: pw.config for pw in self.paso('cb_actividades').widgets.all()}
@@ -555,7 +595,7 @@ class ContenidoDelReporteTests(Base):
         for i in range(4):
             guardar_foto = __import__('reg_fotos.servicios', fromlist=['guardar_foto']).guardar_foto
             guardar_foto(subida(datos=imagen(exif=exif_con_gps_y_fecha())), autor=self.ito1, registro=self.v, etapa='cb_actividades')
-        pasos.guardar_paso(self.v, self.paso('cb_recursos'), post(form_dinamico_widget__trabajadores='10'), {})
+        pasos.guardar_paso(self.v, self.paso('cb_recursos'), post(lista_widget__entradas='10 trabajadores\n1 grúa'), {})
         pasos.guardar_paso(self.v, self.paso('cb_hallazgos'), post(hallazgos_widget__sin_hallazgos='on'), {})
         self.assertEqual(servicios.faltan_para_emitir(self.v), [])   # seguimiento: nada pendiente → completo solo
         self.client.force_login(self.pmo)
@@ -595,6 +635,50 @@ class MetadatosDeLasFotosTests(Base):
         self.assertIn('WhatsApp', r.json()['message'])
         self.assertFalse(Foto.objects.exists())
 
+    def subir_sin_metadatos(self, user):
+        self.client.force_login(user)
+        return self.client.post(f'/tekon/registros/construccion-base/{self.v.pk}/fotos/{self.ETAPA}/subir/',
+                                {'fotos': subida(), 'sin_metadatos': '1'}, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+    def test_el_superusuario_puede_aceptar_fotos_sin_metadatos(self):
+        root = get_user_model().objects.create_superuser('root_fotos@x.cl', 'x')
+        self.assertEqual(self.subir_sin_metadatos(root).status_code, 200)
+        self.assertEqual(Foto.objects.count(), 1)
+
+    def test_el_administrador_puede_aceptar_fotos_sin_metadatos(self):
+        self.ito1.empresas_administradas.add(self.a)   # miembro (puede cargar datos) que además administra la empresa
+        self.assertEqual(self.subir_sin_metadatos(self.ito1).status_code, 200)
+
+    def test_un_administrador_que_no_es_miembro_puede_subir_fotos(self):
+        adm = get_user_model().objects.create_user('adm_fotos@x.cl', 'x')
+        adm.empresas_administradas.add(self.a)
+        self.assertEqual(self.subir(subida(datos=imagen(exif=exif_con_gps_y_fecha())), user=adm).status_code, 200)
+        self.assertEqual(self.subir_sin_metadatos(adm).status_code, 200)
+        self.assertEqual(Foto.objects.count(), 2)
+        self.assertContains(self.client.get(f'/tekon/registros/construccion-base/{self.v.pk}/fotos/{self.ETAPA}/'),
+                            'data-fotos-auto')
+
+    def test_en_un_registro_concluido_ni_el_administrador_sube(self):
+        adm = get_user_model().objects.create_user('adm_fotos2@x.cl', 'x')
+        adm.empresas_administradas.add(self.a)
+        self.v.concluido = True
+        self.v.save()
+        self.assertEqual(self.subir_sin_metadatos(adm).status_code, 403)
+
+    def test_un_ejecutor_no_puede_saltarse_la_exigencia_aunque_envie_el_interruptor(self):
+        r = self.subir_sin_metadatos(self.ito1)
+        self.assertEqual(r.status_code, 400)
+        self.assertFalse(Foto.objects.exists())
+
+    def test_el_interruptor_solo_se_muestra_a_administradores_y_donde_se_exigen_metadatos(self):
+        root = get_user_model().objects.create_superuser('root_fotos2@x.cl', 'x')
+        url = f'/tekon/registros/construccion-base/{self.v.pk}/fotos/{self.ETAPA}/'
+        self.client.force_login(root)
+        self.assertContains(self.client.get(url), 'name="sin_metadatos"')
+        self.assertNotContains(self.client.get(url.replace(self.ETAPA, 'cb_hallazgos')), 'name="sin_metadatos"')
+        self.client.force_login(self.ito1)
+        self.assertNotContains(self.client.get(url), 'name="sin_metadatos"')
+
     def test_foto_con_fecha_pero_sin_gps_se_rechaza(self):
         from PIL import Image
         ex = Image.Exif()
@@ -624,18 +708,20 @@ class MetadatosDeLasFotosTests(Base):
         self.assertIn('a.jpg', r.json()['message'])
         self.assertEqual(Foto.objects.count(), 1)
 
-    def test_la_galeria_ofrece_tomar_foto_y_solo_donde_no_se_exigen_metadatos_tambien_la_galeria(self):
+    def test_la_galeria_ofrece_siempre_tomar_foto_y_elegir_de_la_galeria(self):
         self.client.force_login(self.ito1)
         con = self.client.get(f'/tekon/registros/construccion-base/{self.v.pk}/fotos/{self.ETAPA}/')
         self.assertContains(con, 'capture="environment"')
         self.assertContains(con, 'Capturar Imágenes')
-        self.assertNotContains(con, 'Elegir de la galería')   # donde se exigen metadatos solo vale la cámara
-        self.assertNotContains(con, ' multiple ')
+        self.assertContains(con, 'Elegir de la galería')      # igual que en PTI; los metadatos se validan al subir
+        self.assertContains(con, 'multiple')
+        self.assertContains(con, 'fecha y ubicación')         # y se avisa de que se exigen
         sin = self.client.get(f'/tekon/registros/construccion-base/{self.v.pk}/fotos/cb_hallazgos/')
         self.assertContains(sin, 'capture="environment"')      # también hay botón de cámara
         self.assertContains(sin, 'Capturar Imágenes')
         self.assertContains(sin, 'Elegir de la galería')
         self.assertContains(sin, 'multiple')
+        self.assertNotContains(sin, 'fecha y ubicación')
 
     def test_exigir_metadatos_debe_ser_booleano(self):
         w = obtener('camera_widget')

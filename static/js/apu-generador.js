@@ -94,9 +94,10 @@
       e.preventDefault();
       if (alerta) alerta.classList.add('hidden');
       var destino = form.getAttribute('data-url') || form.getAttribute('action') || window.location.href;
+      var datos = valoresForm(form);   // ANTES de bloquear: un campo deshabilitado no se envía
       bloquear(form, true);
       progreso.iniciar(mensajes, promedio);
-      post(destino, valoresForm(form)).then(function (res) {
+      post(destino, datos).then(function (res) {
         bloquear(form, false);
         progreso.terminar(res.ok);
         var d = res.data;

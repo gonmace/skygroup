@@ -203,6 +203,15 @@ class Paso1Tests(Base):
         self.assertEqual(r.status_code, 400)
         self.assertFalse(APUBorrador.objects.exists())
 
+    def test_el_superusuario_sin_membresia_puede_generar_en_la_empresa_activa(self):
+        with mock.patch(LLAMAR, return_value=COHERENTE):
+            r = self.json(self.URL, self.datos(), self.su)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()['estado'], 'ok')
+        b = APUBorrador.objects.get()
+        self.assertEqual((b.empresa, b.creado_por), (self.a, self.su))
+        self.assertEqual(self.client.get(self.URL).status_code, 200)                   # la página también abre
+
     def test_el_observador_no_puede_generar(self):
         self.assertEqual(self.json(self.URL, self.datos(), self.obs).status_code, 403)
 

@@ -1,27 +1,138 @@
 {% extends "shell.html" %}
+{% load apu_tags %}
 {% block page_title %}Proyectos · APU{% endblock %}
 {% block wrap_class %}space-y-6{% endblock %}
 {% block content_main %}
-<div>
-  <h1 class="text-2xl font-semibold">Proyectos con APU</h1>
-  <div class="flex flex-wrap items-start justify-between gap-3"><p class="mt-1 max-w-2xl text-sm text-base-content/60">Cada proyecto tiene su propio perfil de cálculo y sus incidencias (por ejemplo, Gastos generales 12 % en vez de 10 %). Al cambiarlas se actualiza el precio de todos sus APU.</p>
-  {% if puede_incidencias and hay_sin_habilitar %}<a href="{% url 'apu_catalogo:habilitar' %}" class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Habilitar proyecto</a>{% endif %}</div>
-</div>
-<section class="table-card">
-  <table class="table">
-    <thead><tr><th>Proyecto</th><th>Perfil de cálculo</th><th>Región de precios</th><th class="text-right">APU</th><th>Incidencias</th><th class="w-px"></th></tr></thead>
-    <tbody>
+<header class="flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold">Proyectos con APU</h1>
+    <p class="mt-1 max-w-2xl text-sm text-base-content/60">Elige un proyecto para ver sus APU y el resumen de sus precios. Cada proyecto tiene su propio perfil de cálculo e incidencias, y al cambiarlas se actualiza el precio de todos sus APU.</p>
+  </div>
+  {% if puede_incidencias and hay_sin_habilitar %}<a href="{% url 'apu_catalogo:habilitar' %}" class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Habilitar proyecto</a>{% endif %}
+</header>
+
+{% if proyectos %}
+<div class="grid items-start gap-6 lg:grid-cols-[18rem_1fr]">
+  <nav class="space-y-2" aria-label="Proyectos con APU">
     {% for p in proyectos %}
-      <tr class="hover:bg-base-content/5">
-        <td class="font-medium">{{ p.nombre }}{% if p.codigo %} <span class="font-mono text-xs font-normal text-base-content/50">{{ p.codigo }}</span>{% endif %}</td>
-        <td>{% if p.apu %}{{ p.apu.perfil.nombre }} <span class="font-mono text-xs text-base-content/50">{{ p.apu.perfil.moneda }}</span>{% else %}<span class="text-base-content/40">Sin perfil</span>{% endif %}</td>
-        <td>{% if p.apu and p.apu.region %}{{ p.apu.region }}{% else %}<span class="text-base-content/40">Nacional</span>{% endif %}</td>
-        <td class="text-right tabular-nums"><a class="hover:underline" href="{% url 'apu_catalogo:items' %}?proyecto={{ p.pk }}">{{ p.n_apu }}</a></td>
-        <td>{% if p.apu and p.apu.ajustes %}<span class="badge badge-warning badge-soft badge-sm">{{ p.apu.ajustes|length }} ajustada{{ p.apu.ajustes|length|pluralize }}</span>{% else %}<span class="text-base-content/40">Las del perfil</span>{% endif %}</td>
-        <td>{% if puede_incidencias %}<a href="{% url 'apu_catalogo:incidencias' p.pk %}" class="btn btn-sm gap-1">{% include "components/icon.html" with name="settings" cls="size-4" %} Incidencias</a>{% endif %}</td>
-      </tr>
-    {% empty %}<tr><td colspan="6" class="py-10 text-center text-base-content/60">Todavía no hay proyectos habilitados para APU.{% if puede_incidencias %} Empieza con «Habilitar proyecto».{% else %} Pide a un coordinador que habilite uno.{% endif %}</td></tr>{% endfor %}
-    </tbody>
-  </table>
-</section>
+    <a href="?proyecto={{ p.pk }}" class="block rounded-box border p-3.5 transition-colors {% if elegido and elegido.pk == p.pk %}border-primary bg-primary/5{% else %}border-base-300 bg-base-100 hover:border-base-content/30{% endif %}" {% if elegido and elegido.pk == p.pk %}aria-current="page"{% endif %}>
+      <div class="flex items-start justify-between gap-2">
+        <span class="min-w-0"><span class="block truncate font-medium" title="{{ p.nombre }}">{{ p.nombre }}</span>
+          <span class="mt-0.5 block truncate text-xs text-base-content/60">{% if p.apu %}{{ p.apu.perfil.nombre }} · {{ p.apu.perfil.moneda }}{% else %}Sin perfil{% endif %}</span></span>
+        <span class="badge badge-sm shrink-0 {% if elegido and elegido.pk == p.pk %}badge-primary{% else %}badge-ghost{% endif %}" title="{{ p.n_apu }} APU">{{ p.n_apu }}</span>
+      </div>
+      <span class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-base-content/50">
+        <span class="inline-flex items-center gap-1">{% include "components/icon.html" with name="map-pin" cls="size-3.5" %} {% if p.apu and p.apu.region %}{{ p.apu.region }}{% else %}Nacional{% endif %}</span>
+        {% if p.apu and p.apu.ajustes %}<span class="badge badge-warning badge-soft badge-xs">{{ p.apu.ajustes|length }} incidencia{{ p.apu.ajustes|length|pluralize }}</span>{% endif %}
+      </span>
+    </a>
+    {% endfor %}
+  </nav>
+
+  {% if elegido %}
+  <div class="min-w-0 space-y-6">
+    <section class="card bg-base-100"><div class="card-body gap-4 p-5">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h2 class="flex flex-wrap items-center gap-2 text-xl font-semibold">{{ elegido.nombre }}{% if elegido.codigo %} <span class="badge badge-outline font-mono">{{ elegido.codigo }}</span>{% endif %}</h2>
+          <p class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-base-content/60">
+            {% if elegido.apu %}<span>Perfil: <span class="font-medium text-base-content/80">{{ elegido.apu.perfil.nombre }}</span></span>{% endif %}
+            <span class="inline-flex items-center gap-1">{% include "components/icon.html" with name="map-pin" cls="size-4" %} Precios: {% if resumen.region %}{{ resumen.region }}{% else %}nacionales{% endif %}</span>
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          {% if puede_generar %}<a href="{% url 'apu_generador:nuevo' %}?proyecto={{ elegido.pk }}" class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Nuevo APU</a>{% endif %}
+          {% if puede_incidencias %}<a href="{% url 'apu_catalogo:incidencias' elegido.pk %}" class="btn btn-sm gap-1">{% include "components/icon.html" with name="settings" cls="size-4" %} Incidencias</a>{% endif %}
+        </div>
+      </div>
+
+      <div class="grid gap-3 sm:grid-cols-3">
+        <div class="rounded-box bg-base-200/60 p-4">
+          <p class="text-xs font-medium uppercase tracking-wide text-base-content/50">APU</p>
+          <p class="mt-1 text-3xl font-semibold leading-none tabular-nums">{{ resumen.n }}</p>
+          <p class="mt-1.5 text-xs text-base-content/50">{% if resumen.categorias|length > 1 or resumen.categorias.0.nombre %}{{ resumen.categorias|length }} categoría{{ resumen.categorias|length|pluralize }}{% else %}sin categorías{% endif %}</p>
+        </div>
+        <div class="rounded-box bg-primary/10 p-4">
+          <p class="text-xs font-medium uppercase tracking-wide text-base-content/50" title="Suma de los precios unitarios de todos los APU del proyecto. Es una referencia: un presupuesto necesita las cantidades de cada partida.">Suma de precios unitarios</p>
+          <p class="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-3xl font-semibold leading-none tabular-nums">{% if resumen.suma is not None %}{{ resumen.suma|floatformat:2 }}{% else %}—{% endif %} <span class="text-sm font-normal text-base-content/60">{{ resumen.moneda }}</span></p>
+          <p class="mt-1.5 text-xs text-base-content/50">Referencia del conjunto, sin cantidades</p>
+        </div>
+        <div class="rounded-box bg-base-200/60 p-4">
+          <p class="text-xs font-medium uppercase tracking-wide text-base-content/50">Precios de los insumos</p>
+          <ul class="mt-2 space-y-1 text-sm">
+            <li class="flex items-center gap-2"><span class="inline-block h-3.5 w-1 rounded-full bg-success" aria-hidden="true"></span> <span class="tabular-nums font-medium">{{ resumen.estados.completo }}</span> <span class="text-base-content/60">completos</span></li>
+            <li class="flex items-center gap-2"><span class="inline-block h-3.5 w-1 rounded-full bg-warning" aria-hidden="true"></span> <span class="tabular-nums font-medium">{{ resumen.estados.parcial }}</span> <span class="text-base-content/60">con algunos sin precio</span></li>
+            <li class="flex items-center gap-2"><span class="inline-block h-3.5 w-1 rounded-full bg-error" aria-hidden="true"></span> <span class="tabular-nums font-medium">{{ resumen.estados.ninguno }}</span> <span class="text-base-content/60">sin ningún precio</span></li>
+          </ul>
+        </div>
+      </div>
+
+      {% if resumen.n_incompletos %}
+      <div role="alert" class="alert alert-warning alert-soft items-start text-sm">{% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}<span>{{ resumen.n_incompletos }} APU tiene{{ resumen.n_incompletos|pluralize:"n" }} insumos sin precio, así que la suma no es real hasta cargarlos. Revísalos en <a class="link" href="{% url 'apu_catalogo:insumos' %}?sin_precio=1">Insumos → Sin precio</a>.</span></div>
+      {% endif %}
+
+      {% if resumen.categorias|length > 1 or resumen.categorias.0.nombre %}
+      <div>
+        <p class="mb-2 text-xs font-medium uppercase tracking-wide text-base-content/50">Por categoría</p>
+        <ul class="grid gap-2 sm:grid-cols-2">
+          {% for c in resumen.categorias %}
+          <li class="flex items-center justify-between gap-3 rounded-lg border border-base-300 px-3 py-2 text-sm">
+            <span class="min-w-0 truncate">{% if c.nombre %}{{ c.nombre }}{% else %}<span class="text-base-content/50">Sin categoría</span>{% endif %} <span class="text-xs text-base-content/50">· {{ c.n }} APU</span></span>
+            <span class="shrink-0 font-medium tabular-nums">{{ c.suma|floatformat:2 }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div></section>
+
+    <section class="table-card">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 px-5 py-3.5">
+        <h2 class="flex items-center gap-2 text-base font-semibold">APU del proyecto <span class="text-sm font-normal text-base-content/50">{{ resumen.n }}</span></h2>
+        <a href="{% url 'apu_catalogo:items' %}?proyecto={{ elegido.pk }}" class="link text-sm">Ver en la base de APU</a>
+      </div>
+      {% if resumen.filas %}
+      <table class="table">
+        <thead><tr><th>Código</th><th>Descripción</th><th class="hidden md:table-cell">Categoría</th><th>Unidad</th><th class="text-right">Precio unitario</th><th class="hidden w-28 sm:table-cell">Peso</th></tr></thead>
+        <tbody>
+        {% for f in resumen.filas %}
+          <tr class="hover:bg-base-content/5">
+            <td class="border-l-4 font-mono text-sm {% if f.estado == 'completo' %}border-l-success{% elif f.estado == 'parcial' %}border-l-warning{% elif f.estado == 'ninguno' %}border-l-error{% else %}border-l-base-300{% endif %}"
+                title="{% if f.estado == 'completo' %}Precios completos{% elif f.estado == 'parcial' %}Faltan precios: {{ f.n_sin_precio }} de {{ f.n_insumos }} insumos sin precio{% elif f.estado == 'ninguno' %}Ningún insumo tiene precio{% else %}Sin composición{% endif %}">
+              <a class="hover:underline" href="{% url 'apu_catalogo:item_detalle' f.item.pk %}">{{ f.item.codigo }}</a>
+              <span class="sr-only">{% if f.estado == 'completo' %}Precios completos{% elif f.estado == 'parcial' %}Faltan algunos precios{% elif f.estado == 'ninguno' %}Ningún insumo tiene precio{% else %}Sin composición{% endif %}</span>
+            </td>
+            <td class="font-medium"><a class="hover:underline" href="{% url 'apu_catalogo:item_detalle' f.item.pk %}">{{ f.item.descripcion }}</a>{% if f.item.origen_id %} <span class="badge badge-ghost badge-sm">Reutilizado</span>{% endif %}</td>
+            <td class="hidden md:table-cell">{% if f.categoria %}<span class="badge badge-outline badge-sm">{{ f.categoria }}</span>{% else %}<span class="text-base-content/40">—</span>{% endif %}</td>
+            <td class="text-base-content/70">{{ f.item.unidad }}</td>
+            <td class="text-right tabular-nums">{% if f.total is not None %}<span class="font-medium">{{ f.total|floatformat:2 }}</span>{% else %}<span class="text-base-content/40">—</span>{% endif %}{% if f.n_sin_precio %}<span class="block text-xs text-base-content/50">{{ f.n_sin_precio }} sin precio</span>{% endif %}</td>
+            <td class="hidden sm:table-cell"><div class="flex items-center gap-2"><progress class="progress progress-primary h-1.5 w-14" value="{{ f.pct|floatformat:'2u' }}" max="100" aria-hidden="true"></progress><span class="w-9 text-xs tabular-nums text-base-content/50">{{ f.pct|floatformat:0 }}%</span></div></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-base-300 bg-primary/10 px-5 py-3.5 font-semibold">
+        <span>Suma de precios unitarios <span class="text-xs font-normal text-base-content/60">· {{ resumen.n }} APU</span></span>
+        <span class="tabular-nums">{% if resumen.suma is not None %}{{ resumen.suma|floatformat:2 }} <span class="text-xs font-normal text-base-content/60">{{ resumen.moneda }}</span>{% else %}—{% endif %}</span>
+      </div>
+      {% else %}
+      <div class="flex flex-col items-center gap-2 px-5 py-12 text-center">
+        <span class="grid size-12 place-items-center rounded-box bg-primary/10 text-primary-text">{% include "components/icon.html" with name="calculator" cls="size-6" %}</span>
+        <h3 class="font-semibold">Este proyecto todavía no tiene APU</h3>
+        <p class="max-w-sm text-sm text-base-content/60">Genera el primero y aparecerá aquí con su precio unitario.</p>
+        {% if puede_generar %}<a href="{% url 'apu_generador:nuevo' %}?proyecto={{ elegido.pk }}" class="btn btn-primary btn-sm mt-1 gap-1">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Nuevo APU</a>{% endif %}
+      </div>
+      {% endif %}
+    </section>
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<section class="card bg-base-100"><div class="card-body items-center gap-2 py-14 text-center">
+  <span class="grid size-14 place-items-center rounded-box bg-primary/10 text-primary-text">{% include "components/icon.html" with name="folder" cls="size-7" %}</span>
+  <h2 class="text-lg font-semibold">Todavía no hay proyectos habilitados para APU</h2>
+  <p class="max-w-sm text-sm text-base-content/60">{% if puede_incidencias %}Empieza con «Habilitar proyecto»: eliges su perfil de cálculo y una breve descripción.{% else %}Pide a un coordinador que habilite uno.{% endif %}</p>
+  {% if puede_incidencias %}<a href="{% url 'apu_catalogo:habilitar' %}" class="btn btn-primary btn-sm mt-2 gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Habilitar proyecto</a>{% endif %}
+</div></section>
+{% endif %}
 {% endblock %}

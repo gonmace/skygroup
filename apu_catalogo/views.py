@@ -217,8 +217,14 @@ def proyectos(request):
     lista = (Proyecto.objects.de_empresa(empresa).activos()
              .annotate(n_apu=Count('apu_items', distinct=True)).filter(Q(n_apu__gt=0) | Q(apu__isnull=False))
              .select_related('apu__perfil').order_by('nombre'))
+    lista = list(lista)
+    # El proyecto elegido (?proyecto=) manda; sin elegir (o con uno que no es de la lista) se muestra el primero.
+    clave = request.GET.get('proyecto', '')
+    elegido = next((p for p in lista if str(p.pk) == clave), None) or (lista[0] if lista else None)
     return render(request, 'apu_catalogo/proyectos.html', {
-        'proyectos': lista, 'puede_incidencias': tiene_capacidad(request.user, 'apu.perfiles.manage', empresa),
+        'proyectos': lista, 'elegido': elegido, 'resumen': calculo.resumen_proyecto(elegido) if elegido else None,
+        'puede_incidencias': tiene_capacidad(request.user, 'apu.perfiles.manage', empresa),
+        'puede_generar': tiene_capacidad(request.user, 'apu.catalogo.manage', empresa),
         'puede_proyectos': tiene_capacidad(request.user, 'proyectos.manage', empresa),
         'hay_sin_habilitar': Proyecto.objects.de_empresa(empresa).activos().filter(apu__isnull=True).exists()})
 

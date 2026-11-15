@@ -1538,6 +1538,138 @@ class PreguntasConRecomendacionTests(Base):
             self.assertIn('RECOMENDAR SIEMPRE', texto, nombre)
 
 
+class ProyectosResumenTests(Base):
+    """APU → Proyectos: lista de proyectos y, del elegido, sus APU y el resumen (suma de precios unitarios, estado de los
+    precios y desglose por categoría)."""
+    URL = '/tekon/apu/proyectos/'
+
+    def categoria(self, item, nombre):
+        campo = ItemModelo._meta.get_field('categoria')
+        if campo.is_relation:
+            from apu_catalogo.models import CategoriaAPU
+            item.categoria = CategoriaAPU.objects.get_or_create(empresa=item.empresa, nombre=nombre)[0]
+        else:
+            item.categoria = nombre
+        item.save()
+
+    def apu(self, proyecto, codigo, *insumos, categoria=''):
+        item = ItemModelo.objects.create(empresa=self.a, proyecto=proyecto, codigo=codigo, descripcion=f'Descripción {codigo}', unidad='m2')
+        for i in insumos:
+            LineaComposicion.objects.create(item=item, insumo=i, cantidad=D('2'))
+        if categoria:
+            self.categoria(item, categoria)
+        return item
+
+    def setUp(self):
+        super().setUp()
+        self.con = self.insumo('MAT-1', 'Con precio', precio='10')
+        self.con2 = self.insumo('MAT-2', 'Con precio 2', precio='7')
+        self.sin = self.insumo('MAT-3', 'Sin precio')
+        self.alfa = Proyecto.objects.create(empresa=self.a, nombre='Alfa', descripcion=DESCRIPCION)
+        ProyectoAPU.objects.create(proyecto=self.alfa, perfil=self.perfil, region='Oruro')
+        self.apu(self.alfa, 'ALF-1', self.con, categoria='Estructuras')
+        # Escuela Tarija: un APU completo, uno parcial, uno sin precios y uno sin composición
+        self.verde = self.apu(self.proyecto, 'ESC-1', self.con, self.con2, categoria='Obra gruesa')
+        self.amarillo = self.apu(self.proyecto, 'ESC-2', self.con, self.sin, categoria='Obra gruesa')
+        self.rojo = self.apu(self.proyecto, 'ESC-3', self.sin)
+        self.vacio = self.apu(self.proyecto, 'ESC-4')
+
+    def get(self, params='', usuario=None):
+        self.client.force_login(usuario or self.su)
+        return self.client.get(self.URL + params)
+
+    def test_sin_elegir_se_muestra_el_primero_y_solo_sus_apu(self):
+        r = self.get()
+        self.assertEqual(r.context['elegido'], self.alfa)                                   # orden alfabético
+        self.assertEqual([f['item'].codigo for f in r.context['resumen']['filas']], ['ALF-1'])
+        self.assertNotContains(r, 'ESC-1')
+
+    def test_elegir_un_proyecto_lista_sus_apu_y_el_resumen(self):
+        r = self.get(f'?proyecto={self.proyecto.pk}')
+        resumen = r.context['resumen']
+        self.assertEqual(r.context['elegido'], self.proyecto)
+        self.assertEqual([f['item'].codigo for f in resumen['filas']], ['ESC-1', 'ESC-2', 'ESC-3', 'ESC-4'])
+        self.assertNotContains(r, 'ALF-1')                                                  # los de otro proyecto no se mezclan
+        esperado = sum((calculo.analizar(i).total for i in (self.verde, self.amarillo, self.rojo, self.vacio)), D(0))
+        self.assertEqual(resumen['suma'], esperado)
+        self.assertEqual((resumen['n'], resumen['moneda']), (4, 'BOB'))
+        self.assertEqual(resumen['estados'], {'completo': 1, 'parcial': 1, 'ninguno': 1, 'vacio': 1})
+        self.assertEqual(resumen['n_incompletos'], 2)
+        for texto in ('Suma de precios unitarios', 'Precios de los insumos', 'completos', 'con algunos sin precio', 'sin ningún precio',
+                      'Descripción ESC-1', 'Ver en la base de APU', 'Referencia del conjunto, sin cantidades'):
+            self.assertContains(r, texto)
+        self.assertContains(r, '2 APU tienen insumos sin precio')                           # aviso de que la suma no es real
+
+    def test_la_suma_y_los_pesos_son_coherentes(self):
+        resumen = self.get(f'?proyecto={self.proyecto.pk}').context['resumen']
+        self.assertEqual(sum((f['total'] for f in resumen['filas'] if f['total'] is not None), D(0)), resumen['suma'])
+        self.assertAlmostEqual(float(sum(f['pct'] for f in resumen['filas'])), 100.0, places=6)
+        self.assertEqual(resumen['filas'][3]['pct'], D(0) if resumen['filas'][3]['total'] == 0 else resumen['filas'][3]['pct'])
+
+    def test_desglose_por_categoria(self):
+        resumen = self.get(f'?proyecto={self.proyecto.pk}').context['resumen']
+        por = {c['nombre']: c for c in resumen['categorias']}
+        self.assertEqual(set(por), {'Obra gruesa', ''})                                     # ESC-3 y ESC-4 no tienen categoría
+        self.assertEqual(por['Obra gruesa']['n'], 2)
+        self.assertEqual(por['Obra gruesa']['suma'], calculo.analizar(self.verde).total + calculo.analizar(self.amarillo).total)
+        self.assertEqual(resumen['categorias'][-1]['nombre'], '')                           # «Sin categoría» al final
+        self.assertContains(self.get(f'?proyecto={self.proyecto.pk}'), 'Por categoría')
+
+    def test_las_incidencias_del_proyecto_cambian_la_suma(self):
+        antes = self.get(f'?proyecto={self.alfa.pk}').context['resumen']['suma']
+        ProyectoAPU.objects.filter(proyecto=self.alfa).update(ajustes={'GG': '0.30'})
+        despues = self.get(f'?proyecto={self.alfa.pk}').context['resumen']['suma']
+        self.assertGreater(despues, antes)
+        self.assertEqual(self.get(f'?proyecto={self.proyecto.pk}').context['resumen']['suma'],
+                         self.get(f'?proyecto={self.proyecto.pk}').context['resumen']['suma'])   # y no afecta a los demás proyectos
+
+    def test_un_proyecto_ajeno_o_inexistente_no_se_muestra(self):
+        for clave in (str(self.proyecto_b.pk), '999999', 'abc', ''):
+            r = self.get(f'?proyecto={clave}')
+            self.assertEqual(r.context['elegido'], self.alfa, clave)
+        Proyecto.objects.create(empresa=self.a, nombre='Sin habilitar', descripcion=DESCRIPCION)
+        r = self.get()
+        self.assertNotIn('Sin habilitar', [p.nombre for p in r.context['proyectos']])
+
+    def test_enlaces_y_permisos_de_las_acciones(self):
+        r = self.get(f'?proyecto={self.proyecto.pk}', self.coord)
+        self.assertContains(r, f'/tekon/apu/generar/?proyecto={self.proyecto.pk}')
+        self.assertContains(r, f'/tekon/apu/proyectos/{self.proyecto.pk}/incidencias/')
+        self.assertContains(r, f'/tekon/apu/lista/{self.verde.pk}/')
+        self.assertContains(r, f'/tekon/apu/lista/?proyecto={self.proyecto.pk}')
+        r = self.get(f'?proyecto={self.proyecto.pk}', self.obs)                              # el observador solo mira
+        self.assertNotContains(r, '/tekon/apu/generar/')
+        self.assertNotContains(r, '/incidencias/')
+        self.assertContains(r, 'Descripción ESC-1')
+
+    def test_la_lista_marca_el_proyecto_elegido_y_muestra_cuantos_apu_tiene(self):
+        r = self.get(f'?proyecto={self.proyecto.pk}')
+        html = r.content.decode()
+        self.assertEqual(html.count(f'href="?proyecto={self.proyecto.pk}"'), 1)
+        tarjeta = html[html.index(f'href="?proyecto={self.proyecto.pk}"'):][:400]
+        self.assertIn('aria-current="page"', tarjeta)                                       # (el menú lateral tiene el suyo)
+        otra = html[html.index(f'href="?proyecto={self.alfa.pk}"'):][:400]
+        self.assertNotIn('aria-current="page"', otra)
+        self.assertEqual({p.nombre: p.n_apu for p in r.context['proyectos']}, {'Alfa': 1, 'Escuela Tarija': 4})
+        self.assertIn('Oruro', html)                                                        # la región de cada proyecto
+
+    def test_proyecto_sin_apu_invita_a_crear_el_primero(self):
+        vacio = Proyecto.objects.create(empresa=self.a, nombre='Zeta', descripcion=DESCRIPCION)
+        ProyectoAPU.objects.create(proyecto=vacio, perfil=self.perfil)
+        r = self.get(f'?proyecto={vacio.pk}', self.coord)
+        self.assertEqual((r.context['resumen']['n'], r.context['resumen']['suma']), (0, D(0)))
+        self.assertContains(r, 'Este proyecto todavía no tiene APU')
+        self.assertContains(r, f'/tekon/apu/generar/?proyecto={vacio.pk}')
+
+    def test_sin_proyectos_habilitados_explica_como_empezar(self):
+        ProyectoAPU.objects.all().delete()
+        ItemModelo.objects.all().delete()
+        r = self.get(usuario=self.coord)
+        self.assertIsNone(r.context['elegido'])
+        self.assertContains(r, 'Todavía no hay proyectos habilitados para APU')
+        self.assertContains(r, '/tekon/apu/proyectos/habilitar/')
+
+
 class CalculoTests(Base):
     def test_sub_items_desperdicio_region_e_insumos_sin_precio(self):
         cemento = self.insumo('MAT-1', 'Cemento', unidad='kg', precio='2')

@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from apu_motor import calcular
 
-from .models import ProyectoAPU, Tipo
+from .models import ItemModelo, ProyectoAPU, Tipo
 
 CERO = Decimal(0)
 UNO = Decimal(1)
@@ -132,7 +132,7 @@ def _sumar(item, region, fecha, acumulado, filas, sin_precio, factor=UNO, vistos
 def analizar(item, region=None, fecha=None, perfil=None):
     """Analiza `item`. Por defecto usa el perfil efectivo de su proyecto y la región de precios del proyecto (`region`
     la reemplaza si se indica; vacía = nacional). `perfil` (ya validado) solo sirve para previsualizar incidencias."""
-    pa = _proyecto_apu(item.proyecto)
+    pa = _proyecto_apu(item.proyecto) if (perfil is None or region is None) else None   # con ambos ya dados no se vuelve a buscar
     if perfil is None and pa:
         perfil = pa.perfil_efectivo()
     if region is None:
@@ -161,3 +161,29 @@ def desglose(perfil, resultado):
         return []
     return [{'cod': l['cod'], 'nombre': l['nombre'], 'tipo': l['tipo'], 'nivel': l['nivel'], 'total': l['total'],
              'valor': resultado.lineas.get(l['cod'])} for l in perfil['lineas'] if l['cod'] in resultado.lineas]
+
+
+def resumen_proyecto(proyecto):
+    """Resumen de los APU de un proyecto: cada APU con su precio unitario y el estado de sus precios, la suma de precios
+    unitarios, cuántos están completos / incompletos y el desglose por categoría. El perfil efectivo y la región se
+    calculan una sola vez. Sin metrados no hay un presupuesto: la suma es una referencia del conjunto."""
+    pa = _proyecto_apu(proyecto)
+    perfil = pa.perfil_efectivo() if pa else None
+    region = pa.region if pa else ''
+    filas, suma, estados, categorias = [], CERO, {'completo': 0, 'parcial': 0, 'ninguno': 0, 'vacio': 0}, {}
+    for item in ItemModelo.objects.filter(proyecto=proyecto).order_by('codigo'):
+        a = analizar(item, region=region, perfil=perfil)
+        categoria = str(item.categoria or '')
+        estados[a.estado_precios] += 1
+        if a.total is not None:
+            suma += a.total
+        cat = categorias.setdefault(categoria, {'nombre': categoria, 'n': 0, 'suma': CERO})
+        cat['n'] += 1
+        cat['suma'] += a.total or CERO
+        filas.append({'item': item, 'total': a.total, 'estado': a.estado_precios, 'n_insumos': a.n_insumos,
+                      'n_sin_precio': len(a.sin_precio), 'categoria': categoria, 'pct': CERO})
+    for f in filas:
+        f['pct'] = (f['total'] / suma * 100) if (suma and f['total'] is not None) else CERO
+    return {'filas': filas, 'n': len(filas), 'suma': suma if perfil else None, 'moneda': perfil['moneda'] if perfil else '',
+            'region': region, 'estados': estados, 'n_incompletos': estados['parcial'] + estados['ninguno'],
+            'categorias': sorted(categorias.values(), key=lambda c: (c['nombre'] == '', c['nombre'].lower()))}

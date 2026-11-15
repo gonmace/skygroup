@@ -20,10 +20,11 @@
         <span class="text-xs font-medium text-base-content/70">Proyecto <span class="text-error" aria-hidden="true">*</span></span>
         {% if proyectos|length > 8 %}<input type="search" class="input input-bordered input-sm w-full" placeholder="Buscar proyecto…" data-filtro-proyecto aria-label="Buscar proyecto">{% endif %}
         <select name="proyecto" class="select select-bordered select-sm w-full" required {% if borrador %}disabled{% endif %}>
-          <option value="">Elige un proyecto…</option>
+          <option value="">Elige un proyecto habilitado…</option>
           {% for p in proyectos %}<option value="{{ p.pk }}" {% if inicial.proyecto|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nombre }}{% if p.codigo %} · {{ p.codigo }}{% endif %}</option>{% endfor %}
         </select>
         {% if borrador %}<input type="hidden" name="proyecto" value="{{ borrador.proyecto_id }}">{% endif %}
+        <span class="text-xs text-base-content/50">¿No ves tu proyecto? <a class="link" href="{% url 'apu_catalogo:proyectos' %}">Habilítalo en APU → Proyectos</a>.</span>
       </label>
 
       <div class="hidden sm:col-span-2" data-bloque-descripcion>
@@ -46,15 +47,6 @@
       <label class="flex flex-col gap-1">
         <span class="text-xs font-medium text-base-content/70">Región o ciudad de los precios</span>
         <input name="region" maxlength="80" class="input input-bordered input-sm w-full" value="{{ borrador.region }}" placeholder="Vacío = precios nacionales">
-      </label>
-      <label class="flex flex-col gap-1 sm:col-span-2">
-        <span class="text-xs font-medium text-base-content/70">Perfil de cálculo <span class="text-error" aria-hidden="true">*</span></span>
-        <select name="perfil" required class="select select-bordered select-sm w-full" data-perfil>
-          <option value="">Elige un perfil…</option>
-          {% if perfiles %}<optgroup label="Perfiles de tu empresa">{% for p in perfiles %}<option value="{{ p.pk }}">{{ p.nombre }} · {{ p.moneda }}</option>{% endfor %}</optgroup>{% endif %}
-          {% if plantillas %}<optgroup label="Plantillas (se copian a tu empresa al usarlas)">{% for p in plantillas %}<option value="{{ p.pk }}">{{ p.nombre }} · {{ p.moneda }}</option>{% endfor %}</optgroup>{% endif %}
-        </select>
-        <span class="text-xs text-base-content/50">Define los recargos (gastos generales, utilidad, impuestos…) de todos los APU del proyecto. Cada empresa trabaja con sus propios perfiles; después puedes ajustar cada porcentaje solo para este proyecto.</span>
       </label>
       <label class="flex flex-col gap-1 sm:col-span-2">
         <span class="text-xs font-medium text-base-content/70">Detalles de la actividad (opcional)</span>

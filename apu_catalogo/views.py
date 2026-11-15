@@ -35,6 +35,7 @@ def inicio(request):
         'recientes': ItemModelo.objects.filter(empresa=empresa).select_related('proyecto').order_by('-creado', '-pk')[:5],
         'perfiles': perfiles, 'puede_generar': puede_generar,
         'puede_perfiles': tiene_capacidad(request.user, 'apu.perfiles.manage', empresa),
+        'sin_habilitados': not ProyectoAPU.objects.filter(proyecto__empresa=empresa, proyecto__is_deleted=False).exists(),
     })
 
 
@@ -201,8 +202,7 @@ def item_detalle(request, pk):
         'proyecto_apu': pa, 'region': region, 'consumo': consumo,
         'puede_generar': tiene_capacidad(request.user, 'apu.catalogo.manage', empresa),
         'puede_incidencias': tiene_capacidad(request.user, 'apu.perfiles.manage', empresa),
-        'proyectos': Proyecto.objects.de_empresa(empresa).activos().order_by('nombre'),
-        'perfiles': PerfilCalculo.propios(empresa), 'plantillas': PerfilCalculo.objects.filter(empresa__isnull=True, activo=True),
+        'proyectos': Proyecto.objects.de_empresa(empresa).activos().filter(apu__isnull=False).order_by('nombre'),
         'con_apu': set(ProyectoAPU.objects.filter(proyecto__empresa=empresa).values_list('proyecto_id', flat=True))})
 
 
@@ -213,7 +213,45 @@ def proyectos(request):
              .annotate(n_apu=Count('apu_items', distinct=True)).filter(Q(n_apu__gt=0) | Q(apu__isnull=False))
              .select_related('apu__perfil').order_by('nombre'))
     return render(request, 'apu_catalogo/proyectos.html', {
-        'proyectos': lista, 'puede_incidencias': tiene_capacidad(request.user, 'apu.perfiles.manage', empresa)})
+        'proyectos': lista, 'puede_incidencias': tiene_capacidad(request.user, 'apu.perfiles.manage', empresa),
+        'puede_proyectos': tiene_capacidad(request.user, 'proyectos.manage', empresa),
+        'hay_sin_habilitar': Proyecto.objects.de_empresa(empresa).activos().filter(apu__isnull=True).exists()})
+
+
+@acceso_apu('apu.perfiles.manage')
+def habilitar(request):
+    """Habilita un proyecto para APU: elige su perfil de cálculo (siempre uno de la empresa; una plantilla se copia) y
+    deja su descripción lista para la IA. Es el primer paso del módulo."""
+    from apu_generador import asistente
+    empresa = request.empresa
+    pendientes = Proyecto.objects.de_empresa(empresa).activos().filter(apu__isnull=True).order_by('nombre')
+    clave = request.POST.get('proyecto') or request.GET.get('proyecto') or ''
+    elegido = pendientes.filter(pk=clave).first() if clave.isdigit() else None
+    if request.method == 'POST':
+        if elegido is None:
+            messages.error(request, 'Elige un proyecto de tu empresa que aún no esté habilitado.')
+        else:
+            descripcion = request.POST.get('descripcion', '').strip()
+            elegido.descripcion = descripcion
+            if not asistente.descripcion_suficiente(elegido):
+                messages.error(request, f'Describe brevemente el proyecto (al menos {asistente.MIN_PALABRAS_DESCRIPCION} '
+                                        'palabras): qué se construye, dónde y para qué. La IA la usa para ajustar cada APU.')
+            else:
+                try:
+                    asistente.asegurar_proyecto_apu(elegido, request.POST.get('perfil'), empresa)
+                except asistente.ErrorPaso as e:
+                    messages.error(request, str(e))
+                else:
+                    elegido.save(update_fields=['descripcion'])
+                    messages.success(request, f'Se habilitó «{elegido.nombre}» para APU. Ya puedes generar sus APU.')
+                    return redirect('apu_generador:nuevo')
+    return render(request, 'apu_catalogo/habilitar.html', {
+        'pendientes': pendientes, 'elegido': elegido, 'descripcion': request.POST.get('descripcion', elegido.descripcion if elegido else ''),
+        'perfil_sel': request.POST.get('perfil', ''), 'perfiles': PerfilCalculo.propios(empresa),
+        'plantillas': PerfilCalculo.objects.filter(empresa__isnull=True, activo=True),
+        'hay_proyectos': Proyecto.objects.de_empresa(empresa).activos().exists(),
+        'puede_proyectos': tiene_capacidad(request.user, 'proyectos.manage', empresa),
+        'minimo': asistente.MIN_PALABRAS_DESCRIPCION})
 
 
 def _pct(valor):

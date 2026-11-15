@@ -38,6 +38,11 @@ def _proyectos(empresa):
     return Proyecto.objects.de_empresa(empresa).activos().order_by('nombre')
 
 
+def _habilitados(empresa):
+    """Proyectos habilitados para APU (tienen su `ProyectoAPU`: perfil de cálculo e incidencias)."""
+    return _proyectos(empresa).filter(apu__isnull=False)
+
+
 def _puede_con(request, borrador):
     """Quien lo creó, el equipo del proyecto y los administradores."""
     user = request.user
@@ -82,7 +87,7 @@ def _info_proyectos(empresa):
     info = {}
     pas = list(ProyectoAPU.objects.filter(proyecto__empresa=empresa).select_related('perfil'))
     perfiles, perfil_ids = {pa.proyecto_id: pa.perfil.nombre for pa in pas}, {pa.proyecto_id: pa.perfil_id for pa in pas}
-    for p in _proyectos(empresa):
+    for p in _habilitados(empresa):
         info[p.pk] = {'perfil': perfiles.get(p.pk, ''), 'perfil_id': perfil_ids.get(p.pk, ''), 'descripcion_ok': asistente.descripcion_suficiente(p),
                       'descripcion': p.descripcion or ''}
     return info
@@ -126,28 +131,37 @@ def _validar_actividad(datos):
 
 
 def _completar_proyecto(request, proyecto, datos):
-    """Descripción del proyecto (obligatoria y suficiente) y perfil de cálculo."""
+    """La descripción del proyecto debe ser suficiente: si no lo es, se pide aquí y se guarda en el proyecto."""
     if not asistente.descripcion_suficiente(proyecto):
-        texto = str(datos.get('proyecto_descripcion') or '').strip()
-        proyecto.descripcion = texto
+        proyecto.descripcion = str(datos.get('proyecto_descripcion') or '').strip()
         if not asistente.descripcion_suficiente(proyecto):
             raise ErrorPaso(f'Describe brevemente el proyecto (al menos {asistente.MIN_PALABRAS_DESCRIPCION} palabras): '
                             'qué se construye, dónde y para qué. La IA la usa para ajustar cada APU.')
         proyecto.save(update_fields=['descripcion'])
-    asistente.asegurar_proyecto_apu(proyecto, datos.get('perfil'), request.empresa)
+
+
+def _sin_proyectos_habilitados(request):
+    """Primer paso del módulo: antes de generar hay que habilitar un proyecto para APU."""
+    if tiene_capacidad(request.user, 'apu.perfiles.manage', request.empresa):
+        messages.info(request, 'Primero habilita un proyecto para APU: elige su perfil de cálculo y su descripción.')
+        return redirect('apu_catalogo:habilitar')
+    messages.warning(request, 'Todavía no hay proyectos habilitados para APU. Pide a un coordinador que habilite uno.')
+    return redirect('apu_catalogo:inicio')
 
 
 @acceso_apu('apu.catalogo.manage')
 def nuevo(request):
     empresa = request.empresa
+    if request.method == 'GET' and not _habilitados(empresa).exists():
+        return _sin_proyectos_habilitados(request)
     if request.method == 'POST':
         datos = _datos(request)
         ok, motivo = creditos.puede_consumir(request.user, empresa)
         if not ok:
             return _json(False, motivo, 402)
-        proyecto = _proyectos(empresa).filter(pk=datos.get('proyecto') or 0).first()
+        proyecto = _habilitados(empresa).filter(pk=datos.get('proyecto') or 0).first()
         if proyecto is None:
-            return _json(False, 'Elige un proyecto de tu empresa.', 400)
+            return _json(False, 'Elige un proyecto habilitado para APU. Si no lo ves, habilítalo primero en APU → Proyectos.', 400)
         try:
             campos = _validar_actividad(datos)
             _completar_proyecto(request, proyecto, datos)
@@ -157,8 +171,7 @@ def nuevo(request):
         return _correr_coherencia(request, borrador)
     inicial = {'proyecto': request.GET.get('proyecto', '')}
     return render(request, 'apu_generador/actividad.html', {
-        **_contexto_base(request), 'proyectos': _proyectos(empresa), 'info_proyectos': _info_proyectos(empresa),
-        'perfiles': PerfilCalculo.propios(empresa), 'plantillas': PerfilCalculo.objects.filter(empresa__isnull=True, activo=True),
+        **_contexto_base(request), 'proyectos': _habilitados(empresa), 'info_proyectos': _info_proyectos(empresa),
         'inicial': inicial, 'promedio_ms': _promedio_ms(empresa, 'apu-coherencia')})
 
 
@@ -182,8 +195,7 @@ def actividad(request, pk):
     empresa = request.empresa
     return render(request, 'apu_generador/actividad.html', {
         **_contexto_base(request, borrador), 'proyectos': [borrador.proyecto],
-        'info_proyectos': _info_proyectos(empresa), 'perfiles': PerfilCalculo.propios(empresa),
-        'plantillas': PerfilCalculo.objects.filter(empresa__isnull=True, activo=True), 'inicial': {'proyecto': borrador.proyecto_id}, 'promedio_ms': _promedio_ms(empresa, 'apu-coherencia')})
+        'info_proyectos': _info_proyectos(empresa), 'inicial': {'proyecto': borrador.proyecto_id}, 'promedio_ms': _promedio_ms(empresa, 'apu-coherencia')})
 
 
 # ── Pasos 2 a 4: propuesta de la IA y guardado ────────────────────────────────
@@ -445,14 +457,10 @@ def reutilizar(request, pk):
     """Copia un APU a otro proyecto (1 crédito) y, si hay prompt, pide a la IA los cambios (1 crédito más)."""
     item = _apu_de_la_empresa(request, pk)
     datos = _datos(request)
-    destino = _proyectos(request.empresa).filter(pk=datos.get('proyecto') or 0).first()
+    destino = _habilitados(request.empresa).filter(pk=datos.get('proyecto') or 0).first()
     if destino is None:
-        return _json(False, 'Elige el proyecto de destino.', 400)
+        return _json(False, 'Elige un proyecto de destino habilitado para APU.', 400)
     instruccion = str(datos.get('instruccion') or '').strip()
-    try:
-        asistente.asegurar_proyecto_apu(destino, datos.get('perfil'), request.empresa)
-    except ErrorPaso as e:
-        return _json(False, str(e), 400, necesita_perfil=True)
     ok, motivo = creditos.puede_consumir(request.user, request.empresa)
     if not ok:
         return _json(False, motivo, 402)

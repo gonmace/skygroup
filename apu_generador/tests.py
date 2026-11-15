@@ -158,37 +158,17 @@ class Paso1Tests(Base):
         p.refresh_from_db()
         self.assertEqual(p.descripcion, DESCRIPCION)
 
-    def test_proyecto_sin_perfil_exige_elegirlo_y_usa_una_copia_propia_de_la_plantilla(self):
-        p = Proyecto.objects.create(empresa=self.a, nombre='Nuevo', descripcion=DESCRIPCION)
-        self.assertEqual(self.json(self.URL, self.datos(proyecto=p.pk), self.coord).status_code, 400)
-        with mock.patch(LLAMAR, return_value=COHERENTE):
-            self.json(self.URL, self.datos(proyecto=p.pk, perfil=self.perfil.pk))
-        propio = ProyectoAPU.objects.get(proyecto=p).perfil
-        self.assertEqual((propio.empresa, propio.nombre), (self.a, self.perfil.nombre))   # copia en la empresa, no la plantilla
-        self.assertNotEqual(propio, self.perfil)
-        # otro proyecto que elige la misma plantilla reutiliza la copia: no se duplica
-        q = Proyecto.objects.create(empresa=self.a, nombre='Otro', descripcion=DESCRIPCION)
-        with mock.patch(LLAMAR, return_value=COHERENTE):
-            self.json(self.URL, self.datos(proyecto=q.pk, perfil=self.perfil.pk))
-        self.assertEqual(ProyectoAPU.objects.get(proyecto=q).perfil, propio)
-        self.assertEqual(PerfilCalculo.objects.filter(empresa=self.a, nombre=self.perfil.nombre).count(), 1)
+    def test_un_proyecto_sin_habilitar_no_se_puede_usar(self):
+        p = Proyecto.objects.create(empresa=self.a, nombre='Sin habilitar', descripcion=DESCRIPCION)
+        r = self.json(self.URL, self.datos(proyecto=p.pk), self.coord)
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('habilitado', r.json()['message'])
+        self.assertFalse(APUBorrador.objects.exists())
+        self.assertNotContains(self.client.get(self.URL), 'Sin habilitar')            # tampoco se ofrece en el selector
 
-    def test_se_puede_cambiar_el_perfil_del_proyecto_en_el_paso_1(self):
-        otro = self.perfil.copiar_a(self.a)
-        otro.nombre = 'Mi perfil'
-        otro.save()
-        with mock.patch(LLAMAR, return_value=COHERENTE):
-            self.json(self.URL, self.datos(perfil=otro.pk), self.coord)
-        self.pa.refresh_from_db()
-        self.assertEqual(self.pa.perfil, otro)
-        r = self.client.get(self.URL)
-        self.assertContains(r, 'Perfil de cálculo')
-        self.assertNotContains(r, 'Secreto')
-        ajeno = self.perfil.copiar_a(self.b)
-        ajeno.nombre = 'Secreto de Embol'
-        ajeno.save()
-        self.assertNotContains(self.client.get(self.URL), 'Secreto de Embol')            # nunca ofrece perfiles de otra empresa
-        self.assertEqual(self.json(self.URL, self.datos(perfil=ajeno.pk)).status_code, 400)
+    def test_el_paso_1_no_pide_perfil_porque_sale_de_la_habilitacion(self):
+        self.client.force_login(self.coord)
+        self.assertNotContains(self.client.get(self.URL), 'name="perfil"')
 
     def test_el_perfil_es_unico_por_empresa_y_las_plantillas_tampoco_se_repiten(self):
         from django.db import IntegrityError, transaction
@@ -419,6 +399,86 @@ class ResultadoTests(Base):
         r = self.client.get(f'/tekon/apu/borrador/{b.pk}/resultado/')
         self.assertContains(r, 'Ladrillo 6H')
         self.assertContains(r, 'Precio unitario')
+
+
+class HabilitarTests(Base):
+    URL = '/tekon/apu/proyectos/habilitar/'
+
+    def setUp(self):
+        super().setUp()
+        self.nuevo = Proyecto.objects.create(empresa=self.a, nombre='Colegio Norte', descripcion='')
+
+    def datos(self, **kw):
+        d = {'proyecto': self.nuevo.pk, 'perfil': self.perfil.pk, 'descripcion': DESCRIPCION}
+        d.update(kw)
+        return d
+
+    def test_habilitar_crea_el_perfil_propio_y_guarda_la_descripcion(self):
+        self.client.force_login(self.coord)
+        r = self.client.post(self.URL, self.datos())
+        self.assertRedirects(r, '/tekon/apu/generar/', fetch_redirect_response=False)
+        pa = ProyectoAPU.objects.get(proyecto=self.nuevo)
+        self.assertEqual((pa.perfil.empresa, pa.perfil.nombre), (self.a, self.perfil.nombre))    # copia de la plantilla, de la empresa
+        self.nuevo.refresh_from_db()
+        self.assertEqual(self.nuevo.descripcion, DESCRIPCION)
+
+    def test_otro_proyecto_con_la_misma_plantilla_reutiliza_la_copia(self):
+        otro = Proyecto.objects.create(empresa=self.a, nombre='Colegio Sur')
+        self.client.force_login(self.coord)
+        self.client.post(self.URL, self.datos())
+        self.client.post(self.URL, self.datos(proyecto=otro.pk))
+        self.assertEqual(PerfilCalculo.objects.filter(empresa=self.a, nombre=self.perfil.nombre).count(), 1)
+
+    def test_exige_una_descripcion_suficiente_y_no_habilita_sin_ella(self):
+        self.client.force_login(self.coord)
+        r = self.client.post(self.URL, self.datos(descripcion='Una escuela'))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'al menos 15 palabras')
+        self.assertFalse(ProyectoAPU.objects.filter(proyecto=self.nuevo).exists())
+
+    def test_no_ofrece_ni_acepta_perfiles_o_proyectos_de_otra_empresa(self):
+        ajeno = self.perfil.copiar_a(self.b)
+        self.client.force_login(self.coord)
+        r = self.client.post(self.URL, self.datos(perfil=ajeno.pk))
+        self.assertContains(r, 'no existe')
+        self.assertFalse(ProyectoAPU.objects.filter(proyecto=self.nuevo).exists())
+        r = self.client.post(self.URL, self.datos(proyecto=self.proyecto_b.pk))
+        self.assertContains(r, 'Elige un proyecto')
+        self.assertFalse(ProyectoAPU.objects.filter(proyecto=self.proyecto_b).exists())
+
+    def test_solo_quien_gestiona_perfiles_habilita(self):
+        self.client.force_login(self.ejec)
+        self.assertEqual(self.client.get(self.URL).status_code, 403)
+        self.assertEqual(self.client.post(self.URL, self.datos()).status_code, 403)
+
+    def test_los_proyectos_ya_habilitados_no_se_ofrecen(self):
+        self.client.force_login(self.coord)
+        r = self.client.get(self.URL)
+        self.assertContains(r, 'Colegio Norte')
+        self.assertNotContains(r, 'Escuela Tarija')
+
+    def test_sin_proyectos_habilitados_nuevo_apu_lleva_primero_a_habilitar(self):
+        ProyectoAPU.objects.all().delete()
+        self.client.force_login(self.coord)
+        self.assertRedirects(self.client.get('/tekon/apu/generar/'), self.URL, fetch_redirect_response=False)
+        self.assertContains(self.client.get('/tekon/apu/'), 'habilita un proyecto')
+        self.client.force_login(self.ejec)                                              # sin permiso: se le explica
+        self.assertRedirects(self.client.get('/tekon/apu/generar/'), '/tekon/apu/', fetch_redirect_response=False)
+        self.assertContains(self.client.get('/tekon/apu/'), 'Todavía no hay proyectos habilitados')
+
+    def test_sin_ningun_proyecto_en_la_empresa_se_explica_como_crear_uno(self):
+        ProyectoAPU.objects.all().delete()
+        Proyecto.objects.filter(empresa=self.a).delete()
+        self.client.force_login(self.coord)
+        self.assertContains(self.client.get(self.URL), 'Todavía no hay proyectos')
+
+    def test_reutilizar_solo_en_proyectos_habilitados(self):
+        b = self.borrador_en_paso5()
+        self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {}, self.coord)
+        item = ItemModelo.objects.get()
+        r = self.json(f'/tekon/apu/lista/{item.pk}/reutilizar/', {'proyecto': self.nuevo.pk})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('habilitado', r.json()['message'])
 
 
 class CreditosTests(Base):

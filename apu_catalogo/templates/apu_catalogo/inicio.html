@@ -13,6 +13,15 @@
   </div>
 </div>
 
+{% if sin_habilitados %}
+<section class="card border border-primary/30 bg-primary/5"><div class="card-body flex-row flex-wrap items-center gap-4 p-5">
+  <span class="grid size-11 shrink-0 place-items-center rounded-box bg-primary/15 text-primary-text">{% include "components/icon.html" with name="folder" cls="size-5" %}</span>
+  <div class="min-w-0 flex-1"><h2 class="font-semibold">Primer paso: habilita un proyecto para APU</h2>
+    <p class="text-sm text-base-content/60">Elige el proyecto, su perfil de cálculo y una breve descripción. Después ya puedes generar APU.{% if not puede_perfiles %} Pide a un coordinador que lo habilite.{% endif %}</p></div>
+  {% if puede_perfiles %}<a href="{% url 'apu_catalogo:habilitar' %}" class="btn btn-primary btn-sm">Habilitar proyecto</a>{% endif %}
+</div></section>
+{% endif %}
+
 <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
   {% for icono, etiqueta, valor in resumen %}
   <div class="card bg-base-100"><div class="card-body flex-row items-center gap-4 p-4">

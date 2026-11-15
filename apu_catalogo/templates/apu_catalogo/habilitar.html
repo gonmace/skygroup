@@ -1,0 +1,44 @@
+{% extends "shell.html" %}
+{% block page_title %}Habilitar proyecto · APU{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div>
+  <a href="{% url 'apu_catalogo:proyectos' %}" class="inline-flex items-center gap-1 text-sm text-base-content/60 hover:text-base-content">{% include "components/icon.html" with name="chevron-left" cls="size-4" %} Proyectos con APU</a>
+  <h1 class="mt-1 text-2xl font-semibold">Habilitar un proyecto para APU</h1>
+  <p class="mt-1 max-w-3xl text-sm text-base-content/60">Es el primer paso: elige el proyecto, el perfil de cálculo con el que se calculan todos sus APU y una breve descripción de la obra, que la IA usa para ajustar cada actividad.</p>
+</div>
+
+{% if not pendientes %}
+<section class="card bg-base-100"><div class="card-body items-center gap-3 py-12 text-center">
+  <span class="grid size-14 place-items-center rounded-box bg-primary/10 text-primary-text">{% include "components/icon.html" with name="folder" cls="size-7" %}</span>
+  <h2 class="text-lg font-semibold">{% if hay_proyectos %}Todos tus proyectos ya están habilitados{% else %}Todavía no hay proyectos{% endif %}</h2>
+  <p class="max-w-md text-sm text-base-content/60">{% if hay_proyectos %}Puedes generar APU desde «Nuevo APU».{% else %}Primero crea un proyecto en la empresa; después podrás habilitarlo aquí para APU.{% endif %}</p>
+  {% if hay_proyectos %}<a href="{% url 'apu_generador:nuevo' %}" class="btn btn-primary btn-sm">Nuevo APU</a>
+  {% elif puede_proyectos %}<a href="{% url 'proyectos:nuevo' %}" class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Crear proyecto</a>
+  {% else %}<p class="text-sm text-base-content/60">Pide a quien administra los proyectos que cree uno.</p>{% endif %}
+</div></section>
+{% else %}
+<form method="post" class="card bg-base-100">{% csrf_token %}
+  <div class="card-body gap-5 p-5">
+    <div class="grid gap-4 sm:grid-cols-2">
+      <label class="flex flex-col gap-1 sm:col-span-2"><span class="text-xs font-medium text-base-content/70">Proyecto <span class="text-error" aria-hidden="true">*</span></span>
+        <select name="proyecto" required class="select select-bordered select-sm w-full">
+          <option value="">Elige un proyecto…</option>
+          {% for p in pendientes %}<option value="{{ p.pk }}" {% if elegido and elegido.pk == p.pk %}selected{% endif %}>{{ p.nombre }}{% if p.codigo %} · {{ p.codigo }}{% endif %}</option>{% endfor %}
+        </select></label>
+      <label class="flex flex-col gap-1 sm:col-span-2"><span class="text-xs font-medium text-base-content/70">Perfil de cálculo <span class="text-error" aria-hidden="true">*</span></span>
+        <select name="perfil" required class="select select-bordered select-sm w-full">
+          <option value="">Elige un perfil…</option>
+          {% if perfiles %}<optgroup label="Perfiles de tu empresa">{% for p in perfiles %}<option value="{{ p.pk }}" {% if perfil_sel == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nombre }} · {{ p.moneda }}</option>{% endfor %}</optgroup>{% endif %}
+          {% if plantillas %}<optgroup label="Plantillas (se copian a tu empresa al usarlas)">{% for p in plantillas %}<option value="{{ p.pk }}" {% if perfil_sel == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nombre }} · {{ p.moneda }}</option>{% endfor %}</optgroup>{% endif %}
+        </select>
+        <span class="text-xs text-base-content/50">Define los recargos (gastos generales, utilidad, impuestos…). Cada empresa trabaja con sus propios perfiles; luego puedes ajustar cada porcentaje solo para este proyecto desde «Incidencias».</span></label>
+      <label class="flex flex-col gap-1 sm:col-span-2"><span class="text-xs font-medium text-base-content/70">Descripción del proyecto <span class="text-error" aria-hidden="true">*</span></span>
+        <textarea name="descripcion" rows="4" required class="textarea textarea-bordered w-full text-sm" placeholder="Describe brevemente qué se construye, dónde y para qué.">{{ descripcion }}</textarea>
+        <span class="text-xs text-base-content/50">Mínimo {{ minimo }} palabras. Se guarda en el proyecto y la IA la usa en todos sus APU.</span></label>
+    </div>
+    <div class="flex justify-end"><button class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="check" cls="size-4" %} Habilitar proyecto</button></div>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

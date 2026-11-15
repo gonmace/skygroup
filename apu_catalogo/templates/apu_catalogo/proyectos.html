@@ -4,7 +4,8 @@
 {% block content_main %}
 <div>
   <h1 class="text-2xl font-semibold">Proyectos con APU</h1>
-  <p class="mt-1 max-w-2xl text-sm text-base-content/60">Cada proyecto tiene su propio perfil de cálculo y sus incidencias (por ejemplo, Gastos generales 12 % en vez de 10 %). Al cambiarlas se actualiza el precio de todos sus APU.</p>
+  <div class="flex flex-wrap items-start justify-between gap-3"><p class="mt-1 max-w-2xl text-sm text-base-content/60">Cada proyecto tiene su propio perfil de cálculo y sus incidencias (por ejemplo, Gastos generales 12 % en vez de 10 %). Al cambiarlas se actualiza el precio de todos sus APU.</p>
+  {% if puede_incidencias and hay_sin_habilitar %}<a href="{% url 'apu_catalogo:habilitar' %}" class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Habilitar proyecto</a>{% endif %}</div>
 </div>
 <section class="table-card">
   <table class="table">
@@ -18,7 +19,7 @@
         <td>{% if p.apu and p.apu.ajustes %}<span class="badge badge-warning badge-soft badge-sm">{{ p.apu.ajustes|length }} ajustada{{ p.apu.ajustes|length|pluralize }}</span>{% else %}<span class="text-base-content/40">Las del perfil</span>{% endif %}</td>
         <td>{% if puede_incidencias %}<a href="{% url 'apu_catalogo:incidencias' p.pk %}" class="btn btn-sm gap-1">{% include "components/icon.html" with name="settings" cls="size-4" %} Incidencias</a>{% endif %}</td>
       </tr>
-    {% empty %}<tr><td colspan="5" class="py-10 text-center text-base-content/60">Todavía no hay proyectos con APU. Crea uno con «Nuevo APU».</td></tr>{% endfor %}
+    {% empty %}<tr><td colspan="5" class="py-10 text-center text-base-content/60">Todavía no hay proyectos habilitados para APU.{% if puede_incidencias %} Empieza con «Habilitar proyecto».{% else %} Pide a un coordinador que habilite uno.{% endif %}</td></tr>{% endfor %}
     </tbody>
   </table>
 </section>

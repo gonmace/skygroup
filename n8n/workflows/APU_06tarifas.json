@@ -9,7 +9,7 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "2971e8bb-e79f-44a3-89f6-65a7440b369f",
+      "id": "c5d205cc-5a47-425f-8e8c-7026c7228fc7",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -17,7 +17,7 @@
         0,
         300
       ],
-      "webhookId": "a602cee7-e4dc-49ff-8c96-deecc868ba97",
+      "webhookId": "90664d55-c0f0-4889-bdd7-88e85f3cf249",
       "notes": "Lo llama skygroup (apu_generador/ia.py) con el payload descrito en n8n/workflows/README.md."
     },
     {
@@ -25,7 +25,7 @@
         "assignments": {
           "assignments": [
             {
-              "id": "b6aa377a-265c-44d2-9565-b8c3eff0709c",
+              "id": "2adb74fd-06a6-47fc-98a5-7d95b4a2bf90",
               "name": "system_prompt",
               "value": "Eres un asistente que consulta las tarifas oficiales de la API de OpenAI. Usa la búsqueda web (solo openai.com) para encontrar el precio vigente, en USD por millón de tokens, de entrada y de salida de cada uno de los modelos pedidos. Si un modelo tiene varios niveles de precio, usa el estándar de texto (sin batch ni caché). Si no encuentras un modelo, omítelo: no inventes cifras. En «fuente» pon la URL de la página usada.\nResponde SOLO con el JSON pedido, con los modelos exactamente como se te pidieron.",
               "type": "string"
@@ -35,7 +35,7 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "0a8eda43-c7ee-4da9-8736-0f4a326955fc",
+      "id": "dcc7edf5-cffd-45e9-beee-7e7ec11e7e3d",
       "name": "Prompt · Tarifas",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -60,7 +60,7 @@
         },
         "options": {}
       },
-      "id": "1c040ef2-dca4-4194-9cfc-17d144cc845a",
+      "id": "9536cc70-6efd-43ad-8198-638341ffcea6",
       "name": "Modelo con búsqueda web",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
@@ -70,7 +70,8 @@
       ],
       "credentials": {
         "openAiApi": {
-          "name": "OpenAi account"
+          "id": "W8XaJvGwacT4HUqW",
+          "name": "OpenAI account"
         }
       }
     },
@@ -79,7 +80,7 @@
         "schemaType": "manual",
         "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"tarifas\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"modelo\": {\n            \"type\": \"string\"\n          },\n          \"entrada_usd_mtok\": {\n            \"type\": \"number\"\n          },\n          \"salida_usd_mtok\": {\n            \"type\": \"number\"\n          }\n        },\n        \"required\": [\n          \"modelo\",\n          \"entrada_usd_mtok\",\n          \"salida_usd_mtok\"\n        ]\n      }\n    },\n    \"fuente\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"tarifas\",\n    \"fuente\"\n  ]\n}"
       },
-      "id": "a13a51be-cbd7-4d21-a8a1-b6d14bcf1aca",
+      "id": "a228f6a5-3ae5-4dda-9161-ced4f5073f3b",
       "name": "Esquema · Tarifas",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
@@ -98,7 +99,7 @@
           "systemMessage": "={{ $json.system_prompt }}"
         }
       },
-      "id": "6cd47de3-1a7b-4328-9ad3-b9f346f4934e",
+      "id": "30af3534-f92d-43c4-8d61-7261b20de40f",
       "name": "Agente · Tarifas",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -113,7 +114,7 @@
         "responseBody": "={{ { ...$json.output, \"ejecucion_id\": $execution.id } }}",
         "options": {}
       },
-      "id": "39e2a277-af66-4454-9c6c-4f4d0180f797",
+      "id": "d8c22ef8-2809-40fe-9697-2c5a7e0d37f6",
       "name": "Responder",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
@@ -130,7 +131,7 @@
         "width": 520,
         "color": 4
       },
-      "id": "4c71d36e-c817-4e4f-8395-330979b04f8d",
+      "id": "b0e30018-c645-4361-8465-3c0a9f45d1d0",
       "name": "Nota · Verificar tarifas",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -204,7 +205,7 @@
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all"
   },
-  "versionId": "bad0c2e6-a24a-444e-b4f2-b32e6f02f92f",
+  "versionId": "26ed74d7-a0ad-4f02-8b21-f06bad975147",
   "meta": {
     "templateCredsSetupCompleted": true
   },

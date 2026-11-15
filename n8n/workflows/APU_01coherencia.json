@@ -9,7 +9,7 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "62edb07b-6377-4c92-b589-46c0b5264b4e",
+      "id": "84f7efe6-d279-4626-b8d2-375bf643ecfa",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -17,7 +17,7 @@
         0,
         300
       ],
-      "webhookId": "c46b8a99-bf33-4ccc-a524-56fa8075dbc2",
+      "webhookId": "e8aa09af-0379-46f1-9113-6c3006a091bc",
       "notes": "Lo llama skygroup (apu_generador/ia.py) con el payload descrito en n8n/workflows/README.md."
     },
     {
@@ -25,7 +25,7 @@
         "assignments": {
           "assignments": [
             {
-              "id": "d7e413ea-1835-4886-94a7-d42c3f13a64f",
+              "id": "9aa917e9-8040-447e-b03d-f75bd0203134",
               "name": "system_prompt",
               "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción.\n\nTu tarea es decidir si la descripción del proyecto alcanza para analizar actividades de obra: debe permitir entender qué se construye, de qué tipo de obra se trata y para qué sirve. No exijas detalles técnicos finos ni planos.\n\nSi falta información esencial, responde proyecto_claro=false y, en «falta», indica en una frase corta qué debería agregar la persona (por ejemplo: «Indica qué se construye y para qué se usará»).\nSi alcanza, responde proyecto_claro=true y deja «falta» vacío.\nResponde SOLO con el JSON pedido.",
               "type": "string"
@@ -35,7 +35,7 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "7c9d6b94-9301-45a3-8b6c-b8542fa718d6",
+      "id": "1ae9c852-7721-4d58-8715-d4a789512714",
       "name": "Prompt · Proyecto claro",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -55,7 +55,7 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "7d367571-2e8f-49c8-86c8-16c998b51ab1",
+      "id": "f64e50ef-25b7-40bf-b5c3-bdb1fba32004",
       "name": "Modelo mini",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
@@ -65,7 +65,8 @@
       ],
       "credentials": {
         "openAiApi": {
-          "name": "OpenAi account"
+          "id": "W8XaJvGwacT4HUqW",
+          "name": "OpenAI account"
         }
       }
     },
@@ -74,7 +75,7 @@
         "schemaType": "manual",
         "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"proyecto_claro\": {\n      \"type\": \"boolean\"\n    },\n    \"falta\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"proyecto_claro\",\n    \"falta\"\n  ]\n}"
       },
-      "id": "6a31ae93-88c9-484c-a5ef-6af76607f925",
+      "id": "0321a5ee-7799-4ed3-9fa5-55e557b3acb0",
       "name": "Esquema · Proyecto claro",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
@@ -93,7 +94,7 @@
           "systemMessage": "={{ $json.system_prompt }}"
         }
       },
-      "id": "73e1d622-362d-442b-aad9-f0797b471fce",
+      "id": "220d0602-5d66-4db4-8262-53946e336a16",
       "name": "Agente · Proyecto claro",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -113,7 +114,7 @@
           },
           "conditions": [
             {
-              "id": "d4133f1b-41ae-461c-9b9b-44da41456056",
+              "id": "ab618e42-a353-49b5-be30-e8a7f9c6c475",
               "leftValue": "={{ $json.output.proyecto_claro }}",
               "rightValue": "",
               "operator": {
@@ -127,7 +128,7 @@
         },
         "options": {}
       },
-      "id": "fb4e0aed-0ec7-4094-bd69-845fc85434ce",
+      "id": "0530f04a-cb1b-4e0c-accf-d8fefac2d8f7",
       "name": "¿Proyecto claro?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -142,7 +143,7 @@
         "responseBody": "={{ { \"proyecto_claro\": false, \"falta\": $json.output.falta, \"ejecucion_id\": $execution.id } }}",
         "options": {}
       },
-      "id": "e430b833-b41c-410b-a006-89c50763695e",
+      "id": "847d97b1-6b3e-4523-baf6-cd55ad430d12",
       "name": "Responder · Proyecto poco claro",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
@@ -157,7 +158,7 @@
         "assignments": {
           "assignments": [
             {
-              "id": "500c3e06-7293-4a06-8caf-a45f2f46eec0",
+              "id": "6fab2bd1-3a5d-4104-91e4-24771788c87a",
               "name": "system_prompt",
               "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción.\n\nVerifica si la actividad, su unidad de medida y sus detalles son coherentes entre sí y con el proyecto, para poder elaborar su APU. Ejemplos de incoherencia: una unidad que no corresponde (un muro medido en kg), o una actividad que no pertenece a una obra como la descrita. No hagas mayores análisis.\n\nResponde SOLO con el JSON pedido: coherente (true/false) y, si no lo es, «razon» con una frase corta y clara que ayude a corregirla (si es coherente, deja «razon» vacío).",
               "type": "string"
@@ -167,7 +168,7 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "254debdb-a25b-431d-9705-2c54d168f2d1",
+      "id": "1b005b36-4a77-49b6-9abe-4d28cccc5b89",
       "name": "Prompt · Coherencia",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -187,7 +188,7 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "f175045c-d1e6-478e-b542-7bfd99c71b9c",
+      "id": "f6f46de5-05cf-405b-94f2-9b77f59112de",
       "name": "Modelo mini ",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
@@ -197,7 +198,8 @@
       ],
       "credentials": {
         "openAiApi": {
-          "name": "OpenAi account"
+          "id": "W8XaJvGwacT4HUqW",
+          "name": "OpenAI account"
         }
       }
     },
@@ -206,7 +208,7 @@
         "schemaType": "manual",
         "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"coherente\": {\n      \"type\": \"boolean\"\n    },\n    \"razon\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"coherente\",\n    \"razon\"\n  ]\n}"
       },
-      "id": "f029787f-a8c9-403b-95a7-f83713da650c",
+      "id": "2054317f-3900-4a2e-b8fd-d95a2fe76719",
       "name": "Esquema · Coherencia",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
@@ -225,7 +227,7 @@
           "systemMessage": "={{ $json.system_prompt }}"
         }
       },
-      "id": "fe2e3c1c-594c-4d32-b612-c5ea823df4d8",
+      "id": "0322972e-6b15-418f-bb05-cb6892338103",
       "name": "Agente · Coherencia",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -245,7 +247,7 @@
           },
           "conditions": [
             {
-              "id": "38573368-840a-49bc-bd17-932d153c2456",
+              "id": "17310c9b-dd02-40bc-8280-04c58e5c3a37",
               "leftValue": "={{ $json.output.coherente }}",
               "rightValue": "",
               "operator": {
@@ -259,7 +261,7 @@
         },
         "options": {}
       },
-      "id": "3dfa28b9-9620-4636-a19c-ccaa3ada9eed",
+      "id": "4bf9879f-8160-4518-ab0b-d860b7960eac",
       "name": "¿Es coherente?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -274,7 +276,7 @@
         "responseBody": "={{ { \"coherente\": false, \"razon\": $json.output.razon, \"ejecucion_id\": $execution.id } }}",
         "options": {}
       },
-      "id": "b4fe8af5-4746-4c2e-9af8-938db0b873a9",
+      "id": "f9914b91-5eb0-4f3c-9348-232e194b5f4e",
       "name": "Responder · No coherente",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
@@ -289,7 +291,7 @@
         "assignments": {
           "assignments": [
             {
-              "id": "a1644403-2616-4910-8152-b727c808f4d7",
+              "id": "a137ebd9-92dc-4fe6-b905-b158662c4018",
               "name": "system_prompt",
               "value": "Eres un especialista en construcción. Clasifica técnicamente la actividad indicada en cinco campos breves:\n- sistema_constructivo: p. ej. «Mampostería de ladrillo», «Hormigón armado», «Estructura metálica».\n- tipo_elemento: p. ej. «Muro», «Losa», «Viga», «Cimiento», «Revoque».\n- material_principal: el material que define la actividad.\n- proceso_principal: el proceso de ejecución, p. ej. «Asentado», «Vaciado», «Pintado».\n- categoria: una de «Obra gruesa», «Acabados», «Instalaciones», «Movimiento de tierras», «Estructuras», «Otros».\nUsa términos técnicos habituales en obra. Responde SOLO con el JSON pedido.",
               "type": "string"
@@ -299,7 +301,7 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "65be0a87-4a6f-4020-88d5-bcaaa24e9be3",
+      "id": "7bba49ee-4c7b-4653-9620-2cbfd69f931f",
       "name": "Prompt · Clasificación",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -319,7 +321,7 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "8864a20c-6bc4-45f5-b4c9-e24320ba6219",
+      "id": "5f969544-60e3-4b01-ac8b-0b709410b20c",
       "name": "Modelo principal",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
@@ -329,7 +331,8 @@
       ],
       "credentials": {
         "openAiApi": {
-          "name": "OpenAi account"
+          "id": "W8XaJvGwacT4HUqW",
+          "name": "OpenAI account"
         }
       }
     },
@@ -338,7 +341,7 @@
         "schemaType": "manual",
         "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"sistema_constructivo\": {\n      \"type\": \"string\"\n    },\n    \"tipo_elemento\": {\n      \"type\": \"string\"\n    },\n    \"material_principal\": {\n      \"type\": \"string\"\n    },\n    \"proceso_principal\": {\n      \"type\": \"string\"\n    },\n    \"categoria\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"sistema_constructivo\",\n    \"tipo_elemento\",\n    \"material_principal\",\n    \"proceso_principal\",\n    \"categoria\"\n  ]\n}"
       },
-      "id": "932c71a4-4590-4c22-90eb-e77644337137",
+      "id": "4ab781f1-5211-491e-b58d-b52b500fb8dd",
       "name": "Esquema · Clasificación",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
@@ -357,7 +360,7 @@
           "systemMessage": "={{ $json.system_prompt }}"
         }
       },
-      "id": "6584d881-4c90-4032-aa1b-ff62215dedb0",
+      "id": "be92423f-3caf-4220-8039-211306d64658",
       "name": "Agente · Clasificación",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -372,7 +375,7 @@
         "responseBody": "={{ { \"coherente\": true, \"sistema_constructivo\": $json.output.sistema_constructivo, \"tipo_elemento\": $json.output.tipo_elemento, \"material_principal\": $json.output.material_principal, \"proceso_principal\": $json.output.proceso_principal, \"categoria\": $json.output.categoria, \"ejecucion_id\": $execution.id } }}",
         "options": {}
       },
-      "id": "e578d36f-2ebf-4206-88f7-8a444e27c030",
+      "id": "c3fa7f5b-b7bf-4140-9fca-df976d52d774",
       "name": "Responder · Coherente",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
@@ -389,7 +392,7 @@
         "width": 520,
         "color": 4
       },
-      "id": "b0d8ec3e-8e52-49b8-a953-7f676ffdc2d1",
+      "id": "b464df62-b378-4258-9466-4d85833d1053",
       "name": "Nota · Paso 1 · Coherencia",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -587,7 +590,7 @@
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all"
   },
-  "versionId": "a0f16bcf-da65-483a-8b9f-9a1f781896a1",
+  "versionId": "df40e9da-f799-4b96-9657-ee07eaa042d9",
   "meta": {
     "templateCredsSetupCompleted": true
   },

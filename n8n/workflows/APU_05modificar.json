@@ -9,7 +9,7 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "b3e18f91-8827-4e96-b2a3-66f3d867d327",
+      "id": "375efd15-6830-45e6-a4f6-5b050c5349f2",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -17,7 +17,7 @@
         0,
         300
       ],
-      "webhookId": "3891389e-4dae-4e15-8af0-6208ce2b2ead",
+      "webhookId": "0ce976d2-3e3f-4fa5-ad14-d1d49392de5a",
       "notes": "Lo llama skygroup (apu_generador/ia.py) con el payload descrito en n8n/workflows/README.md."
     },
     {
@@ -25,7 +25,7 @@
         "assignments": {
           "assignments": [
             {
-              "id": "13773269-ad0b-4f40-a3d6-0cfe1fd687a5",
+              "id": "b0695e67-cb7e-463d-b08c-67560584f8a8",
               "name": "system_prompt",
               "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Recibes un APU ya armado (materiales, mano de obra y equipos por UNA unidad de la actividad) y una instrucción de la persona para modificarlo.\n\nDevuelve el APU COMPLETO modificado, con la misma estructura: «materiales», «mano_obra» (con «rendimiento» y «horas_jornada») y «equipos». Cambia solo lo que la instrucción pide y mantén lo demás igual.\n- Conserva exactamente la descripción de las filas que no cambian. Usa los términos del catálogo de la empresa cuando existan (codigo_catalogo) y marca nuevo=true solo si agregas un término que no está en el catálogo.\n- Materiales y equipos: cantidad por unidad de la actividad (y desperdicio_pct en materiales). Mano de obra: «personas» por oficio y el rendimiento de la cuadrilla.\n- Si la instrucción es ambigua, aplica la interpretación más razonable y explícala en «resumen_cambios».\n- «resumen_cambios»: 2-4 frases claras con lo que cambiaste.\nResponde SOLO con el JSON pedido. Los números van sin unidades.",
               "type": "string"
@@ -35,7 +35,7 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "7ac9c3a8-7034-4d4a-ba3e-c8d376ace5df",
+      "id": "518cf6e9-c86e-469c-a913-ab0f97f4d711",
       "name": "Prompt · Modificar",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -55,7 +55,7 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "460de837-7d42-4d27-a79f-3ef5acd3fb9f",
+      "id": "d7c8c6bd-596a-4421-97dd-b096fe8d30ff",
       "name": "Modelo principal",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
@@ -65,7 +65,8 @@
       ],
       "credentials": {
         "openAiApi": {
-          "name": "OpenAi account"
+          "id": "W8XaJvGwacT4HUqW",
+          "name": "OpenAI account"
         }
       }
     },
@@ -74,7 +75,7 @@
         "schemaType": "manual",
         "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"materiales\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"mano_obra\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        },\n        \"rendimiento\": {\n          \"type\": \"number\"\n        },\n        \"horas_jornada\": {\n          \"type\": \"number\"\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"equipos\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"resumen_cambios\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"materiales\",\n    \"mano_obra\",\n    \"equipos\",\n    \"resumen_cambios\"\n  ]\n}"
       },
-      "id": "eaed55dc-e0ed-413f-8d76-075de4ef38f5",
+      "id": "2c0684f2-9b7f-4b6a-a349-c042ed469bbc",
       "name": "Esquema · APU modificado",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
@@ -93,7 +94,7 @@
           "systemMessage": "={{ $json.system_prompt }}"
         }
       },
-      "id": "5a3f2cfb-2628-4ec3-b3a5-a1e2ec7908da",
+      "id": "d8dc177d-e931-47c0-bbf6-c551d6594a8d",
       "name": "Agente · Modificar APU",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -108,7 +109,7 @@
         "responseBody": "={{ { ...$json.output, \"ejecucion_id\": $execution.id } }}",
         "options": {}
       },
-      "id": "58a7f21d-cf43-4608-a7d0-c89395872d62",
+      "id": "7b9dca0e-c035-4504-8cc2-cc8f07c850e3",
       "name": "Responder",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
@@ -125,7 +126,7 @@
         "width": 560,
         "color": 4
       },
-      "id": "bf1d6477-d190-4e27-a2ad-c0aa45d558b0",
+      "id": "f1182b32-414b-431b-b878-f5c784116adf",
       "name": "Nota · Modificar con IA",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -199,7 +200,7 @@
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all"
   },
-  "versionId": "739f1c1b-4572-41aa-b538-b24428180c00",
+  "versionId": "19bd6b57-a1cf-4e83-ae8d-a5b07e795c28",
   "meta": {
     "templateCredsSetupCompleted": true
   },

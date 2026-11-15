@@ -2,7 +2,7 @@
 {% block page_title %}Pendientes · APU{% endblock %}
 {% block wrap_class %}space-y-6{% endblock %}
 {% block content_main %}
-<div class="flex flex-wrap items-start justify-between gap-4">
+<header class="flex flex-wrap items-start justify-between gap-4">
   <div>
     <h1 class="text-2xl font-semibold">Pendientes</h1>
     <p class="mt-1 max-w-2xl text-sm text-base-content/60">APU que quedaron a medias. Continúa desde el último paso guardado; los pasos ya cerrados no se pueden volver a abrir.</p>
@@ -11,31 +11,62 @@
     {% include "apu_generador/_creditos.html" %}
     <a href="{% url 'apu_generador:nuevo' %}" class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Nuevo APU</a>
   </div>
+</header>
+
+{% if n_todos and n_todos != n_mios and n_mios %}
+<nav class="flex flex-wrap items-center gap-2" aria-label="Filtrar pendientes">
+  <a href="{% url 'apu_generador:pendientes' %}" class="btn btn-sm {% if not solo_mios %}btn-primary{% else %}btn-ghost{% endif %}">Todos <span class="badge badge-sm {% if not solo_mios %}badge-neutral{% else %}badge-ghost{% endif %}">{{ n_todos }}</span></a>
+  <a href="?mios=1" class="btn btn-sm {% if solo_mios %}btn-primary{% else %}btn-ghost{% endif %}">Míos <span class="badge badge-sm {% if solo_mios %}badge-neutral{% else %}badge-ghost{% endif %}">{{ n_mios }}</span></a>
+</nav>
+{% endif %}
+
+{% if borradores %}
+<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+  {% for b in borradores %}
+  <article class="card border border-base-300 bg-base-100 transition-shadow hover:shadow-md">
+    <div class="card-body gap-4 p-5">
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <h2 class="truncate text-base font-semibold leading-snug" title="{{ b.actividad }}">{{ b.actividad }}</h2>
+          <p class="mt-1 flex items-center gap-1.5 text-sm text-base-content/60">
+            {% include "components/icon.html" with name="folder" cls="size-4 shrink-0 text-base-content/40" %}
+            <span class="truncate">{{ b.proyecto.nombre }}</span>
+            <span class="shrink-0 text-xs text-base-content/40">por 1 {{ b.unidad }}</span>
+          </p>
+        </div>
+        <form method="post" action="{% url 'apu_generador:eliminar' b.pk %}" class="shrink-0" data-confirmar="¿Eliminar el borrador «{{ b.actividad }}»? Se pierde lo que avanzaste.">{% csrf_token %}
+          <button class="btn btn-ghost btn-square btn-sm text-base-content/50 hover:text-error" title="Eliminar borrador" aria-label="Eliminar el borrador {{ b.actividad }}">{% include "components/icon.html" with name="trash" cls="size-4" %}</button>
+        </form>
+      </div>
+
+      <div>
+        <div class="flex gap-1" role="img" aria-label="Paso {{ b.paso }} de {{ total_pasos }}: {{ b.paso_nombre }}">
+          {% for n, nombre in pasos_lista %}<span class="h-1.5 flex-1 rounded-full {% if n < b.paso %}bg-primary{% elif n == b.paso %}bg-primary/40{% else %}bg-base-300{% endif %}" title="{{ nombre }}"></span>{% endfor %}
+        </div>
+        <p class="mt-2 text-xs text-base-content/60">Paso {{ b.paso }} de {{ total_pasos }} · <span class="font-medium text-base-content/80">{{ b.paso_nombre }}</span></p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-base-content/60">
+        <span class="inline-flex items-center gap-1.5">
+          <span class="grid size-5 place-items-center rounded-full bg-base-300 text-[10px] font-semibold uppercase text-base-content/70" aria-hidden="true">{% if b.creado_por %}{{ b.creado_por.first_name|default:b.creado_por.email|slice:":1" }}{% else %}?{% endif %}</span>
+          {% if b.es_mio %}Tú{% else %}{{ b.creado_por|default:"—" }}{% endif %}
+        </span>
+        <span class="inline-flex items-center gap-1" title="{{ b.actualizado|date:'d/m/Y H:i' }}">{% include "components/icon.html" with name="clock" cls="size-3.5" %} Hace {{ b.actualizado|timesince }}</span>
+        {% if b.modo == 'reutilizar' %}<span class="badge badge-ghost badge-sm gap-1">{% include "components/icon.html" with name="copy" cls="size-3" %} Reutilizado</span>{% endif %}
+        {% if b.antiguo %}<span class="badge badge-outline badge-sm" title="Sin actividad hace {{ b.dias_sin_actividad }} días">Sin actividad hace {{ b.dias_sin_actividad }} días</span>{% endif %}
+      </div>
+
+      <a href="{% url 'apu_generador:continuar' b.pk %}" class="btn btn-primary btn-sm gap-1">Continuar {% include "components/icon.html" with name="arrow-right" cls="size-4" %}</a>
+    </div>
+  </article>
+  {% endfor %}
 </div>
-<section class="table-card">
-  <table class="table">
-    <thead><tr><th>Actividad</th><th>Proyecto</th><th>Paso</th><th>Creado por</th><th>Última actividad</th><th class="w-px"></th></tr></thead>
-    <tbody>
-    {% for b in borradores %}
-      <tr class="hover:bg-base-content/5">
-        <td class="font-medium">{{ b.actividad }} <span class="text-xs font-normal text-base-content/50">[{{ b.unidad }}]</span>{% if b.modo == 'reutilizar' %} <span class="badge badge-ghost badge-sm">Reutilizado</span>{% endif %}</td>
-        <td>{{ b.proyecto.nombre }}</td>
-        <td>{% for n, nombre in pasos.items %}{% if n == b.paso %}<span class="badge badge-outline badge-sm">{{ n }}/5 · {{ nombre }}</span>{% endif %}{% endfor %}</td>
-        <td class="text-sm">{{ b.creado_por|default:"—" }}</td>
-        <td class="text-sm text-base-content/70">{{ b.actualizado|date:"d/m/Y H:i" }}</td>
-        <td>
-          <div class="flex justify-end gap-1">
-            <a href="{% url 'apu_generador:continuar' b.pk %}" class="btn btn-primary btn-sm">Continuar</a>
-            <form method="post" action="{% url 'apu_generador:eliminar' b.pk %}" data-confirmar="¿Eliminar el borrador «{{ b.actividad }}»? Se pierde lo que avanzaste.">{% csrf_token %}
-              <button class="btn btn-ghost btn-square btn-sm text-error" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
-            </form>
-          </div>
-        </td>
-      </tr>
-    {% empty %}
-      <tr><td colspan="6" class="py-10 text-center text-base-content/60">No tienes APU pendientes.</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</section>
+{% else %}
+<section class="card bg-base-100"><div class="card-body items-center gap-3 py-14 text-center">
+  <span class="grid size-14 place-items-center rounded-box bg-primary/10 text-primary-text">{% include "components/icon.html" with name="check" cls="size-7" %}</span>
+  <h2 class="text-lg font-semibold">No tienes APU pendientes</h2>
+  <p class="max-w-sm text-sm text-base-content/60">Cuando dejes un APU a medias aparecerá aquí para que lo retomes desde el último paso guardado.</p>
+  <a href="{% url 'apu_generador:nuevo' %}" class="btn btn-primary btn-sm mt-2 gap-1">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Nuevo APU</a>
+</div></section>
+{% endif %}
 {% endblock %}

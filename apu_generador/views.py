@@ -6,6 +6,7 @@ from django.db.models import Avg, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apu_catalogo import calculo
@@ -394,9 +395,21 @@ def pendientes(request):
         'proyecto', 'creado_por')
     if not es_admin_o_super(request.user, request.empresa):
         qs = qs.filter(Q(creado_por=request.user) | Q(proyecto__equipo__user=request.user, proyecto__equipo__activa=True)).distinct()
+    todos = list(qs.order_by('-actualizado'))
+    mios = [b for b in todos if b.creado_por_id == request.user.pk]
+    solo_mios = request.GET.get('mios') == '1' and bool(mios)
+    pasos_lista = [(1, 'Actividad')] + [(n, nombre) for n, _, nombre in asistente.PASOS]
+    nombres = dict(pasos_lista)
+    ahora = timezone.now()
+    lista = mios if solo_mios else todos
+    for b in lista:
+        b.paso_nombre = nombres.get(b.paso, '')
+        b.es_mio = b.creado_por_id == request.user.pk
+        b.dias_sin_actividad = (ahora - b.actualizado).days
+        b.antiguo = b.dias_sin_actividad >= 7                # un pendiente olvidado conviene retomarlo o eliminarlo
     return render(request, 'apu_generador/pendientes.html', {
-        'borradores': qs.order_by('-actualizado'), 'pasos': {n: nombre for n, _, nombre in asistente.PASOS} | {1: 'Actividad'},
-        **{'creditos': creditos.resumen(request.user, request.empresa)}})
+        'borradores': lista, 'pasos_lista': pasos_lista, 'total_pasos': len(pasos_lista), 'n_todos': len(todos), 'n_mios': len(mios),
+        'solo_mios': solo_mios, 'creditos': creditos.resumen(request.user, request.empresa)})
 
 
 @acceso_apu('apu.catalogo.manage')

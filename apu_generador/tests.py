@@ -1207,6 +1207,71 @@ class EliminarApuTests(Base):
                 self.assertEqual(f'/tekon/apu/lista/{self.item.pk}/eliminar/' in html, ve, (usuario, url))
 
 
+class PendientesPaginaTests(Base):
+    URL = '/tekon/apu/pendientes/'
+
+    def test_tarjeta_con_avance_por_pasos_creador_y_acciones(self):
+        b = self.borrador(paso=3, actividad='Muro de ladrillo 6H', unidad='m2')
+        self.client.force_login(self.coord)
+        r = self.client.get(self.URL)
+        self.assertContains(r, 'Muro de ladrillo 6H')
+        self.assertContains(r, 'Escuela Tarija')
+        self.assertContains(r, 'Paso 3 de 5')
+        self.assertContains(r, 'Mano de obra')                                                  # el paso en que quedó
+        self.assertContains(r, 'role="img" aria-label="Paso 3 de 5: Mano de obra"')
+        self.assertContains(r, 'Tú')                                                            # lo creó quien mira
+        self.assertContains(r, f'/tekon/apu/borrador/{b.pk}/continuar/')
+        self.assertContains(r, f'/tekon/apu/borrador/{b.pk}/eliminar/')
+        html = r.content.decode()
+        barra = html.split('role="img"', 1)[1].split('</div>', 1)[0]
+        self.assertEqual((barra.count('bg-primary"'), barra.count('bg-primary/40'), barra.count('bg-base-300')), (2, 1, 2))   # 2 hechos, 1 actual, 2 por hacer
+
+    def test_reutilizado_y_pendiente_antiguo_se_indican(self):
+        viejo = self.borrador(paso=2, modo='reutilizar', actividad='Antiguo')
+        APUBorrador.objects.filter(pk=viejo.pk).update(actualizado=timezone.now() - timedelta(days=12))
+        self.borrador(paso=2, actividad='Reciente')
+        self.client.force_login(self.coord)
+        r = self.client.get(self.URL)
+        self.assertContains(r, 'Reutilizado')
+        self.assertContains(r, 'Sin actividad hace 12 días')
+        self.assertEqual(r.content.decode().count('Sin actividad hace'), 2)                      # una vez en el texto y otra en el atributo title
+        self.assertEqual([b.antiguo for b in r.context['borradores']], [False, True])            # el más reciente primero
+
+    def test_filtro_mios_solo_aparece_si_hay_de_otros_y_filtra(self):
+        self.borrador(paso=2, actividad='Mío', creado_por=self.adm)
+        self.client.force_login(self.adm)                                                        # un administrador ve los de todos
+        self.assertNotContains(self.client.get(self.URL), 'Filtrar pendientes')                  # solo hay míos: sin filtro
+        self.borrador(paso=2, actividad='De otro', creado_por=self.otro)
+        r = self.client.get(self.URL)
+        self.assertContains(r, 'Filtrar pendientes')
+        self.assertEqual((r.context['n_todos'], r.context['n_mios']), (2, 1))
+        r = self.client.get(self.URL + '?mios=1')
+        self.assertEqual([b.actividad for b in r.context['borradores']], ['Mío'])
+        self.assertNotContains(r, 'De otro')
+
+    def test_estado_vacio_con_accion(self):
+        self.client.force_login(self.coord)
+        r = self.client.get(self.URL)
+        self.assertContains(r, 'No tienes APU pendientes')
+        self.assertContains(r, '/tekon/apu/generar/')
+        self.client.get(self.URL + '?mios=1')                                                   # filtro sin resultados no rompe
+
+    def test_los_de_otros_solo_los_ve_el_equipo_del_proyecto_o_un_administrador(self):
+        self.borrador(paso=2, actividad='De otro', creado_por=self.otro)
+        self.client.force_login(self.ejec)
+        self.assertNotContains(self.client.get(self.URL), 'De otro')
+        self.proyecto.equipo.add(self.m_ejec)
+        self.assertContains(self.client.get(self.URL), 'De otro')
+        self.client.force_login(self.adm)
+        self.assertContains(self.client.get(self.URL), 'De otro')
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.otro = User.objects.create_user('otro2@example.com', 'x', first_name='Marta')
+        agregar_miembro(cls.otro, cls.a, rol_por_base(cls.a, RolBase.MIEMBRO))
+
+
 class CalculoTests(Base):
     def test_sub_items_desperdicio_region_e_insumos_sin_precio(self):
         cemento = self.insumo('MAT-1', 'Cemento', unidad='kg', precio='2')

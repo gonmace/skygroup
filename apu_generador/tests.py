@@ -315,6 +315,28 @@ class PasosTests(Base):
         self.assertEqual(res[0]['opciones'][0]['filas'][0]['consulta'], 'c1')
         self.assertEqual(res[1]['opciones'][0]['etiqueta'], 'Sí')
 
+    def test_una_fila_que_ya_esta_en_una_opcion_no_se_repite_en_el_nivel_superior(self):
+        crudo = {'filas': [{'descripcion': 'Acero', 'unidad': 'kg', 'cantidad': 100},
+                           {'descripcion': 'Tablas de encofrado', 'unidad': 'm2', 'cantidad': 2},
+                           {'descripcion': 'Membrana de curado', 'unidad': 'l', 'cantidad': 0}],
+                 'consultas': [{'id': 'c1', 'tipo': 'opciones', 'pregunta': '¿Incluir el encofrado?', 'recomendada': 'si',
+                                'opciones': [{'clave': 'si', 'etiqueta': 'Incluir', 'filas': [
+                                    {'descripcion': 'tablas de encofrado ', 'unidad': 'm2', 'cantidad': 2}]},
+                                             {'clave': 'no', 'etiqueta': 'Aparte'}]}]}
+        p = ia.normalizar_propuesta(crudo, 'materiales')
+        self.assertEqual([f['descripcion'] for f in p['filas']], ['Acero', 'Membrana de curado'])   # el encofrado queda solo en la opción
+        self.assertEqual(p['consultas'][0]['opciones'][0]['filas'][0]['consulta'], 'c1')
+        self.assertEqual([f['check'] for f in p['filas']], [True, False])                          # cantidad cero: desmarcada
+
+    def test_rendimiento_cero_o_ausente_queda_vacio_y_las_horas_por_defecto_son_8(self):
+        for crudo in ({'filas': [{'descripcion': 'Albañil', 'personas': 1}], 'rendimiento': 0},
+                      {'filas': [{'descripcion': 'Albañil', 'personas': 1}]}):
+            p = ia.normalizar_propuesta(crudo, 'mano_obra')
+            self.assertNotIn('rendimiento', p)
+            self.assertEqual(p['horas_jornada'], '8')
+        p = ia.normalizar_propuesta({'filas': [{'descripcion': 'Albañil', 'personas': 1}], 'rendimiento': 12, 'horas_jornada': 9}, 'mano_obra')
+        self.assertEqual((p['rendimiento'], p['horas_jornada']), ('12', '9'))
+
     def test_las_dudas_se_reenvian_con_historial_y_hay_un_maximo_de_rondas(self):
         b = self.borrador(paso=2)
         dato = {'filas': [], 'consultas': [{'id': 'c1', 'tipo': 'dato', 'pregunta': '¿Es portante?'}]}

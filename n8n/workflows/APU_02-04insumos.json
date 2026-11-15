@@ -9,7 +9,7 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "864641fa-f0ce-46f6-ae8f-be5bbe138fd6",
+      "id": "b56c7f4d-63f4-48e8-8d10-5424b443ac90",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -17,7 +17,7 @@
         0,
         360
       ],
-      "webhookId": "2ec88a6e-0b52-4158-ac2d-4fa3fb4b9a86",
+      "webhookId": "629ec3b2-6c1d-412a-8ba2-92004e6104ca",
       "notes": "Lo llama skygroup (apu_generador/ia.py) con el payload descrito en n8n/workflows/README.md."
     },
     {
@@ -34,7 +34,7 @@
                 },
                 "conditions": [
                   {
-                    "id": "85c06cfd-f792-4cbb-b0ee-9e28d5dd45bc",
+                    "id": "33e9ed89-6ace-4fd6-a19e-9f1c1ff041c7",
                     "leftValue": "={{ $json.body.tipo }}",
                     "rightValue": "materiales",
                     "operator": {
@@ -58,7 +58,7 @@
                 },
                 "conditions": [
                   {
-                    "id": "e1afbcc8-de60-4b92-97d4-62d9808fad7e",
+                    "id": "74407f07-14f6-4b19-a200-fbf3747ee8cc",
                     "leftValue": "={{ $json.body.tipo }}",
                     "rightValue": "mano_obra",
                     "operator": {
@@ -82,7 +82,7 @@
                 },
                 "conditions": [
                   {
-                    "id": "9eba7134-ef32-4231-8ca3-2f21ad1be9a8",
+                    "id": "42a502b9-3417-4ed8-9392-127472ea3ddd",
                     "leftValue": "={{ $json.body.tipo }}",
                     "rightValue": "equipos",
                     "operator": {
@@ -100,7 +100,7 @@
         },
         "options": {}
       },
-      "id": "929bdd19-14c6-4610-a571-a87a5400f583",
+      "id": "981242a5-a254-46cb-a1d1-d115615c036e",
       "name": "Tipo de insumo",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
@@ -115,9 +115,9 @@
         "assignments": {
           "assignments": [
             {
-              "id": "59ab384c-f898-428b-b32a-3dd8d0df7604",
+              "id": "3091c148-2b28-4c82-864f-a167e36d6dde",
               "name": "system_prompt",
-              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Propón los MATERIALES de la actividad: los insumos que quedan incorporados en la obra o se consumen en ella.\n\nPara cada material devuelve: descripcion, unidad, cantidad (por una unidad de la actividad) y desperdicio_pct (% habitual de pérdida; 0 si no aplica).\n- No desarmes productos premezclados o prefabricados en sus componentes sin preguntar.\n- Elementos consolidados: cuando la actividad pueda resolverse con un elemento ya preparado o con sus componentes (p. ej. «Hormigón H21 premezclado» frente a cemento + arena + grava + agua; «mortero 1:4» frente a sus componentes; «acero cortado y doblado» frente a barras y alambre), pregunta con una consulta de tipo «opciones» y recomienda una según el proyecto. Si en «catalogo_items» hay un APU de la empresa que resuelva el elemento consolidado, ofrécelo como una opción con su «codigo_subitem» (y sin filas) y la cantidad del sub-análisis por unidad de la actividad en una fila de la opción.\n- No incluyas mano de obra, equipos, herramientas menores ni EPP.\n\nREGLAS GENERALES\n1. Trabaja SIEMPRE por UNA unidad de la actividad.\n2. Usa el catálogo de la empresa: si un concepto ya existe allí, usa EXACTAMENTE su descripción y devuelve su «codigo_catalogo». Solo propón un término nuevo (nuevo=true, codigo_catalogo vacío) si ningún término del catálogo sirve. Así los términos de la empresa se mantienen uniformes.\n3. Si tienes DUDAS que cambian la propuesta (dimensiones, tipo de elemento, condiciones de obra, calidad…), NO supongas: agrega una consulta de tipo «dato» con una pregunta concreta y, si puedes, opciones sugeridas. Si la duda impide proponer, devuelve «filas» vacío y solo las consultas. No repitas preguntas que ya aparecen respondidas en el historial.\n4. Si una consulta tiene alternativas, usa el tipo «opciones» (mínimo 2, cada una con su clave y etiqueta) y SIEMPRE marca cuál recomiendas en «recomendada». Pon dentro de cada opción las «filas» que quedarían si se elige.\n5. Si el campo «ultima_ronda» es true, NO hagas más preguntas: propón con supuestos razonables y menciónalos en «justificacion».\n6. Un solo valor por campo (nunca rangos). Unidades del Sistema Internacional, con la escala que dé números enteros o simples. «justificacion»: una frase corta de por qué va esa fila.\n7. No inventes insumos que no correspondan a la actividad y no repitas conceptos ya confirmados en otros pasos.\n8. Responde SOLO con el JSON pedido. Los números van sin unidades ni texto.",
+              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Propón los MATERIALES de la actividad: los insumos que quedan incorporados en la obra o se consumen en ella.\n\nPara cada material devuelve: descripcion, unidad, cantidad (por una unidad de la actividad) y desperdicio_pct (% habitual de pérdida; 0 si no aplica).\n- No desarmes productos premezclados o prefabricados en sus componentes sin preguntar.\n- Elementos consolidados: cuando la actividad pueda resolverse con un elemento ya preparado o con sus componentes (p. ej. «Hormigón H21 premezclado» frente a cemento + arena + grava + agua; «mortero 1:4» frente a sus componentes; «acero cortado y doblado» frente a barras y alambre), pregunta con una consulta de tipo «opciones» y recomienda una según el proyecto. Si en «catalogo_items» hay un APU de la empresa que resuelva el elemento consolidado, ofrécelo como una opción con su «codigo_subitem» (y sin filas) y la cantidad del sub-análisis por unidad de la actividad en una fila de la opción.\n- MATERIALES AUXILIARES Y DE APOYO: además del material principal incluye lo que la actividad consume para ejecutarse. Ejemplos: en hormigón y elementos vaciados, el ENCOFRADO (madera o tableros, puntales, barrotes, clavos, alambre de amarre, desmoldante), separadores y el curado (agua, membrana o láminas); en mampostería, el mortero de asentado; en revoques y pisos, el mortero base, juntas y protecciones; en pintura, lijas, masilla y cintas.\n- Materiales de uso repetido (encofrado, puntales, andamios): se reutilizan varias veces. Expresa la cantidad por unidad de la actividad ya repartida entre los usos esperados (p. ej. tablas para 4 usos) y escribe en «justificacion» los usos que supusiste; el desperdicio_pct cubre la pérdida por cada uso.\n- Si la actividad suele llevar encofrado, apuntalamiento o andamio y no es evidente si debe cargarse en este APU o cuantificarse aparte, pregunta con una consulta «opciones» (p. ej. «Incluir el encofrado en este APU» frente a «Dejarlo para su propio APU») y recomienda la habitual (en hormigón armado, incluirlo). Si en «catalogo_items» hay un APU de encofrado de la empresa, ofrécelo como opción con su «codigo_subitem».\n- No incluyas mano de obra, equipos, herramientas menores ni EPP.\n\nREGLAS GENERALES\n1. Trabaja SIEMPRE por UNA unidad de la actividad.\n2. Usa el catálogo de la empresa: si un concepto ya existe allí, usa EXACTAMENTE su descripción y devuelve su «codigo_catalogo». Solo propón un término nuevo (nuevo=true, codigo_catalogo vacío) si ningún término del catálogo sirve. Así los términos de la empresa se mantienen uniformes.\n3. Si tienes DUDAS que cambian la propuesta (dimensiones, tipo de elemento, condiciones de obra, calidad…), NO supongas: agrega una consulta de tipo «dato» con una pregunta concreta y, si puedes, opciones sugeridas. Si la duda impide proponer, devuelve «filas» vacío y solo las consultas. No repitas preguntas que ya aparecen respondidas en el historial.\n4. Si una consulta tiene alternativas, usa el tipo «opciones» (mínimo 2, cada una con su clave y etiqueta) y SIEMPRE marca cuál recomiendas en «recomendada». Pon dentro de cada opción las «filas» que quedarían si se elige.\n   IMPORTANTE: las filas que dependen de una consulta van SOLO dentro de sus opciones. La lista «filas» del nivel superior contiene únicamente lo que NO depende de ninguna consulta; nunca repitas allí una fila que ya aparece en las opciones (sería contarla dos veces). Si todas las alternativas son excluyentes (p. ej. hormigón consolidado o por componentes), el nivel superior no incluye ninguna de esas filas.\n5. Si el campo «ultima_ronda» es true, NO hagas más preguntas: propón con supuestos razonables y menciónalos en «justificacion».\n6. Un solo valor por campo (nunca rangos). Unidades del Sistema Internacional, con la escala que dé números enteros o simples. «justificacion»: una frase corta de por qué va esa fila.\n7. No inventes insumos que no correspondan a la actividad y no repitas conceptos ya confirmados en otros pasos.\n8. COMPLETITUD: antes de responder, recorre mentalmente el proceso de ejecución completo de la actividad (preparación, trabajos provisionales, ejecución, protección o curado y limpieza) y pregúntate qué se consume, quién lo hace y con qué equipo en CADA etapa. Una propuesta que solo cubre el insumo principal está incompleta. Los trabajos provisionales o de apoyo (encofrado, apuntalamiento, andamios, protecciones) pertenecen a la actividad cuando son necesarios para ejecutarla, salvo que el proyecto los mida aparte.\n9. Responde SOLO con el JSON pedido. Los números van sin unidades ni texto.",
               "type": "string"
             }
           ]
@@ -125,7 +125,7 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "07e34eaa-eb8a-46f4-9445-75f8fe286316",
+      "id": "06332004-eb43-4c95-9d0c-98e9c0216d81",
       "name": "Prompt · Materiales",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -140,9 +140,9 @@
         "assignments": {
           "assignments": [
             {
-              "id": "36a08a71-4919-4773-b782-1672f3cae173",
+              "id": "261027c6-762b-4355-a114-170902d0cd15",
               "name": "system_prompt",
-              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Propón la MANO DE OBRA de la actividad: la cuadrilla que la ejecuta.\n\nPara cada oficio devuelve: descripcion (nombre del oficio, p. ej. «Albañil», «Ayudante»), unidad «h» y «personas» (cuántas personas de ese oficio hay en la cuadrilla). Además devuelve «rendimiento» (cuántas unidades de la actividad ejecuta la cuadrilla completa en una jornada) y «horas_jornada» (normalmente 8). NO devuelvas cantidad por unidad: la calcula el sistema.\n- Usa los oficios del catálogo de la empresa cuando existan.\n- Si el rendimiento depende de condiciones que no conoces (altura, acceso, calidad), pregunta con una consulta «dato».\n- No incluyas materiales ni equipos.\n\nREGLAS GENERALES\n1. Trabaja SIEMPRE por UNA unidad de la actividad.\n2. Usa el catálogo de la empresa: si un concepto ya existe allí, usa EXACTAMENTE su descripción y devuelve su «codigo_catalogo». Solo propón un término nuevo (nuevo=true, codigo_catalogo vacío) si ningún término del catálogo sirve. Así los términos de la empresa se mantienen uniformes.\n3. Si tienes DUDAS que cambian la propuesta (dimensiones, tipo de elemento, condiciones de obra, calidad…), NO supongas: agrega una consulta de tipo «dato» con una pregunta concreta y, si puedes, opciones sugeridas. Si la duda impide proponer, devuelve «filas» vacío y solo las consultas. No repitas preguntas que ya aparecen respondidas en el historial.\n4. Si una consulta tiene alternativas, usa el tipo «opciones» (mínimo 2, cada una con su clave y etiqueta) y SIEMPRE marca cuál recomiendas en «recomendada». Pon dentro de cada opción las «filas» que quedarían si se elige.\n5. Si el campo «ultima_ronda» es true, NO hagas más preguntas: propón con supuestos razonables y menciónalos en «justificacion».\n6. Un solo valor por campo (nunca rangos). Unidades del Sistema Internacional, con la escala que dé números enteros o simples. «justificacion»: una frase corta de por qué va esa fila.\n7. No inventes insumos que no correspondan a la actividad y no repitas conceptos ya confirmados en otros pasos.\n8. Responde SOLO con el JSON pedido. Los números van sin unidades ni texto.",
+              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Propón la MANO DE OBRA de la actividad: la cuadrilla que la ejecuta.\n\nPara cada oficio devuelve: descripcion (nombre del oficio, p. ej. «Albañil», «Ayudante»), unidad «h» y «personas» (cuántas personas de ese oficio hay en la cuadrilla). Además devuelve «rendimiento» (cuántas unidades de la actividad ejecuta la cuadrilla completa en una jornada) y «horas_jornada» (normalmente 8). NO devuelvas cantidad por unidad: la calcula el sistema.\n- Usa los oficios del catálogo de la empresa cuando existan.\n- Cubre TODAS las etapas: el personal que ejecuta la actividad principal Y el de los trabajos de apoyo incluidos en los materiales ya confirmados (p. ej. si hay encofrado: carpintero y ayudante para armarlo y desarmarlo; si hay armadura: armador; si hay curado: peón). Revisa «Ya confirmado en pasos anteriores» para que la cuadrilla sea coherente con ellos.\n- El rendimiento es el de la cuadrilla completa para TODO lo incluido en el APU (no solo la tarea principal).\n- Si el rendimiento depende de condiciones que no conoces (altura, acceso, calidad), pregunta con una consulta «dato».\n- No incluyas materiales ni equipos.\n\nREGLAS GENERALES\n1. Trabaja SIEMPRE por UNA unidad de la actividad.\n2. Usa el catálogo de la empresa: si un concepto ya existe allí, usa EXACTAMENTE su descripción y devuelve su «codigo_catalogo». Solo propón un término nuevo (nuevo=true, codigo_catalogo vacío) si ningún término del catálogo sirve. Así los términos de la empresa se mantienen uniformes.\n3. Si tienes DUDAS que cambian la propuesta (dimensiones, tipo de elemento, condiciones de obra, calidad…), NO supongas: agrega una consulta de tipo «dato» con una pregunta concreta y, si puedes, opciones sugeridas. Si la duda impide proponer, devuelve «filas» vacío y solo las consultas. No repitas preguntas que ya aparecen respondidas en el historial.\n4. Si una consulta tiene alternativas, usa el tipo «opciones» (mínimo 2, cada una con su clave y etiqueta) y SIEMPRE marca cuál recomiendas en «recomendada». Pon dentro de cada opción las «filas» que quedarían si se elige.\n   IMPORTANTE: las filas que dependen de una consulta van SOLO dentro de sus opciones. La lista «filas» del nivel superior contiene únicamente lo que NO depende de ninguna consulta; nunca repitas allí una fila que ya aparece en las opciones (sería contarla dos veces). Si todas las alternativas son excluyentes (p. ej. hormigón consolidado o por componentes), el nivel superior no incluye ninguna de esas filas.\n5. Si el campo «ultima_ronda» es true, NO hagas más preguntas: propón con supuestos razonables y menciónalos en «justificacion».\n6. Un solo valor por campo (nunca rangos). Unidades del Sistema Internacional, con la escala que dé números enteros o simples. «justificacion»: una frase corta de por qué va esa fila.\n7. No inventes insumos que no correspondan a la actividad y no repitas conceptos ya confirmados en otros pasos.\n8. COMPLETITUD: antes de responder, recorre mentalmente el proceso de ejecución completo de la actividad (preparación, trabajos provisionales, ejecución, protección o curado y limpieza) y pregúntate qué se consume, quién lo hace y con qué equipo en CADA etapa. Una propuesta que solo cubre el insumo principal está incompleta. Los trabajos provisionales o de apoyo (encofrado, apuntalamiento, andamios, protecciones) pertenecen a la actividad cuando son necesarios para ejecutarla, salvo que el proyecto los mida aparte.\n9. Responde SOLO con el JSON pedido. Los números van sin unidades ni texto.",
               "type": "string"
             }
           ]
@@ -150,7 +150,7 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "fd2c7417-c573-468c-9b4d-ac7ebbe7a5ea",
+      "id": "2dc932ee-91a8-48c5-a579-e2059b85ce61",
       "name": "Prompt · Mano de obra",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -165,9 +165,9 @@
         "assignments": {
           "assignments": [
             {
-              "id": "ea1a6642-d521-4ea5-bd36-746a939db84f",
+              "id": "4b5b668c-8a52-43e5-8759-46ab4d464e75",
               "name": "system_prompt",
-              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Propón los EQUIPOS y la maquinaria de la actividad.\n\nPara cada equipo devuelve: descripcion, unidad «h» y cantidad (horas-máquina por una unidad de la actividad).\n- No incluyas herramientas manuales ni menores (el perfil de cálculo ya las cubre con un porcentaje), ni EPP.\n- No incluyas equipos de planta de proveedores ni materiales ni mano de obra.\n- Si dudas entre equipos alternativos (p. ej. mezcladora o mortero premezclado), pregunta con una consulta «opciones».\n\nREGLAS GENERALES\n1. Trabaja SIEMPRE por UNA unidad de la actividad.\n2. Usa el catálogo de la empresa: si un concepto ya existe allí, usa EXACTAMENTE su descripción y devuelve su «codigo_catalogo». Solo propón un término nuevo (nuevo=true, codigo_catalogo vacío) si ningún término del catálogo sirve. Así los términos de la empresa se mantienen uniformes.\n3. Si tienes DUDAS que cambian la propuesta (dimensiones, tipo de elemento, condiciones de obra, calidad…), NO supongas: agrega una consulta de tipo «dato» con una pregunta concreta y, si puedes, opciones sugeridas. Si la duda impide proponer, devuelve «filas» vacío y solo las consultas. No repitas preguntas que ya aparecen respondidas en el historial.\n4. Si una consulta tiene alternativas, usa el tipo «opciones» (mínimo 2, cada una con su clave y etiqueta) y SIEMPRE marca cuál recomiendas en «recomendada». Pon dentro de cada opción las «filas» que quedarían si se elige.\n5. Si el campo «ultima_ronda» es true, NO hagas más preguntas: propón con supuestos razonables y menciónalos en «justificacion».\n6. Un solo valor por campo (nunca rangos). Unidades del Sistema Internacional, con la escala que dé números enteros o simples. «justificacion»: una frase corta de por qué va esa fila.\n7. No inventes insumos que no correspondan a la actividad y no repitas conceptos ya confirmados en otros pasos.\n8. Responde SOLO con el JSON pedido. Los números van sin unidades ni texto.",
+              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Propón los EQUIPOS y la maquinaria de la actividad.\n\nPara cada equipo devuelve: descripcion, unidad «h» y cantidad (horas-máquina por una unidad de la actividad).\n- Revisa «Ya confirmado en pasos anteriores»: cada material o tarea incluidos pueden requerir equipo (p. ej. hormigón: mezcladora o bomba y vibrador; encofrado de madera: sierra circular si no es menor; transporte vertical: grúa o montacargas). Incluye solo el equipo que realmente se necesita.\n- No incluyas herramientas manuales ni menores (el perfil de cálculo ya las cubre con un porcentaje), ni EPP.\n- No incluyas equipos de planta de proveedores ni materiales ni mano de obra.\n- Si dudas entre equipos alternativos (p. ej. mezcladora o mortero premezclado), pregunta con una consulta «opciones».\n\nREGLAS GENERALES\n1. Trabaja SIEMPRE por UNA unidad de la actividad.\n2. Usa el catálogo de la empresa: si un concepto ya existe allí, usa EXACTAMENTE su descripción y devuelve su «codigo_catalogo». Solo propón un término nuevo (nuevo=true, codigo_catalogo vacío) si ningún término del catálogo sirve. Así los términos de la empresa se mantienen uniformes.\n3. Si tienes DUDAS que cambian la propuesta (dimensiones, tipo de elemento, condiciones de obra, calidad…), NO supongas: agrega una consulta de tipo «dato» con una pregunta concreta y, si puedes, opciones sugeridas. Si la duda impide proponer, devuelve «filas» vacío y solo las consultas. No repitas preguntas que ya aparecen respondidas en el historial.\n4. Si una consulta tiene alternativas, usa el tipo «opciones» (mínimo 2, cada una con su clave y etiqueta) y SIEMPRE marca cuál recomiendas en «recomendada». Pon dentro de cada opción las «filas» que quedarían si se elige.\n   IMPORTANTE: las filas que dependen de una consulta van SOLO dentro de sus opciones. La lista «filas» del nivel superior contiene únicamente lo que NO depende de ninguna consulta; nunca repitas allí una fila que ya aparece en las opciones (sería contarla dos veces). Si todas las alternativas son excluyentes (p. ej. hormigón consolidado o por componentes), el nivel superior no incluye ninguna de esas filas.\n5. Si el campo «ultima_ronda» es true, NO hagas más preguntas: propón con supuestos razonables y menciónalos en «justificacion».\n6. Un solo valor por campo (nunca rangos). Unidades del Sistema Internacional, con la escala que dé números enteros o simples. «justificacion»: una frase corta de por qué va esa fila.\n7. No inventes insumos que no correspondan a la actividad y no repitas conceptos ya confirmados en otros pasos.\n8. COMPLETITUD: antes de responder, recorre mentalmente el proceso de ejecución completo de la actividad (preparación, trabajos provisionales, ejecución, protección o curado y limpieza) y pregúntate qué se consume, quién lo hace y con qué equipo en CADA etapa. Una propuesta que solo cubre el insumo principal está incompleta. Los trabajos provisionales o de apoyo (encofrado, apuntalamiento, andamios, protecciones) pertenecen a la actividad cuando son necesarios para ejecutarla, salvo que el proyecto los mida aparte.\n9. Responde SOLO con el JSON pedido. Los números van sin unidades ni texto.",
               "type": "string"
             }
           ]
@@ -175,7 +175,7 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "9acdfd3b-4f15-403d-be51-c8f4fc81ad69",
+      "id": "61924462-6f1a-4ad2-aa35-a8c5091af0f7",
       "name": "Prompt · Equipos",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -195,7 +195,7 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "e0c2f829-39c6-43fc-9aa8-b0a4a3b0cc29",
+      "id": "6e0311fd-6fcd-430c-a5b9-023da1930e17",
       "name": "Modelo principal",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
@@ -215,7 +215,7 @@
         "schemaType": "manual",
         "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"filas\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"descripcion\": {\n            \"type\": \"string\"\n          },\n          \"unidad\": {\n            \"type\": \"string\"\n          },\n          \"cantidad\": {\n            \"type\": \"number\"\n          },\n          \"desperdicio_pct\": {\n            \"type\": \"number\"\n          },\n          \"personas\": {\n            \"type\": \"number\"\n          },\n          \"codigo_catalogo\": {\n            \"type\": \"string\"\n          },\n          \"codigo_subitem\": {\n            \"type\": \"string\"\n          },\n          \"nuevo\": {\n            \"type\": \"boolean\"\n          },\n          \"justificacion\": {\n            \"type\": \"string\"\n          }\n        },\n        \"required\": [\n          \"descripcion\",\n          \"unidad\"\n        ]\n      }\n    },\n    \"consultas\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"id\": {\n            \"type\": \"string\"\n          },\n          \"tipo\": {\n            \"type\": \"string\",\n            \"enum\": [\n              \"opciones\",\n              \"dato\"\n            ]\n          },\n          \"pregunta\": {\n            \"type\": \"string\"\n          },\n          \"motivo\": {\n            \"type\": \"string\"\n          },\n          \"recomendada\": {\n            \"type\": \"string\"\n          },\n          \"opciones\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"object\",\n              \"properties\": {\n                \"clave\": {\n                  \"type\": \"string\"\n                },\n                \"etiqueta\": {\n                  \"type\": \"string\"\n                },\n                \"codigo_subitem\": {\n                  \"type\": \"string\"\n                },\n                \"filas\": {\n                  \"type\": \"array\",\n                  \"items\": {\n                    \"type\": \"object\",\n                    \"properties\": {\n                      \"descripcion\": {\n                        \"type\": \"string\"\n                      },\n                      \"unidad\": {\n                        \"type\": \"string\"\n                      },\n                      \"cantidad\": {\n                        \"type\": \"number\"\n                      },\n                      \"desperdicio_pct\": {\n                        \"type\": \"number\"\n                      },\n                      \"personas\": {\n                        \"type\": \"number\"\n                      },\n                      \"codigo_catalogo\": {\n                        \"type\": \"string\"\n                      },\n                      \"codigo_subitem\": {\n                        \"type\": \"string\"\n                      },\n                      \"nuevo\": {\n                        \"type\": \"boolean\"\n                      },\n                      \"justificacion\": {\n                        \"type\": \"string\"\n                      }\n                    },\n                    \"required\": [\n                      \"descripcion\",\n                      \"unidad\"\n                    ]\n                  }\n                }\n              },\n              \"required\": [\n                \"clave\",\n                \"etiqueta\"\n              ]\n            }\n          }\n        },\n        \"required\": [\n          \"id\",\n          \"tipo\",\n          \"pregunta\"\n        ]\n      }\n    },\n    \"rendimiento\": {\n      \"type\": \"number\"\n    },\n    \"horas_jornada\": {\n      \"type\": \"number\"\n    }\n  },\n  \"required\": [\n    \"filas\",\n    \"consultas\"\n  ]\n}"
       },
-      "id": "7b2d335f-772e-4ae6-bf07-ca3150e421e8",
+      "id": "1ebc706c-32e0-4284-825b-a546337e7601",
       "name": "Esquema · Insumos",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
@@ -234,7 +234,7 @@
           "systemMessage": "={{ $json.system_prompt }}"
         }
       },
-      "id": "8015c2a0-b74f-45db-934b-0bf6b62b2a8c",
+      "id": "b65d7dc7-aff5-4c0f-bfa3-62d806ccd6ee",
       "name": "Agente · Insumos",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -248,7 +248,7 @@
         "assignments": {
           "assignments": [
             {
-              "id": "4d702375-59ae-4719-aadf-45bba8a5f685",
+              "id": "0072abdd-f8d8-4b6c-9dbb-d04f15f89e56",
               "name": "system_prompt",
               "value": "Eres un revisor técnico de análisis de precios unitarios (APU). Recibes una lista de filas propuestas para una actividad de construcción. Indica cuáles NO son esenciales para ejecutarla: filas redundantes, accesorias o poco justificadas que conviene dejar sin marcar por defecto. Ante la duda, considera la fila esencial.\nDevuelve en «no_esenciales» las descripciones EXACTAS de esas filas (lista vacía si todas son esenciales). Responde SOLO con el JSON pedido.",
               "type": "string"
@@ -258,7 +258,7 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "28725c34-72c9-47a0-b04c-67a6c19c9a4e",
+      "id": "d0a6b1ca-7e54-4091-adb9-3b2050b9afe8",
       "name": "Prompt · Verificar esenciales",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -278,7 +278,7 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "fd557eca-3d3b-4ef8-84d2-eb510ff0247f",
+      "id": "21a4a9b7-9e3a-4f65-8c2d-c63e036f24be",
       "name": "Modelo mini",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
@@ -298,7 +298,7 @@
         "schemaType": "manual",
         "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"no_esenciales\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"required\": [\n    \"no_esenciales\"\n  ]\n}"
       },
-      "id": "7b0ef9d3-448f-49e7-8559-50857d2d7d37",
+      "id": "5e22639e-7448-4253-9cf1-8e4f54dda507",
       "name": "Esquema · No esenciales",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
@@ -317,7 +317,7 @@
           "systemMessage": "={{ $json.system_prompt }}"
         }
       },
-      "id": "fab8ece0-a673-4c96-be78-2c1d4af8d64b",
+      "id": "4c1876d6-0e42-4cd6-80c3-ffecce1c0c7c",
       "name": "Agente · Verificar esenciales",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -331,25 +331,25 @@
         "assignments": {
           "assignments": [
             {
-              "id": "17b1d1ef-eab4-4b59-891b-2e6d0a85bddf",
+              "id": "cfcc272f-2ab9-4341-b654-c271ed3d887c",
               "name": "filas",
               "value": "={{ $('Agente · Insumos').item.json.output.filas.map(f => ({...f, check: !$json.output.no_esenciales.includes(f.descripcion)})) }}",
               "type": "array"
             },
             {
-              "id": "9bab033a-caff-445f-bddf-25e10c9ed56e",
+              "id": "aa4e743a-c227-40d4-9121-a4419388ddd0",
               "name": "consultas",
               "value": "={{ $('Agente · Insumos').item.json.output.consultas }}",
               "type": "array"
             },
             {
-              "id": "e7146cb6-f3b0-43f8-83cc-46e6a072c2c9",
+              "id": "6932e149-4e11-4482-9a44-1372426c9c51",
               "name": "rendimiento",
               "value": "={{ $('Agente · Insumos').item.json.output.rendimiento }}",
               "type": "number"
             },
             {
-              "id": "2f8dac10-3d82-4dba-bb5e-fa549c038f01",
+              "id": "2acbaa1c-b2e3-4175-a60b-ed1aaf6ef7d8",
               "name": "horas_jornada",
               "value": "={{ $('Agente · Insumos').item.json.output.horas_jornada }}",
               "type": "number"
@@ -359,7 +359,7 @@
         "includeOtherFields": false,
         "options": {}
       },
-      "id": "d5c03c6a-9354-4624-b2e2-cc1233175405",
+      "id": "37b3e41f-7c5e-42ea-8e92-45003ae337e4",
       "name": "Marcar filas",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -375,7 +375,7 @@
         "responseBody": "={{ { \"filas\": $json.filas, \"consultas\": $json.consultas, \"rendimiento\": $json.rendimiento, \"horas_jornada\": $json.horas_jornada, \"ejecucion_id\": $execution.id } }}",
         "options": {}
       },
-      "id": "b6bdafac-a04d-472e-99bf-62e6618c9b37",
+      "id": "2783f211-3841-493d-97e6-f908cb8ff43f",
       "name": "Responder",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
@@ -392,7 +392,7 @@
         "width": 760,
         "color": 4
       },
-      "id": "7a7fd492-14e8-4c04-9af0-03e742fd30b8",
+      "id": "66249294-fada-444b-acbb-9a5d7a0fabd4",
       "name": "Nota · Paso 2 a 4 · Insumos",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -568,7 +568,7 @@
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all"
   },
-  "versionId": "8d69ea50-6575-4794-a14a-1f8af1de3079",
+  "versionId": "debf172b-4071-407a-a1b0-43716fb96810",
   "meta": {
     "templateCredsSetupCompleted": true
   },

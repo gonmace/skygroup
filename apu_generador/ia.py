@@ -129,11 +129,18 @@ def normalizar_propuesta(datos, tipo, con_defectos=True):
             o['filas'] = [f for f in (normalizar_fila(x, tipo) for x in o['filas']) if f]
             for f in o['filas']:
                 f['consulta'] = c['id']
+    # Salvaguarda: una fila que ya viene dentro de una opción no debe repetirse en el nivel superior (se contaría dos veces).
+    en_opciones = {clave_texto(f['descripcion']) for c in consultas for o in c['opciones'] for f in o['filas']}
+    filas = [f for f in filas if clave_texto(f['descripcion']) not in en_opciones]
+    for f in filas:  # una cantidad cero no aporta nada: queda desmarcada para que la persona decida
+        if tipo != 'mano_obra' and numero(f.get('cantidad'), Decimal(0)) <= 0:
+            f['check'] = False
     propuesta = {'filas': filas, 'consultas': consultas}
     if tipo == 'mano_obra':
-        for campo, defecto in (('rendimiento', Decimal(1)), ('horas_jornada', Decimal(8))):
-            valor = numero(datos.get(campo), defecto if con_defectos else None)
-            if valor is not None:
+        # El rendimiento no tiene valor por defecto: si la IA no lo dio (o dio 0 porque aún pregunta), la persona lo completa.
+        for campo, defecto in (('rendimiento', None), ('horas_jornada', Decimal(8) if con_defectos else None)):
+            valor = numero(datos.get(campo), defecto)
+            if valor is not None and valor > 0:
                 propuesta[campo] = str(valor)
     return propuesta
 

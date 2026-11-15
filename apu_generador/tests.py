@@ -1029,6 +1029,8 @@ class FichaTests(Base):
                       'Costo directo', 'Ladrillo 6H', 'MAT-001', 'Precios: nacionales'):
             self.assertContains(r, texto)
         html = r.content.decode()
+        for trazo in ('M12 9v6M16 15v6', 'M7 9.5a5 5 0 0 1 10 0', 'M11 13 16 5.5l4 6.5'):                # ladrillos, obrero, excavadora
+            self.assertIn(trazo, html)
         self.assertEqual(html.count('<div'), html.count('</div>'))
         self.assertEqual(html.count('<section'), html.count('</section>'))
         self.assertEqual(html.count('<table'), html.count('</table>'))

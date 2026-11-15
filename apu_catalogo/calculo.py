@@ -56,8 +56,8 @@ class Analisis:
         """La composición agrupada para mostrarla: materiales, mano de obra, equipos y sub-análisis, cada uno con su
         subtotal y su % del costo directo (y el % de cada fila). Solo las secciones que tienen filas."""
         directo = self.directo
-        definicion = [('MAT', 'Materiales', 'layers'), ('MO', 'Mano de obra', 'hardhat'), ('EQ', 'Equipos', 'settings'),
-                      ('SUB', 'Sub-análisis', 'list')]
+        definicion = [('MAT', 'Materiales', 'ladrillos'), ('MO', 'Mano de obra', 'obrero'), ('EQ', 'Equipos', 'excavadora'),
+                      ('SUB', 'Sub-análisis', 'layers')]
         salida = []
         for clave, nombre, icono in definicion:
             filas = [f for f in self.filas if (f.subitem and clave == 'SUB') or (not f.subitem and f.tipo == clave)]

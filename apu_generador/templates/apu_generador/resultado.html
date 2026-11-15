@@ -42,7 +42,7 @@
         {% for f in prev.filas %}
           <tr {% if f.sin_precio %}data-precio-fila data-insumo="{{ f.insumo.pk }}" class="bg-warning/10"{% endif %}>
             <td>{% if f.subitem %}{{ f.subitem }} <span class="badge badge-ghost badge-sm">Sub-análisis</span>{% else %}{{ f.insumo.descripcion }} <span class="font-mono text-xs text-base-content/50">{{ f.insumo.codigo }}</span>{% endif %}</td>
-            <td>{% if f.subitem %}—{% else %}{{ f.insumo.get_tipo_display }}{% endif %}</td>
+            <td>{% if f.subitem %}—{% else %}<span class="inline-flex items-center gap-1.5">{% if f.insumo.tipo == 'MAT' %}{% include "components/icon.html" with name="ladrillos" cls="size-4 text-base-content/50" %}{% elif f.insumo.tipo == 'MO' %}{% include "components/icon.html" with name="obrero" cls="size-4 text-base-content/50" %}{% else %}{% include "components/icon.html" with name="excavadora" cls="size-4 text-base-content/50" %}{% endif %}{{ f.insumo.get_tipo_display }}</span>{% endif %}</td>
             <td class="text-right tabular-nums">{{ f.cantidad }} {% if f.insumo %}{% if f.tipo_paso == 'mano_obra' %}h{% else %}{{ f.insumo.unidad }}{% endif %}{% endif %}{% if f.desperdicio_pct and f.desperdicio_pct != '0' and f.desperdicio_pct != '0.00' %}<span class="text-xs text-base-content/50"> +{{ f.desperdicio_pct }} %</span>{% endif %}</td>
             {% if f.sin_precio %}
             <td class="text-right" colspan="2">

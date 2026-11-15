@@ -148,11 +148,12 @@ def perfil_eliminar(request, pk):
 
 # ── Base de APU ───────────────────────────────────────────────────────────────
 
-def _precio_de(item):
-    """Precio unitario con el perfil efectivo del proyecto, o None si el proyecto aún no tiene incidencias."""
+def _analisis_de(item):
+    """Análisis del APU (precio unitario con el perfil del proyecto y estado de sus precios); None si un perfil o un dato
+    roto lo impide: no debe tumbar la lista."""
     try:
-        return calculo.analizar(item).total
-    except Exception:  # un perfil o dato roto no debe tumbar la lista
+        return calculo.analizar(item)
+    except Exception:
         return None
 
 
@@ -171,7 +172,10 @@ def items(request):
         qs = qs.filter(categoria=categoria)
     pagina = Paginator(qs.order_by('proyecto__nombre', 'codigo'), 25).get_page(request.GET.get('page'))
     for it in pagina:
-        it.precio_unitario = _precio_de(it)
+        a = _analisis_de(it)
+        it.precio_unitario = a.total if a else None
+        it.estado_precios = a.estado_precios if a else ''          # semáforo: completo / parcial / ninguno / vacio
+        it.n_insumos, it.n_sin_precio = (a.n_insumos, len(a.sin_precio)) if a else (0, 0)
         pa = ProyectoAPU.objects.filter(proyecto_id=it.proyecto_id).select_related('perfil').first() if it.proyecto_id else None
         it.moneda = pa.perfil.moneda if pa else ''
     params = request.GET.copy()

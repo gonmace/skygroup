@@ -104,6 +104,10 @@ el APU solo se enlaza al proyecto por FK (`ItemModelo.proyecto`).
   superusuario y administradores. Usar `acceso_apu(...)` en toda vista nueva del módulo, nunca `acceso_modulo` directo.
 - **Incidencias por proyecto** (`ProyectoAPU`): ajustes de porcentaje/factor del perfil solo para ese proyecto; el precio
   unitario no se guarda, se calcula con `apu_catalogo.calculo.analizar`.
+- **Semáforo de precios** (excepción a la regla de colores, pedida expresamente): en *APU → lista* la barra izquierda de
+  cada fila indica qué tan completos están los precios de sus insumos (sub-análisis incluidos): verde = todos con precio,
+  amarillo = faltan algunos, rojo = ninguno tiene precio (`calculo.Analisis.estado_precios`). Son colores de estado
+  (`success`/`warning`/`error`), no de nivel de acceso, y siempre van con texto (leyenda, `title` y `sr-only`).
 - **Precios estimados por IA**: en el paso de precios, «Sugerir precios con IA» (`apu-precios`, búsqueda web) propone
   precios de los insumos sin precio como **recomendación**: no se guardan solos ni cobran créditos; los que la persona
   acepta se guardan con `PrecioInsumo.estimado=True` y se muestran con la insignia «Estimado» hasta que los corrija.

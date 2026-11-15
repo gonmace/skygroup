@@ -1055,6 +1055,72 @@ class FichaTests(Base):
         self.assertEqual(self.client.get(f'/tekon/apu/lista/{vacio.pk}/').status_code, 200)       # directo = 0 sin dividir por cero
 
 
+class SemaforoListaTests(Base):
+    """En la base de APU, la barra a la izquierda de cada fila indica qué tan completos están los precios."""
+
+    def apu(self, codigo, *insumos, sub=None):
+        item = ItemModelo.objects.create(empresa=self.a, proyecto=self.proyecto, codigo=codigo, descripcion=f'APU {codigo}', unidad='m2')
+        for i in insumos:
+            LineaComposicion.objects.create(item=item, insumo=i, cantidad=D('1'))
+        if sub:
+            LineaComposicion.objects.create(item=item, subitem=sub, cantidad=D('1'))
+        return item
+
+    def setUp(self):
+        super().setUp()
+        self.con = self.insumo('MAT-1', 'Con precio', precio='5')
+        self.con2 = self.insumo('MAT-2', 'Con precio 2', precio='7')
+        self.sin = self.insumo('MAT-3', 'Sin precio')
+        self.sin2 = self.insumo('MAT-4', 'Sin precio 2')
+
+    def test_estados(self):
+        verde = calculo.analizar(self.apu('A-1', self.con, self.con2))
+        amarillo = calculo.analizar(self.apu('A-2', self.con, self.sin))
+        rojo = calculo.analizar(self.apu('A-3', self.sin, self.sin2))
+        vacio = calculo.analizar(self.apu('A-4'))
+        self.assertEqual([a.estado_precios for a in (verde, amarillo, rojo, vacio)], ['completo', 'parcial', 'ninguno', 'vacio'])
+        self.assertEqual((amarillo.n_insumos, len(amarillo.sin_precio)), (2, 1))
+
+    def test_los_insumos_de_los_sub_analisis_cuentan(self):
+        sub = ItemModelo.objects.create(empresa=self.a, codigo='SUB', descripcion='Sub', unidad='m3')
+        LineaComposicion.objects.create(item=sub, insumo=self.sin, cantidad=D('2'))
+        a = calculo.analizar(self.apu('A-5', self.con, sub=sub))              # 1 con precio + 1 (del sub) sin precio
+        self.assertEqual((a.estado_precios, a.n_insumos), ('parcial', 2))
+        solo_sub = calculo.analizar(self.apu('A-6', sub=sub))
+        self.assertEqual(solo_sub.estado_precios, 'ninguno')
+
+    def test_un_insumo_repetido_se_cuenta_una_vez(self):
+        a = calculo.analizar(self.apu('A-7', self.con, self.con, self.sin))
+        self.assertEqual((a.n_insumos, len(a.sin_precio), a.estado_precios), (2, 1, 'parcial'))
+
+    def test_la_lista_pinta_la_barra_del_color_que_corresponde(self):
+        self.apu('A-1', self.con, self.con2)
+        self.apu('A-2', self.con, self.sin)
+        self.apu('A-3', self.sin, self.sin2)
+        self.apu('A-4')
+        self.client.force_login(self.su)
+        r = self.client.get('/tekon/apu/lista/')
+        estados = {it.codigo: it.estado_precios for it in r.context['pagina']}
+        self.assertEqual(estados, {'A-1': 'completo', 'A-2': 'parcial', 'A-3': 'ninguno', 'A-4': 'vacio'})
+        html = r.content.decode()
+        for codigo, clase in (('A-1', 'border-l-success'), ('A-2', 'border-l-warning'), ('A-3', 'border-l-error'), ('A-4', 'border-l-base-300')):
+            fila = html.split(f'>{codigo}</a>')[0].rsplit('<td', 1)[1]                        # la celda del código de esa fila
+            self.assertIn(clase, fila, codigo)
+        for texto in ('Faltan algunos', 'Ninguno tiene precio', 'Completos', 'Faltan precios: 1 de 2 insumos sin precio',
+                      'Ningún insumo tiene precio (2 en total)', 'Sin composición'):
+            self.assertContains(r, texto)
+        self.assertContains(r, '1 sin precio')                                                   # en la celda del precio
+
+    def test_el_estado_sigue_el_precio_de_la_region_del_proyecto(self):
+        item = self.apu('A-8', self.con)
+        PrecioInsumo.objects.create(insumo=self.sin, region='Tarija', fecha=date(2026, 1, 1), precio=D('3'), moneda='BOB')
+        LineaComposicion.objects.create(item=item, insumo=self.sin, cantidad=D('1'))
+        self.assertEqual(calculo.analizar(item).estado_precios, 'parcial')                    # nacional: falta uno
+        self.pa.region = 'Tarija'
+        self.pa.save()
+        self.assertEqual(calculo.analizar(item).estado_precios, 'completo')                   # con la región del proyecto: completo
+
+
 class TokensTests(Base):
     EJECUCION = {
         'workflowData': {'nodes': [{'name': 'OpenAI Chat Model', 'parameters': {'model': {'value': 'gpt-5.1'}}},

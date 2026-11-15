@@ -17,17 +17,27 @@
     <select name="categoria" class="select select-bordered select-sm"><option value="">Todas</option>{% for c in categorias %}<option value="{{ c }}" {% if categoria_sel == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
   <button class="btn btn-sm">Filtrar</button>
 </form>
+<ul class="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-base-content/70" aria-label="Estado de los precios de cada APU">
+  <li class="font-medium text-base-content/50">Precios de los insumos:</li>
+  <li class="inline-flex items-center gap-1.5"><span class="inline-block h-4 w-1 rounded-full bg-success" aria-hidden="true"></span> Completos</li>
+  <li class="inline-flex items-center gap-1.5"><span class="inline-block h-4 w-1 rounded-full bg-warning" aria-hidden="true"></span> Faltan algunos</li>
+  <li class="inline-flex items-center gap-1.5"><span class="inline-block h-4 w-1 rounded-full bg-error" aria-hidden="true"></span> Ninguno tiene precio</li>
+</ul>
 <section class="table-card">
   <table class="table">
     <thead><tr><th>Código</th><th>Descripción</th><th>Proyecto</th><th>Categoría</th><th class="text-right">Precio unitario</th></tr></thead>
     <tbody>
     {% for it in pagina %}
       <tr class="hover:bg-base-content/5" data-href="{% url 'apu_catalogo:item_detalle' it.pk %}">
-        <td class="font-mono text-sm"><a class="hover:underline" href="{% url 'apu_catalogo:item_detalle' it.pk %}">{{ it.codigo }}</a></td>
+        <td class="border-l-4 font-mono text-sm {% if it.estado_precios == 'completo' %}border-l-success{% elif it.estado_precios == 'parcial' %}border-l-warning{% elif it.estado_precios == 'ninguno' %}border-l-error{% else %}border-l-base-300{% endif %}"
+            title="{% if it.estado_precios == 'completo' %}Precios completos: los {{ it.n_insumos }} insumos tienen precio{% elif it.estado_precios == 'parcial' %}Faltan precios: {{ it.n_sin_precio }} de {{ it.n_insumos }} insumos sin precio{% elif it.estado_precios == 'ninguno' %}Ningún insumo tiene precio ({{ it.n_insumos }} en total){% else %}Sin composición{% endif %}">
+          <a class="hover:underline" href="{% url 'apu_catalogo:item_detalle' it.pk %}">{{ it.codigo }}</a>
+          <span class="sr-only">{% if it.estado_precios == 'completo' %}Precios completos{% elif it.estado_precios == 'parcial' %}Faltan algunos precios{% elif it.estado_precios == 'ninguno' %}Ningún insumo tiene precio{% else %}Sin composición{% endif %}</span>
+        </td>
         <td class="font-medium">{{ it.descripcion }} <span class="text-xs font-normal text-base-content/50">[{{ it.unidad }}]</span>{% if it.origen_id %} <span class="badge badge-ghost badge-sm">Reutilizado</span>{% endif %}</td>
         <td>{{ it.proyecto.nombre|default:"—" }}</td>
         <td>{% if it.categoria %}<span class="badge badge-outline badge-sm">{{ it.categoria }}</span>{% else %}<span class="text-base-content/40">—</span>{% endif %}</td>
-        <td class="text-right tabular-nums">{% if it.precio_unitario is not None %}{{ it.precio_unitario }} <span class="text-xs text-base-content/50">{{ it.moneda }}</span>{% else %}<span class="text-base-content/40" title="El proyecto aún no tiene perfil de cálculo">—</span>{% endif %}</td>
+        <td class="text-right tabular-nums">{% if it.precio_unitario is not None %}{{ it.precio_unitario }} <span class="text-xs text-base-content/50">{{ it.moneda }}</span>{% if it.n_sin_precio %}<span class="block text-xs text-base-content/50">{{ it.n_sin_precio }} sin precio</span>{% endif %}{% else %}<span class="text-base-content/40" title="El proyecto aún no tiene perfil de cálculo">—</span>{% endif %}</td>
       </tr>
     {% empty %}<tr><td colspan="5" class="py-10 text-center text-base-content/60">No hay APU con esos filtros.</td></tr>{% endfor %}
     </tbody>

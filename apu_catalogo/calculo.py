@@ -34,6 +34,7 @@ class Analisis:
     filas: list = field(default_factory=list)
     grupos: dict = field(default_factory=dict)      # {'MAT': Decimal, 'MO': ..., 'EQ': ...}
     sin_precio: list = field(default_factory=list)  # insumos sin precio vigente
+    n_insumos: int = 0                              # insumos distintos de la composición (con o sin precio, sub-análisis incluidos)
     resultado: object = None                        # apu_motor.Resultado
     perfil: dict = None
     moneda: str = ''
@@ -41,6 +42,17 @@ class Analisis:
     @property
     def total(self):
         return self.resultado.total if self.resultado else None
+
+    @property
+    def estado_precios(self):
+        """Qué tan completos están los precios del APU: 'completo' (todos los insumos con precio), 'parcial' (algunos sin
+        precio), 'ninguno' (ningún insumo tiene precio) o 'vacio' (sin composición)."""
+        if not self.n_insumos:
+            return 'vacio'
+        faltan = len(self.sin_precio)
+        if faltan == 0:
+            return 'completo'
+        return 'ninguno' if faltan >= self.n_insumos else 'parcial'
 
     @property
     def n_estimados(self):
@@ -82,7 +94,7 @@ def perfil_del_proyecto(proyecto):
     return pa.perfil_efectivo() if pa else None
 
 
-def _sumar(item, region, fecha, acumulado, filas, sin_precio, factor=UNO, vistos=()):
+def _sumar(item, region, fecha, acumulado, filas, sin_precio, factor=UNO, vistos=(), todos=None):
     if item.pk in vistos:
         return
     for linea in item.lineas.select_related('insumo', 'subitem').all():
@@ -91,7 +103,7 @@ def _sumar(item, region, fecha, acumulado, filas, sin_precio, factor=UNO, vistos
             sub = linea.subitem
             local = {t: CERO for t in Tipo.values}
             _sumar(sub, region, fecha, local, [], sin_precio, cantidad * (UNO + linea.desperdicio_pct / 100),
-                   vistos + (item.pk,))
+                   vistos + (item.pk,), todos)
             for t, v in local.items():
                 acumulado[t] += v
             if factor == UNO:
@@ -99,6 +111,8 @@ def _sumar(item, region, fecha, acumulado, filas, sin_precio, factor=UNO, vistos
                                   sum(local.values(), CERO), subitem=True))
             continue
         insumo = linea.insumo
+        if todos is not None:
+            todos.add(insumo.pk)
         precio = insumo.precio_vigente(region, fecha)
         efectiva = cantidad * (UNO + linea.desperdicio_pct / 100)
         if precio is None:
@@ -124,9 +138,9 @@ def analizar(item, region=None, fecha=None, perfil=None):
     if region is None:
         region = pa.region if pa else ''
     acumulado = {t: CERO for t in Tipo.values}
-    filas, sin_precio = [], []
-    _sumar(item, region or '', fecha, acumulado, filas, sin_precio)
-    analisis = Analisis(filas=filas, grupos=acumulado, sin_precio=sin_precio, perfil=perfil,
+    filas, sin_precio, todos = [], [], set()
+    _sumar(item, region or '', fecha, acumulado, filas, sin_precio, todos=todos)
+    analisis = Analisis(filas=filas, grupos=acumulado, sin_precio=sin_precio, perfil=perfil, n_insumos=len(todos),
                         moneda=perfil['moneda'] if perfil else '')
     if perfil:
         analisis.resultado = calcular(perfil, acumulado)

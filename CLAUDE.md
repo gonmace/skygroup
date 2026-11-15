@@ -104,6 +104,9 @@ el APU solo se enlaza al proyecto por FK (`ItemModelo.proyecto`).
   superusuario y administradores. Usar `acceso_apu(...)` en toda vista nueva del módulo, nunca `acceso_modulo` directo.
 - **Incidencias por proyecto** (`ProyectoAPU`): ajustes de porcentaje/factor del perfil solo para ese proyecto; el precio
   unitario no se guarda, se calcula con `apu_catalogo.calculo.analizar`.
+- **Eliminar un APU** (`apu_lineas:apu_eliminar`): solo quien lo creó (`ItemModelo.creado_por`) y el superusuario —ni siquiera
+  otro coordinador o administrador—; un APU sin creador solo lo elimina el superusuario. Se borra su composición, no los
+  insumos ni sus precios, y no se puede si otro APU lo usa como sub-análisis. Los botones solo aparecen para quien puede.
 - **Semáforo de precios** (excepción a la regla de colores, pedida expresamente): en *APU → lista* la barra izquierda de
   cada fila indica qué tan completos están los precios de sus insumos (sub-análisis incluidos): verde = todos con precio,
   amarillo = faltan algunos, rojo = ninguno tiene precio (`calculo.Analisis.estado_precios`). Son colores de estado

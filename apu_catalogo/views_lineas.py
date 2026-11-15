@@ -3,9 +3,12 @@ import json
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import ProtectedError
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
 
 from .acceso import acceso_apu
@@ -83,3 +86,31 @@ def linea_quitar(request, item_pk, pk):
     nombre = linea.insumo.descripcion if linea.insumo_id else str(linea.subitem)
     linea.delete()
     return _json(True, f'Se quitó «{nombre}» de {item.codigo}.')
+
+
+def puede_eliminar(user, item):
+    """Solo quien creó el APU y el superusuario pueden eliminarlo."""
+    return bool(user.is_superuser or (item.creado_por_id and item.creado_por_id == user.pk))
+
+
+@acceso_apu('apu.ver')
+@require_POST
+def apu_eliminar(request, pk):
+    """Elimina el APU y su composición. Los insumos y sus precios no se borran. Si otros APU lo usan como sub-análisis,
+    no se elimina (hay que quitarlo antes de esos APU)."""
+    item = get_object_or_404(ItemModelo, pk=pk, empresa=request.empresa)
+    if not puede_eliminar(request.user, item):
+        raise PermissionDenied
+    nombre = f'{item.codigo} · {item.descripcion}'
+    usos = list(item.usado_en.select_related('item').values_list('item__codigo', flat=True).distinct())
+    if usos:
+        messages.error(request, f'No se puede eliminar «{nombre}»: lo usan como sub-análisis {", ".join(usos)}. '
+                                'Quítalo primero de esos APU.')
+        return redirect('apu_catalogo:item_detalle', pk=item.pk)
+    try:
+        item.delete()
+    except ProtectedError:   # por si aparece otra relación protegida
+        messages.error(request, f'No se puede eliminar «{nombre}» porque está en uso.')
+        return redirect('apu_catalogo:item_detalle', pk=item.pk)
+    messages.success(request, f'Se eliminó el APU «{nombre}».')
+    return redirect('apu_catalogo:items')

@@ -16,10 +16,14 @@
       {% if item.origen %}<span class="inline-flex items-center gap-1.5">{% include "components/icon.html" with name="copy" cls="size-4 text-base-content/50" %} Reutilizado de <a class="link" href="{% url 'apu_catalogo:item_detalle' item.origen.pk %}">{{ item.origen.codigo }}</a></span>{% endif %}
     </div>
   </div>
-  {% if puede_generar %}
+  {% if puede_generar or request.user.is_superuser or item.creado_por_id == request.user.pk %}
   <div class="flex flex-wrap gap-2">
-    {% if item.proyecto_id %}<button class="btn btn-sm btn-primary btn-soft gap-1" data-abrir-modal="apu-modificar-ficha">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Modificar con IA</button>{% endif %}
-    <button class="btn btn-sm gap-1" data-abrir-modal="apu-reutilizar">{% include "components/icon.html" with name="copy" cls="size-4" %} Reutilizar en otro proyecto</button>
+    {% if puede_generar and item.proyecto_id %}<button class="btn btn-sm btn-primary btn-soft gap-1" data-abrir-modal="apu-modificar-ficha">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Modificar con IA</button>{% endif %}
+    {% if puede_generar %}<button class="btn btn-sm gap-1" data-abrir-modal="apu-reutilizar">{% include "components/icon.html" with name="copy" cls="size-4" %} Reutilizar en otro proyecto</button>{% endif %}
+    {% if request.user.is_superuser or item.creado_por_id == request.user.pk %}
+    <form method="post" action="{% url 'apu_lineas:apu_eliminar' item.pk %}" data-confirmar="¿Eliminar el APU «{{ item.codigo }} · {{ item.descripcion }}»? Se elimina su composición; los insumos y sus precios no se borran.">{% csrf_token %}
+      <button class="btn btn-sm btn-error btn-soft gap-1">{% include "components/icon.html" with name="trash" cls="size-4" %} Eliminar</button>
+    </form>{% endif %}
   </div>
   {% endif %}
 </header>

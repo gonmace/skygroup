@@ -1051,6 +1051,82 @@ class TituloAlReutilizarTests(Base):
         self.assertEqual(ItemModelo.objects.get(proyecto=self.destino).descripcion, 'Hormigón H21 en columnas')
 
 
+class EliminarApuTests(Base):
+    """Solo quien creó el APU y el superusuario pueden eliminarlo."""
+
+    def setUp(self):
+        super().setUp()
+        b = self.borrador_en_paso5(creado_por=self.coord)
+        self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {}, self.coord)
+        self.item = ItemModelo.objects.get()
+        self.url = f'/tekon/apu/lista/{self.item.pk}/eliminar/'
+        self.otro_coord = User.objects.create_user('coord2@example.com', 'x')
+        agregar_miembro(self.otro_coord, self.a, rol_por_base(self.a, RolBase.COORDINADOR))
+
+    def post(self, usuario, url=None):
+        self.client.force_login(usuario)
+        return self.client.post(url or self.url)
+
+    def test_el_creador_lo_elimina_con_su_composicion_pero_no_los_insumos_ni_precios(self):
+        self.assertEqual(self.item.creado_por, self.coord)
+        insumos, precios = Insumo.objects.count(), PrecioInsumo.objects.count()
+        r = self.post(self.coord)
+        self.assertRedirects(r, '/tekon/apu/lista/', fetch_redirect_response=False)
+        self.assertFalse(ItemModelo.objects.exists())
+        self.assertFalse(LineaComposicion.objects.exists())
+        self.assertEqual((Insumo.objects.count(), PrecioInsumo.objects.count()), (insumos, precios))
+        self.assertContains(self.client.get('/tekon/apu/lista/'), 'Se eliminó el APU')
+
+    def test_el_superusuario_puede_eliminar_cualquier_apu(self):
+        self.assertEqual(self.post(self.su).status_code, 302)
+        self.assertFalse(ItemModelo.objects.exists())
+
+    def test_nadie_mas_puede_ni_siquiera_otro_coordinador_o_administrador(self):
+        for usuario in (self.otro_coord, self.adm, self.ejec, self.obs):
+            self.assertEqual(self.post(usuario).status_code, 403, usuario)
+        self.assertEqual(self.post(self.ajeno).status_code, 403)
+        self.assertTrue(ItemModelo.objects.exists())
+
+    def test_un_apu_sin_creador_solo_lo_elimina_el_superusuario(self):
+        ItemModelo.objects.filter(pk=self.item.pk).update(creado_por=None)
+        self.assertEqual(self.post(self.coord).status_code, 403)
+        self.assertEqual(self.post(self.su).status_code, 302)
+
+    def test_solo_por_post_y_solo_de_la_empresa_activa(self):
+        self.client.force_login(self.coord)
+        self.assertEqual(self.client.get(self.url).status_code, 405)
+        self.client.force_login(self.su)
+        self.assertEqual(self.client.post(f'/embol/apu/lista/{self.item.pk}/eliminar/').status_code, 404)   # el APU es de Tekon
+        self.assertTrue(ItemModelo.objects.exists())
+
+    def test_si_otro_apu_lo_usa_como_sub_analisis_no_se_elimina(self):
+        grande = ItemModelo.objects.create(empresa=self.a, proyecto=self.proyecto, codigo='APU-050', descripcion='Grande', unidad='m2')
+        LineaComposicion.objects.create(item=grande, subitem=self.item, cantidad=D('1'))
+        r = self.post(self.coord)
+        self.assertRedirects(r, f'/tekon/apu/lista/{self.item.pk}/', fetch_redirect_response=False)
+        self.assertTrue(ItemModelo.objects.filter(pk=self.item.pk).exists())
+        self.assertContains(self.client.get(f'/tekon/apu/lista/{self.item.pk}/'), 'lo usan como sub-análisis APU-050')
+        self.assertEqual(self.post(self.coord, f'/tekon/apu/lista/{grande.pk}/eliminar/').status_code, 403)   # no lo creó él (sin creador)
+        self.post(self.su, f'/tekon/apu/lista/{grande.pk}/eliminar/')                                          # primero el que lo usa
+        self.assertEqual(self.post(self.coord).status_code, 302)
+        self.assertFalse(ItemModelo.objects.exists())
+
+    def test_los_borradores_y_llamadas_a_la_ia_sobreviven(self):
+        b = APUBorrador.objects.get()
+        LlamadaIA.objects.create(empresa=self.a, webhook='apu-insumos', borrador=b, apu=self.item)
+        self.post(self.coord)
+        b.refresh_from_db()
+        self.assertIsNone(b.apu_guardado)
+        self.assertIsNone(LlamadaIA.objects.get().apu)
+
+    def test_los_botones_solo_aparecen_para_quien_puede(self):
+        for usuario, ve in ((self.coord, True), (self.su, True), (self.otro_coord, False), (self.ejec, False), (self.obs, False)):
+            self.client.force_login(usuario)
+            for url in ('/tekon/apu/lista/', f'/tekon/apu/lista/{self.item.pk}/'):
+                html = self.client.get(url).content.decode()
+                self.assertEqual(f'/tekon/apu/lista/{self.item.pk}/eliminar/' in html, ve, (usuario, url))
+
+
 class CalculoTests(Base):
     def test_sub_items_desperdicio_region_e_insumos_sin_precio(self):
         cemento = self.insumo('MAT-1', 'Cemento', unidad='kg', precio='2')

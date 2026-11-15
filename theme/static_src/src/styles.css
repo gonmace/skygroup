@@ -490,3 +490,13 @@ li:is(.row-concluido, .row-parcial, .row-vacio) {
 .msj-contador { display: inline-grid; place-items: center; min-width: 1.35rem; height: 1.35rem; padding: 0 .4rem; border-radius: 9999px;
   background: #e5262b; color: #fff; font-size: .72rem; font-weight: 700; line-height: 1; }
 .msj-contador.hidden { display: none; }
+
+/* Dictado por voz (static/js/dictado.js): micrófono en la esquina de cada textarea. El estado «escuchando» usa el
+   color de marca + pulso (el rojo es solo para errores y los colores de rol identifican quién accede). */
+.dictado-caja { position: relative; display: block; }
+.dictado-con-btn { padding-right: 2.25rem; }
+.dictado-btn { position: absolute; right: 0.375rem; bottom: 0.375rem; opacity: 0.6; }
+.dictado-btn:hover, .dictado-btn:focus-visible { opacity: 1; }
+.dictado-activo { opacity: 1; color: var(--color-primary); animation: dictado-pulso 1.2s ease-in-out infinite; }
+@keyframes dictado-pulso { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .dictado-activo { animation: none; } }

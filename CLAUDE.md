@@ -69,3 +69,8 @@ superusuario) y viven en `cuentas.models.CredencialesPlataforma` (una sola para 
 (`GOOGLE_MAPS_API_KEY`) es solo el respaldo. Para leer la clave usar `CredencialesPlataforma.clave_google_maps()` (o
 `reg_actividades.mapas.clave_google()`), nunca `settings.GOOGLE_MAPS_API_KEY` directo. Una credencial nueva = un campo
 nuevo en ese modelo + su formulario en `panel/forms.py` (`CredencialesForm`); el campo nunca se muestra entero.
+
+## Dictado por voz en los textarea
+Todo `<textarea>` (también los que se insertan por JS) recibe solo un botón de micrófono: `static/js/dictado.js`
+(Web Speech API del navegador; sin soporte, p. ej. Firefox, no aparece). Escribe en la posición del cursor y dispara
+`input`. Para excluir uno: `data-sin-dictado`. Estilos `.dictado-*` en `styles.css`. Los errores salen como toast.

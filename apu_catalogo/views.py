@@ -190,7 +190,8 @@ def item_detalle(request, pk):
     empresa = request.empresa
     item = get_object_or_404(ItemModelo.objects.select_related('proyecto', 'origen', 'creado_por'), pk=pk, empresa=empresa)
     pa = ProyectoAPU.objects.filter(proyecto_id=item.proyecto_id).select_related('perfil').first() if item.proyecto_id else None
-    region = request.GET.get('region', '').strip()
+    region = request.GET.get('region')            # opcional: ver los precios de otra región; por defecto, la del proyecto
+    region = region.strip() if region is not None else None
     analisis = calculo.analizar(item, region=region)
     consumo = None
     if request.user.is_superuser:
@@ -199,7 +200,7 @@ def item_detalle(request, pk):
         consumo = ia_gen.resumen_uso(llamadas)
     return render(request, 'apu_catalogo/item.html', {
         'item': item, 'analisis': analisis, 'desglose': calculo.desglose(analisis.perfil, analisis.resultado),
-        'proyecto_apu': pa, 'region': region, 'consumo': consumo,
+        'proyecto_apu': pa, 'region': region if region is not None else (pa.region if pa else ''), 'consumo': consumo,
         'puede_generar': tiene_capacidad(request.user, 'apu.catalogo.manage', empresa),
         'puede_incidencias': tiene_capacidad(request.user, 'apu.perfiles.manage', empresa),
         'proyectos': Proyecto.objects.de_empresa(empresa).activos().filter(apu__isnull=False).order_by('nombre'),
@@ -238,7 +239,7 @@ def habilitar(request):
                                         'palabras): qué se construye, dónde y para qué. La IA la usa para ajustar cada APU.')
             else:
                 try:
-                    asistente.asegurar_proyecto_apu(elegido, request.POST.get('perfil'), empresa)
+                    asistente.asegurar_proyecto_apu(elegido, request.POST.get('perfil'), empresa, request.POST.get('region'))
                 except asistente.ErrorPaso as e:
                     messages.error(request, str(e))
                 else:
@@ -247,7 +248,7 @@ def habilitar(request):
                     return redirect('apu_generador:nuevo')
     return render(request, 'apu_catalogo/habilitar.html', {
         'pendientes': pendientes, 'elegido': elegido, 'descripcion': request.POST.get('descripcion', elegido.descripcion if elegido else ''),
-        'perfil_sel': request.POST.get('perfil', ''), 'perfiles': PerfilCalculo.propios(empresa),
+        'perfil_sel': request.POST.get('perfil', ''), 'region': request.POST.get('region', ''), 'perfiles': PerfilCalculo.propios(empresa),
         'plantillas': PerfilCalculo.objects.filter(empresa__isnull=True, activo=True),
         'hay_proyectos': Proyecto.objects.de_empresa(empresa).activos().exists(),
         'puede_proyectos': tiene_capacidad(request.user, 'proyectos.manage', empresa),
@@ -311,8 +312,9 @@ def incidencias(request, pk):
     else:
         nuevos, candidato, efectivo = ajustes_actuales, pa, None
     items_proyecto = list(ItemModelo.objects.filter(proyecto=proyecto, empresa=empresa).order_by('codigo')[:5])
+    region = request.POST.get('region', pa.region if pa else '').strip()[:80] if request.method == 'POST' else (pa.region if pa else '')
     if request.method == 'POST' and accion == 'guardar' and not errores:
-        ProyectoAPU.objects.update_or_create(proyecto=proyecto, defaults={'perfil': perfil, 'ajustes': nuevos})
+        ProyectoAPU.objects.update_or_create(proyecto=proyecto, defaults={'perfil': perfil, 'ajustes': nuevos, 'region': region})
         messages.success(request, f'Se guardaron las incidencias de «{proyecto.nombre}»: cambia el precio de sus '
                                   f'{ItemModelo.objects.filter(proyecto=proyecto).count()} APU.')
         return redirect('apu_catalogo:proyectos')
@@ -325,7 +327,7 @@ def incidencias(request, pk):
             vista_previa.append({'item': it, 'antes': antes.total, 'despues': despues.total, 'moneda': perfil.moneda})
     huerfanos = pa.ajustes_huerfanos() if pa and pa.perfil_id == perfil.pk else []
     return render(request, 'apu_catalogo/incidencias.html', {
-        'proyecto': proyecto, 'perfil': perfil, 'perfiles': perfiles, 'lineas': list(valores.values()), 'errores': errores,
+        'proyecto': proyecto, 'region': region, 'perfil': perfil, 'perfiles': perfiles, 'lineas': list(valores.values()), 'errores': errores,
         'ajustados': set(nuevos), 'vista_previa': vista_previa, 'huerfanos': huerfanos, 'n_apu': ItemModelo.objects.filter(proyecto=proyecto).count()})
 
 

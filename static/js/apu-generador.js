@@ -133,6 +133,8 @@
     var filtro = raiz.querySelector('[data-filtro-proyecto]');
     function actualizar() {   // el perfil se propone con el del proyecto (editable); la descripción se pide si no alcanza
       var p = info[sel.value];
+      var reg = raiz.querySelector('[data-region-actual]');
+      if (reg) reg.textContent = p ? 'Precios de: ' + (p.region || 'nacionales') + ' (se define al habilitar el proyecto)' : '';
       if (!p) { desc.classList.add('hidden'); return; }
       if (perfil && p.perfil_id && !perfil.dataset.tocado) perfil.value = String(p.perfil_id);
       desc.classList.toggle('hidden', !!p.descripcion_ok);

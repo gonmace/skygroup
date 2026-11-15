@@ -183,6 +183,15 @@ class Paso1Tests(Base):
         self.assertEqual(r.status_code, 400)
         self.assertFalse(APUBorrador.objects.exists())
 
+    def test_la_region_de_precios_sale_del_proyecto_no_del_formulario(self):
+        self.pa.region = 'Tarija'
+        self.pa.save()
+        with mock.patch(LLAMAR, return_value=COHERENTE) as ll:
+            self.json(self.URL, self.datos(region='Otra ciudad'), self.coord)
+        self.assertEqual(APUBorrador.objects.get().region, 'Tarija')
+        self.assertEqual(ll.call_args[0][1]['region'], 'Tarija')
+        self.assertNotContains(self.client.get(self.URL), 'name="region"')
+
     def test_el_superusuario_sin_membresia_puede_generar_en_la_empresa_activa(self):
         with mock.patch(LLAMAR, return_value=COHERENTE):
             r = self.json(self.URL, self.datos(), self.su)
@@ -421,6 +430,12 @@ class HabilitarTests(Base):
         self.assertEqual((pa.perfil.empresa, pa.perfil.nombre), (self.a, self.perfil.nombre))    # copia de la plantilla, de la empresa
         self.nuevo.refresh_from_db()
         self.assertEqual(self.nuevo.descripcion, DESCRIPCION)
+
+    def test_habilitar_guarda_la_region_de_precios_del_proyecto(self):
+        self.client.force_login(self.coord)
+        self.client.post(self.URL, self.datos(region='  Tarija '))
+        self.assertEqual(ProyectoAPU.objects.get(proyecto=self.nuevo).region, 'Tarija')
+        self.assertContains(self.client.get('/tekon/apu/proyectos/'), 'Tarija')
 
     def test_otro_proyecto_con_la_misma_plantilla_reutiliza_la_copia(self):
         otro = Proyecto.objects.create(empresa=self.a, nombre='Colegio Sur')
@@ -669,6 +684,12 @@ class IncidenciasTests(Base):
         self.assertGreater(calculo.analizar(self.item).total, antes)
         self.assertEqual(self.perfil.datos['lineas'][[l['cod'] for l in self.perfil.datos['lineas']].index('GG')]['pct'], 0.10)  # el perfil base no cambia
 
+    def test_la_region_de_precios_se_edita_en_incidencias(self):
+        self.post(aj_GG='10', region='Santa Cruz')
+        self.pa.refresh_from_db()
+        self.assertEqual(self.pa.region, 'Santa Cruz')
+        self.assertContains(self.client.get(self.URL), 'Santa Cruz')
+
     def test_valores_iguales_al_perfil_base_no_son_ajustes(self):
         self.post(aj_GG='10')
         self.pa.refresh_from_db()
@@ -811,6 +832,17 @@ class CalculoTests(Base):
         tarija = calculo.analizar(muro, region='Tarija')
         self.assertEqual(tarija.grupos['MAT'], D('0.02') * D('1.1') * D('300') * D('3'))   # precio regional
         self.assertEqual(nacional.filas[0].costo, nacional.grupos['MAT'])
+
+    def test_los_precios_usan_por_defecto_la_region_del_proyecto(self):
+        cemento = self.insumo('MAT-1', 'Cemento', unidad='kg', precio='2')
+        PrecioInsumo.objects.create(insumo=cemento, region='Tarija', fecha=date(2026, 1, 1), precio=D('3'), moneda='BOB')
+        item = ItemModelo.objects.create(empresa=self.a, proyecto=self.proyecto, codigo='APU-001', descripcion='x', unidad='m2')
+        LineaComposicion.objects.create(item=item, insumo=cemento, cantidad=D('10'))
+        self.assertEqual(calculo.analizar(item).grupos['MAT'], D('20'))              # proyecto sin región: nacional
+        self.pa.region = 'Tarija'
+        self.pa.save()
+        self.assertEqual(calculo.analizar(item).grupos['MAT'], D('30'))              # ahora usa la de Tarija
+        self.assertEqual(calculo.analizar(item, region='').grupos['MAT'], D('20'))   # una región explícita la reemplaza
 
     def test_sin_perfil_no_hay_precio_unitario(self):
         p = Proyecto.objects.create(empresa=self.a, nombre='Sin perfil', descripcion=DESCRIPCION)

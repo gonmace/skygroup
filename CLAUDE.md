@@ -85,7 +85,7 @@ el APU solo se enlaza al proyecto por FK (`ItemModelo.proyecto`).
   perfiles, incidencias por proyecto `ProyectoAPU`, base de APU) y `apu_generador` (asistente con IA, créditos, consumo).
 - **Se entra desde el módulo APU** (menú lateral), no desde el proyecto. **Primer paso: habilitar un proyecto para APU**
   (APU → Proyectos → Habilitar, solo quien gestiona perfiles): se elige su perfil de cálculo —siempre uno de la empresa; una
-  plantilla se copia— y su descripción (≥15 palabras). El generador y «reutilizar» solo trabajan con proyectos
+  plantilla se copia—, la región de sus precios (`ProyectoAPU.region`, editable en Incidencias) y su descripción (≥15 palabras). El generador y «reutilizar» solo trabajan con proyectos
   habilitados (`ProyectoAPU`); sin ninguno, «Nuevo APU» lleva a habilitar. Todo APU pertenece a un proyecto; la base de APU
   se reutiliza en otros proyectos (copia con `origen`) y se puede modificar con un prompt.
 - **La IA vive SOLO en n8n** (`n8n/workflows/APU_*.json`, ver su README): Django arma el payload, llama con

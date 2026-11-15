@@ -41,9 +41,13 @@ class Analisis:
         return self.resultado.total if self.resultado else None
 
 
+def _proyecto_apu(proyecto):
+    return ProyectoAPU.objects.select_related('perfil').filter(proyecto=proyecto).first() if proyecto else None
+
+
 def perfil_del_proyecto(proyecto):
-    """Perfil efectivo del proyecto (base + ajustes) o None si el proyecto aún no tiene incidencias."""
-    pa = ProyectoAPU.objects.select_related('perfil').filter(proyecto=proyecto).first() if proyecto else None
+    """Perfil efectivo del proyecto (base + ajustes) o None si el proyecto aún no está habilitado para APU."""
+    pa = _proyecto_apu(proyecto)
     return pa.perfil_efectivo() if pa else None
 
 
@@ -80,9 +84,13 @@ def _sumar(item, region, fecha, acumulado, filas, sin_precio, factor=UNO, vistos
 
 
 def analizar(item, region=None, fecha=None, perfil=None):
-    """Analiza `item`. Por defecto usa el perfil efectivo de su proyecto y la región indicada (vacía = nacional).
-    `perfil` (ya validado) solo sirve para previsualizar incidencias sin guardarlas."""
-    perfil = perfil or perfil_del_proyecto(item.proyecto)
+    """Analiza `item`. Por defecto usa el perfil efectivo de su proyecto y la región de precios del proyecto (`region`
+    la reemplaza si se indica; vacía = nacional). `perfil` (ya validado) solo sirve para previsualizar incidencias."""
+    pa = _proyecto_apu(item.proyecto)
+    if perfil is None and pa:
+        perfil = pa.perfil_efectivo()
+    if region is None:
+        region = pa.region if pa else ''
     acumulado = {t: CERO for t in Tipo.values}
     filas, sin_precio = [], []
     _sumar(item, region or '', fecha, acumulado, filas, sin_precio)

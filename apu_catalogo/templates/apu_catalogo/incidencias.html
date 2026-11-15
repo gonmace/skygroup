@@ -20,6 +20,10 @@
       </select>
       <span class="text-xs text-base-content/50">Si lo cambias, pulsa «Probar» para ver sus líneas.</span></label>
 
+    <label class="flex max-w-md flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Región o ciudad de los precios</span>
+      <input name="region" maxlength="80" value="{{ region }}" class="input input-bordered input-sm w-full" placeholder="Vacío = precios nacionales">
+      <span class="text-xs text-base-content/50">Cambia el precio de los APU del proyecto: se usan los precios vigentes de esa región (con respaldo nacional).</span></label>
+
     <div class="table-card">
       <table class="table">
         <thead><tr><th>Concepto</th><th class="text-right">Perfil base</th><th class="w-40">En este proyecto</th><th></th></tr></thead>
@@ -59,4 +63,4 @@
   </div>
 </form>
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=2" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=3" defer></script>{% endblock %}

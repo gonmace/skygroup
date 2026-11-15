@@ -87,8 +87,9 @@ def _info_proyectos(empresa):
     info = {}
     pas = list(ProyectoAPU.objects.filter(proyecto__empresa=empresa).select_related('perfil'))
     perfiles, perfil_ids = {pa.proyecto_id: pa.perfil.nombre for pa in pas}, {pa.proyecto_id: pa.perfil_id for pa in pas}
+    regiones = {pa.proyecto_id: pa.region for pa in pas}
     for p in _habilitados(empresa):
-        info[p.pk] = {'perfil': perfiles.get(p.pk, ''), 'perfil_id': perfil_ids.get(p.pk, ''), 'descripcion_ok': asistente.descripcion_suficiente(p),
+        info[p.pk] = {'perfil': perfiles.get(p.pk, ''), 'perfil_id': perfil_ids.get(p.pk, ''), 'region': regiones.get(p.pk, ''), 'descripcion_ok': asistente.descripcion_suficiente(p),
                       'descripcion': p.descripcion or ''}
     return info
 
@@ -126,8 +127,7 @@ def _validar_actividad(datos):
         raise ErrorPaso('Indica la actividad y su unidad.')
     if len(actividad) > 200:
         raise ErrorPaso('La actividad no puede superar los 200 caracteres.')
-    return {'actividad': actividad, 'unidad': unidad[:20], 'descripcion': str(datos.get('descripcion') or '').strip(),
-            'region': str(datos.get('region') or '').strip()[:80]}
+    return {'actividad': actividad, 'unidad': unidad[:20], 'descripcion': str(datos.get('descripcion') or '').strip()}
 
 
 def _completar_proyecto(request, proyecto, datos):
@@ -167,7 +167,8 @@ def nuevo(request):
             _completar_proyecto(request, proyecto, datos)
         except ErrorPaso as e:
             return _json(False, str(e), 400)
-        borrador = APUBorrador.objects.create(empresa=empresa, proyecto=proyecto, creado_por=request.user, paso=1, **campos)
+        borrador = APUBorrador.objects.create(empresa=empresa, proyecto=proyecto, creado_por=request.user, paso=1,
+                                              region=proyecto.apu.region, **campos)
         return _correr_coherencia(request, borrador)
     inicial = {'proyecto': request.GET.get('proyecto', '')}
     return render(request, 'apu_generador/actividad.html', {
@@ -190,6 +191,7 @@ def actividad(request, pk):
             return _json(False, str(e), 400)
         for k, v in campos.items():
             setattr(borrador, k, v)
+        borrador.region = getattr(borrador.proyecto, 'apu', None) and borrador.proyecto.apu.region or ''
         borrador.save()
         return _correr_coherencia(request, borrador)
     empresa = request.empresa

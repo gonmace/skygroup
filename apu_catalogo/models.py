@@ -240,6 +240,8 @@ class ProyectoAPU(models.Model):
     en vez de 10 %). Todos los APU del proyecto se calculan con `perfil_efectivo()`; el precio no se guarda."""
     proyecto = models.OneToOneField('proyectos.Proyecto', on_delete=models.CASCADE, related_name='apu')
     perfil = models.ForeignKey(PerfilCalculo, on_delete=models.PROTECT, related_name='proyectos')
+    region = models.CharField('Región o ciudad de los precios', max_length=80, blank=True,
+                              help_text='Precios vigentes de esa región (con respaldo nacional). Vacío = precios nacionales.')
     ajustes = models.JSONField('Ajustes', blank=True, default=dict,
                                help_text='{código de línea: valor}. Porcentaje (0.12 = 12 %) o factor, según la línea.')
 

@@ -33,6 +33,9 @@
           {% if plantillas %}<optgroup label="Plantillas (se copian a tu empresa al usarlas)">{% for p in plantillas %}<option value="{{ p.pk }}" {% if perfil_sel == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nombre }} · {{ p.moneda }}</option>{% endfor %}</optgroup>{% endif %}
         </select>
         <span class="text-xs text-base-content/50">Define los recargos (gastos generales, utilidad, impuestos…). Cada empresa trabaja con sus propios perfiles; luego puedes ajustar cada porcentaje solo para este proyecto desde «Incidencias».</span></label>
+      <label class="flex flex-col gap-1 sm:col-span-2"><span class="text-xs font-medium text-base-content/70">Región o ciudad de los precios</span>
+        <input name="region" maxlength="80" value="{{ region }}" class="input input-bordered input-sm w-full" placeholder="Ej.: Tarija. Vacío = precios nacionales">
+        <span class="text-xs text-base-content/50">Se usan los precios vigentes de esa región para todos los APU del proyecto; si un insumo no tiene precio allí, se usa el nacional.</span></label>
       <label class="flex flex-col gap-1 sm:col-span-2"><span class="text-xs font-medium text-base-content/70">Descripción del proyecto <span class="text-error" aria-hidden="true">*</span></span>
         <textarea name="descripcion" rows="4" required class="textarea textarea-bordered w-full text-sm" placeholder="Describe brevemente qué se construye, dónde y para qué.">{{ descripcion }}</textarea>
         <span class="text-xs text-base-content/50">Mínimo {{ minimo }} palabras. Se guarda en el proyecto y la IA la usa en todos sus APU.</span></label>

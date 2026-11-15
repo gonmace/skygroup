@@ -35,7 +35,7 @@ def descripcion_suficiente(proyecto):
     return len(re.findall(r'\w+', proyecto.descripcion or '')) >= MIN_PALABRAS_DESCRIPCION
 
 
-def asegurar_proyecto_apu(proyecto, perfil_id, empresa):
+def asegurar_proyecto_apu(proyecto, perfil_id, empresa, region=None):
     """El `ProyectoAPU` del proyecto con el perfil elegido (siempre uno de la empresa: una plantilla se copia a la
     empresa). Sin `perfil_id` se conserva el que ya tiene; si no tiene ninguno, es obligatorio."""
     existente = ProyectoAPU.objects.select_related('perfil').filter(proyecto=proyecto).first()
@@ -46,8 +46,9 @@ def asegurar_proyecto_apu(proyecto, perfil_id, empresa):
     perfil = PerfilCalculo.para_empresa(empresa, perfil_id)
     if perfil is None:
         raise ErrorPaso('Ese perfil de cálculo no existe.')
+    region = (region or '').strip()[:80]
     if existente is None:
-        return ProyectoAPU.objects.create(proyecto=proyecto, perfil=perfil)
+        return ProyectoAPU.objects.create(proyecto=proyecto, perfil=perfil, region=region)
     if existente.perfil_id != perfil.pk:   # cambiar de perfil: los ajustes que ya no existan en él se ignoran
         existente.perfil = perfil
         existente.save(update_fields=['perfil'])
@@ -331,6 +332,11 @@ class Conflicto(Exception):
 
 # ── Reutilizar y modificar ────────────────────────────────────────────────────
 
+def _region_del_proyecto(proyecto):
+    pa = ProyectoAPU.objects.filter(proyecto=proyecto).first()
+    return pa.region if pa else ''
+
+
 def filas_de_apu(item):
     """La composición de un APU guardado como pasos del borrador: {materiales, mano_obra, equipos}."""
     pasos = {'materiales': {'filas': []}, 'mano_obra': {'filas': []}, 'equipos': {'filas': []}}
@@ -365,7 +371,7 @@ def crear_borrador_reutilizado(item, proyecto, user, empresa, *, edita_el_mismo=
     pasos = filas_de_apu(item)
     return APUBorrador.objects.create(
         empresa=empresa, proyecto=proyecto, creado_por=user, actividad=item.descripcion, unidad=item.unidad,
-        descripcion='', modo=APUBorrador.Modo.REUTILIZAR, origen=item, paso=5, credito_consumido=True,
+        descripcion='', region=_region_del_proyecto(proyecto), modo=APUBorrador.Modo.REUTILIZAR, origen=item, paso=5, credito_consumido=True,
         clasificacion={'categoria': item.categoria}, apu_guardado=item if edita_el_mismo else None, **pasos)
 
 

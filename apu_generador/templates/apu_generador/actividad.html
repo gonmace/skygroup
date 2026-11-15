@@ -44,10 +44,7 @@
         <span class="text-xs font-medium text-base-content/70">Unidad <span class="text-error" aria-hidden="true">*</span></span>
         <input name="unidad" maxlength="20" required class="input input-bordered input-sm w-full" value="{{ borrador.unidad }}" placeholder="m², m³, ml, kg, pza…">
       </label>
-      <label class="flex flex-col gap-1">
-        <span class="text-xs font-medium text-base-content/70">Región o ciudad de los precios</span>
-        <input name="region" maxlength="80" class="input input-bordered input-sm w-full" value="{{ borrador.region }}" placeholder="Vacío = precios nacionales">
-      </label>
+      <p class="flex items-end pb-1 text-xs text-base-content/50" data-region-actual></p>
       <label class="flex flex-col gap-1 sm:col-span-2">
         <span class="text-xs font-medium text-base-content/70">Detalles de la actividad (opcional)</span>
         <textarea name="descripcion" rows="3" class="textarea textarea-bordered w-full text-sm" placeholder="Especificaciones, espesores, dosificaciones, condiciones de la obra…">{{ borrador.descripcion }}</textarea>
@@ -69,4 +66,4 @@
 </section>
 {{ info_proyectos|json_script:"apu-info-proyectos" }}
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=2" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=3" defer></script>{% endblock %}

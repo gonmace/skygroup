@@ -9,17 +9,18 @@
 </div>
 <section class="table-card">
   <table class="table">
-    <thead><tr><th>Proyecto</th><th>Perfil de cálculo</th><th class="text-right">APU</th><th>Incidencias</th><th class="w-px"></th></tr></thead>
+    <thead><tr><th>Proyecto</th><th>Perfil de cálculo</th><th>Región de precios</th><th class="text-right">APU</th><th>Incidencias</th><th class="w-px"></th></tr></thead>
     <tbody>
     {% for p in proyectos %}
       <tr class="hover:bg-base-content/5">
         <td class="font-medium">{{ p.nombre }}{% if p.codigo %} <span class="font-mono text-xs font-normal text-base-content/50">{{ p.codigo }}</span>{% endif %}</td>
         <td>{% if p.apu %}{{ p.apu.perfil.nombre }} <span class="font-mono text-xs text-base-content/50">{{ p.apu.perfil.moneda }}</span>{% else %}<span class="text-base-content/40">Sin perfil</span>{% endif %}</td>
+        <td>{% if p.apu and p.apu.region %}{{ p.apu.region }}{% else %}<span class="text-base-content/40">Nacional</span>{% endif %}</td>
         <td class="text-right tabular-nums"><a class="hover:underline" href="{% url 'apu_catalogo:items' %}?proyecto={{ p.pk }}">{{ p.n_apu }}</a></td>
         <td>{% if p.apu and p.apu.ajustes %}<span class="badge badge-warning badge-soft badge-sm">{{ p.apu.ajustes|length }} ajustada{{ p.apu.ajustes|length|pluralize }}</span>{% else %}<span class="text-base-content/40">Las del perfil</span>{% endif %}</td>
         <td>{% if puede_incidencias %}<a href="{% url 'apu_catalogo:incidencias' p.pk %}" class="btn btn-sm gap-1">{% include "components/icon.html" with name="settings" cls="size-4" %} Incidencias</a>{% endif %}</td>
       </tr>
-    {% empty %}<tr><td colspan="5" class="py-10 text-center text-base-content/60">Todavía no hay proyectos habilitados para APU.{% if puede_incidencias %} Empieza con «Habilitar proyecto».{% else %} Pide a un coordinador que habilite uno.{% endif %}</td></tr>{% endfor %}
+    {% empty %}<tr><td colspan="6" class="py-10 text-center text-base-content/60">Todavía no hay proyectos habilitados para APU.{% if puede_incidencias %} Empieza con «Habilitar proyecto».{% else %} Pide a un coordinador que habilite uno.{% endif %}</td></tr>{% endfor %}
     </tbody>
   </table>
 </section>

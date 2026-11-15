@@ -185,19 +185,27 @@ def actividad(request, pk):
         return redirect(_url_paso(borrador))
     if request.method == 'POST':
         datos = _datos(request)
+        # El proyecto se puede cambiar mientras el paso 1 sigue pendiente: manda el que llega en el formulario.
+        proyecto = _habilitados(request.empresa).filter(pk=datos.get('proyecto') or borrador.proyecto_id).first()
+        if proyecto is None:
+            return _json(False, 'Elige un proyecto habilitado para APU. Si no lo ves, habilítalo primero en APU → Proyectos.', 400)
         try:
             campos = _validar_actividad(datos)
-            _completar_proyecto(request, borrador.proyecto, datos)
+            _completar_proyecto(request, proyecto, datos)
         except ErrorPaso as e:
             return _json(False, str(e), 400)
         for k, v in campos.items():
             setattr(borrador, k, v)
-        borrador.region = getattr(borrador.proyecto, 'apu', None) and borrador.proyecto.apu.region or ''
+        borrador.proyecto = proyecto
+        borrador.region = proyecto.apu.region
         borrador.save()
         return _correr_coherencia(request, borrador)
     empresa = request.empresa
+    proyectos = list(_habilitados(empresa))
+    if borrador.proyecto not in proyectos:
+        proyectos.append(borrador.proyecto)
     return render(request, 'apu_generador/actividad.html', {
-        **_contexto_base(request, borrador), 'proyectos': [borrador.proyecto],
+        **_contexto_base(request, borrador), 'proyectos': proyectos,
         'info_proyectos': _info_proyectos(empresa), 'inicial': {'proyecto': borrador.proyecto_id}, 'promedio_ms': _promedio_ms(empresa, 'apu-coherencia')})
 
 

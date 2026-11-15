@@ -19,11 +19,10 @@
       <label class="flex flex-col gap-1 sm:col-span-2">
         <span class="text-xs font-medium text-base-content/70">Proyecto <span class="text-error" aria-hidden="true">*</span></span>
         {% if proyectos|length > 8 %}<input type="search" class="input input-bordered input-sm w-full" placeholder="Buscar proyecto…" data-filtro-proyecto aria-label="Buscar proyecto">{% endif %}
-        <select name="proyecto" class="select select-bordered select-sm w-full" required {% if borrador %}disabled{% endif %}>
+        <select name="proyecto" class="select select-bordered select-sm w-full" required>
           <option value="">Elige un proyecto habilitado…</option>
           {% for p in proyectos %}<option value="{{ p.pk }}" {% if inicial.proyecto|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nombre }}{% if p.codigo %} · {{ p.codigo }}{% endif %}</option>{% endfor %}
         </select>
-        {% if borrador %}<input type="hidden" name="proyecto" value="{{ borrador.proyecto_id }}">{% endif %}
         <span class="text-xs text-base-content/50">¿No ves tu proyecto? <a class="link" href="{% url 'apu_catalogo:proyectos' %}">Habilítalo en APU → Proyectos</a>.</span>
       </label>
 

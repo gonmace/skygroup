@@ -1412,6 +1412,74 @@ class MotivoDeMedicionTests(Base):
         self.assertContains(r, 'rechazó la clave de la API')
 
 
+class CambiarProyectoEnElPaso1Tests(Base):
+    """Mientras el paso 1 está pendiente, el proyecto del formulario manda: al comprobar de nuevo se usa el elegido."""
+
+    def setUp(self):
+        super().setUp()
+        self.otro = Proyecto.objects.create(empresa=self.a, nombre='Colegio Norte', ciudad='Oruro',
+                                            descripcion='Colegio de tres plantas en la ciudad de Oruro con aulas, laboratorios y canchas deportivas para estudiantes.')
+        ProyectoAPU.objects.create(proyecto=self.otro, perfil=self.perfil, region='Oruro')
+        with mock.patch(LLAMAR, return_value={'coherente': False, 'razon': 'x'}):
+            self.json('/tekon/apu/generar/', {'proyecto': self.proyecto.pk, 'actividad': 'Muro', 'unidad': 'm2'}, self.coord)
+        self.borrador = APUBorrador.objects.get()
+        self.url = f'/tekon/apu/borrador/{self.borrador.pk}/actividad/'
+
+    def comprobar(self, **datos):
+        base = {'actividad': 'Muro', 'unidad': 'm2', 'descripcion': ''}
+        base.update(datos)
+        with mock.patch(LLAMAR, return_value=COHERENTE) as ll:
+            r = self.json(self.url, base, self.coord)
+        return r, ll
+
+    def test_al_comprobar_de_nuevo_se_analiza_el_proyecto_elegido(self):
+        r, ll = self.comprobar(proyecto=self.otro.pk)
+        self.assertEqual(r.json()['estado'], 'ok')
+        self.borrador.refresh_from_db()
+        self.assertEqual((self.borrador.proyecto, self.borrador.region), (self.otro, 'Oruro'))
+        enviado = ll.call_args[0][1]['proyecto']
+        self.assertEqual((enviado['nombre'], enviado['ciudad']), ('Colegio Norte', 'Oruro'))       # a la IA le llega el nuevo, no el viejo
+        self.assertEqual(ll.call_args[0][1]['region'], 'Oruro')
+        self.assertEqual(APUBorrador.objects.count(), 1)                                            # el mismo borrador, no uno nuevo
+
+    def test_sin_enviar_proyecto_se_conserva_el_del_borrador(self):
+        self.comprobar()
+        self.borrador.refresh_from_db()
+        self.assertEqual(self.borrador.proyecto, self.proyecto)
+
+    def test_proyectos_invalidos_se_rechazan_sin_cambiar_nada(self):
+        sin_habilitar = Proyecto.objects.create(empresa=self.a, nombre='Sin habilitar', descripcion=DESCRIPCION)
+        for pk in (sin_habilitar.pk, self.proyecto_b.pk, 999999):
+            r, ll = self.comprobar(proyecto=pk)
+            self.assertEqual(r.status_code, 400, pk)
+            self.assertIn('habilitado', r.json()['message'])
+            ll.assert_not_called()
+        self.borrador.refresh_from_db()
+        self.assertEqual(self.borrador.proyecto, self.proyecto)
+
+    def test_el_proyecto_nuevo_tambien_debe_tener_descripcion_suficiente(self):
+        corto = Proyecto.objects.create(empresa=self.a, nombre='Corto', descripcion='Una obra')
+        ProyectoAPU.objects.create(proyecto=corto, perfil=self.perfil)
+        r, ll = self.comprobar(proyecto=corto.pk)
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('15 palabras', r.json()['message'])
+        ll.assert_not_called()
+        r, ll = self.comprobar(proyecto=corto.pk, proyecto_descripcion=DESCRIPCION)
+        self.assertEqual(r.json()['estado'], 'ok')
+        corto.refresh_from_db()
+        self.assertEqual(corto.descripcion, DESCRIPCION)
+
+    def test_la_pagina_del_borrador_deja_elegir_el_proyecto(self):
+        self.client.force_login(self.coord)
+        html = self.client.get(self.url).content.decode()
+        select = html.split('<select name="proyecto"', 1)[1].split('</select>', 1)[0]
+        self.assertNotIn('disabled', select.split('>', 1)[0])                                       # ya no está bloqueado
+        self.assertIn('Colegio Norte', select)
+        self.assertIn('Escuela Tarija', select)
+        self.assertIn('selected', select)                                                           # viene elegido el actual
+        self.assertNotIn('type="hidden" name="proyecto"', html)                                     # sin el campo oculto que lo pisaba
+
+
 class CalculoTests(Base):
     def test_sub_items_desperdicio_region_e_insumos_sin_precio(self):
         cemento = self.insumo('MAT-1', 'Cemento', unidad='kg', precio='2')

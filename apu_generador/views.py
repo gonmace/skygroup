@@ -323,7 +323,7 @@ def sugerir_precios(request, pk):
     if borrador.paso < 5:
         return _json(False, 'Termina los pasos anteriores primero.', 409, continuar_url=_url_paso(borrador))
     usadas = int((borrador.rondas or {}).get('precios', 0))
-    if usadas >= MAX_SUGERENCIAS:
+    if usadas >= MAX_SUGERENCIAS and not request.user.is_superuser:   # el superusuario no tiene tope
         return _json(False, 'Ya pediste sugerencias de precio varias veces para este APU. Carga los que faltan a mano.', 429)
     prev = asistente.previsualizar(borrador)
     faltan = prev['sin_precio'][:MAX_INSUMOS_SUGERENCIA]

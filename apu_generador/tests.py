@@ -29,6 +29,7 @@ AJUSTES = dict(
 DESCRIPCION = ('Construcción de una escuela de dos plantas en la ciudad de Tarija, con muros de ladrillo, losa '
                'alivianada y terminaciones sencillas para uso educativo.')
 LLAMAR = 'apu_generador.ia.n8n.llamar_webhook_seguro'
+MAX_SUGERENCIAS_PRUEBA = 3          # = apu_generador.views.MAX_SUGERENCIAS
 COHERENTE = {'coherente': True, 'sistema_constructivo': 'Mampostería', 'tipo_elemento': 'Muro',
              'material_principal': 'Ladrillo', 'proceso_principal': 'Asentado', 'categoria': 'Obra gruesa'}
 
@@ -40,6 +41,7 @@ def propuesta_materiales():
 
 
 @override_settings(**AJUSTES)
+@override_settings(APU_SOLO_ADMIN=False)
 class Base(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -611,6 +613,11 @@ class PreciosEstimadosTests(Base):
             for _ in range(3):
                 self.assertEqual(self.json(self.url, {}).status_code, 200)
             self.assertEqual(self.json(self.url, {}).status_code, 429)
+
+    def test_el_superusuario_no_tiene_tope_de_sugerencias(self):
+        with mock.patch(LLAMAR, return_value=self.respuesta):
+            for _ in range(MAX_SUGERENCIAS_PRUEBA + 2):
+                self.assertEqual(self.json(self.url, {}, self.su).status_code, 200)
 
     def test_respuesta_sin_precios_utiles_y_permisos(self):
         with mock.patch(LLAMAR, return_value={'precios': [{'id': 99999, 'precio': 5, 'moneda': 'BOB', 'confianza': 'alta'}]}):

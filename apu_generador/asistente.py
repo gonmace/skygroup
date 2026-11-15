@@ -36,15 +36,22 @@ def descripcion_suficiente(proyecto):
 
 
 def asegurar_proyecto_apu(proyecto, perfil_id, empresa):
-    """El `ProyectoAPU` del proyecto; si no existe se crea con el perfil elegido (de la empresa o plantilla)."""
-    existente = ProyectoAPU.objects.filter(proyecto=proyecto).first()
-    if existente:
-        return existente
-    perfil = PerfilCalculo.objects.filter(Q(empresa=empresa) | Q(empresa__isnull=True), pk=perfil_id or 0,
-                                          activo=True).first()
-    if perfil is None:
+    """El `ProyectoAPU` del proyecto con el perfil elegido (siempre uno de la empresa: una plantilla se copia a la
+    empresa). Sin `perfil_id` se conserva el que ya tiene; si no tiene ninguno, es obligatorio."""
+    existente = ProyectoAPU.objects.select_related('perfil').filter(proyecto=proyecto).first()
+    if not perfil_id:
+        if existente:
+            return existente
         raise ErrorPaso('Elige el perfil de cálculo del proyecto.')
-    return ProyectoAPU.objects.create(proyecto=proyecto, perfil=perfil)
+    perfil = PerfilCalculo.para_empresa(empresa, perfil_id)
+    if perfil is None:
+        raise ErrorPaso('Ese perfil de cálculo no existe.')
+    if existente is None:
+        return ProyectoAPU.objects.create(proyecto=proyecto, perfil=perfil)
+    if existente.perfil_id != perfil.pk:   # cambiar de perfil: los ajustes que ya no existan en él se ignoran
+        existente.perfil = perfil
+        existente.save(update_fields=['perfil'])
+    return existente
 
 
 # ── Catálogo y vocabulario de la empresa ──────────────────────────────────────

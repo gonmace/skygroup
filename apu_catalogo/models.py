@@ -163,10 +163,28 @@ class PerfilCalculo(models.Model):
         ordering = ['empresa_id', 'nombre']
         verbose_name = 'Perfil de cálculo'
         verbose_name_plural = 'Perfiles de cálculo'
-        constraints = [models.UniqueConstraint(fields=['empresa', 'nombre'], name='apu_perfil_nombre_unico')]
+        constraints = [
+            models.UniqueConstraint(fields=['empresa', 'nombre'], name='apu_perfil_nombre_unico'),
+            # Las plantillas (empresa vacía) tampoco repiten nombre: la unicidad anterior no las cubre (NULL ≠ NULL).
+            models.UniqueConstraint(fields=['nombre'], condition=Q(empresa__isnull=True), name='apu_perfil_plantilla_unica'),
+        ]
 
     def __str__(self):
         return self.nombre if self.empresa_id else f'{self.nombre} (plantilla)'
+
+    @classmethod
+    def propios(cls, empresa):
+        """Los perfiles de la empresa (únicos por empresa; las plantillas de la plataforma no se usan directamente)."""
+        return cls.objects.filter(empresa=empresa, activo=True)
+
+    @classmethod
+    def para_empresa(cls, empresa, pk):
+        """Un perfil usable por `empresa`: el propio, o —si es una plantilla— su copia en la empresa (se crea una sola
+        vez; si ya la tiene con ese nombre, se reutiliza). None si no existe o es de otra empresa."""
+        perfil = cls.objects.filter(Q(empresa=empresa) | Q(empresa__isnull=True), pk=pk or 0, activo=True).first()
+        if perfil is None or perfil.empresa_id:
+            return perfil
+        return cls.objects.filter(empresa=empresa, nombre=perfil.nombre).first() or perfil.copiar_a(empresa)
 
     @property
     def es_plantilla(self):

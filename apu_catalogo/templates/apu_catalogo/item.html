@@ -98,7 +98,7 @@
           <option value="">Elige un proyecto…</option>{% for p in proyectos %}<option value="{{ p.pk }}" data-tiene="{% if p.pk in con_apu %}1{% endif %}">{{ p.nombre }}</option>{% endfor %}
         </select></label>
       <label class="flex hidden flex-col gap-1" data-bloque-perfil-destino><span class="text-xs font-medium text-base-content/70">Perfil de cálculo del proyecto</span>
-        <select name="perfil" class="select select-bordered select-sm w-full"><option value="">Elige un perfil…</option>{% for p in perfiles %}<option value="{{ p.pk }}">{{ p.nombre }} · {{ p.moneda }}</option>{% endfor %}</select></label>
+        <select name="perfil" class="select select-bordered select-sm w-full"><option value="">Elige un perfil…</option>{% for p in perfiles %}<option value="{{ p.pk }}">{{ p.nombre }} · {{ p.moneda }}</option>{% endfor %}{% for p in plantillas %}<option value="{{ p.pk }}">{{ p.nombre }} (plantilla) · {{ p.moneda }}</option>{% endfor %}</select></label>
       <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">¿Quieres que la IA lo ajuste? (opcional)</span>
         <textarea name="instruccion" rows="3" class="textarea textarea-bordered w-full text-sm" placeholder="Ej.: Cambia el ladrillo por bloque de hormigón y reduce el rendimiento de la cuadrilla."></textarea></label>
       {% include "apu_generador/_progreso.html" %}

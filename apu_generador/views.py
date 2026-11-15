@@ -80,9 +80,10 @@ def _contexto_base(request, borrador=None):
 
 def _info_proyectos(empresa):
     info = {}
-    perfiles = {pa.proyecto_id: pa.perfil.nombre for pa in ProyectoAPU.objects.filter(proyecto__empresa=empresa).select_related('perfil')}
+    pas = list(ProyectoAPU.objects.filter(proyecto__empresa=empresa).select_related('perfil'))
+    perfiles, perfil_ids = {pa.proyecto_id: pa.perfil.nombre for pa in pas}, {pa.proyecto_id: pa.perfil_id for pa in pas}
     for p in _proyectos(empresa):
-        info[p.pk] = {'perfil': perfiles.get(p.pk, ''), 'descripcion_ok': asistente.descripcion_suficiente(p),
+        info[p.pk] = {'perfil': perfiles.get(p.pk, ''), 'perfil_id': perfil_ids.get(p.pk, ''), 'descripcion_ok': asistente.descripcion_suficiente(p),
                       'descripcion': p.descripcion or ''}
     return info
 
@@ -157,7 +158,7 @@ def nuevo(request):
     inicial = {'proyecto': request.GET.get('proyecto', '')}
     return render(request, 'apu_generador/actividad.html', {
         **_contexto_base(request), 'proyectos': _proyectos(empresa), 'info_proyectos': _info_proyectos(empresa),
-        'perfiles': PerfilCalculo.objects.filter(Q(empresa=empresa) | Q(empresa__isnull=True), activo=True),
+        'perfiles': PerfilCalculo.propios(empresa), 'plantillas': PerfilCalculo.objects.filter(empresa__isnull=True, activo=True),
         'inicial': inicial, 'promedio_ms': _promedio_ms(empresa, 'apu-coherencia')})
 
 
@@ -181,8 +182,8 @@ def actividad(request, pk):
     empresa = request.empresa
     return render(request, 'apu_generador/actividad.html', {
         **_contexto_base(request, borrador), 'proyectos': [borrador.proyecto],
-        'info_proyectos': _info_proyectos(empresa), 'perfiles': PerfilCalculo.objects.filter(Q(empresa=empresa) | Q(empresa__isnull=True), activo=True),
-        'inicial': {'proyecto': borrador.proyecto_id}, 'promedio_ms': _promedio_ms(empresa, 'apu-coherencia')})
+        'info_proyectos': _info_proyectos(empresa), 'perfiles': PerfilCalculo.propios(empresa),
+        'plantillas': PerfilCalculo.objects.filter(empresa__isnull=True, activo=True), 'inicial': {'proyecto': borrador.proyecto_id}, 'promedio_ms': _promedio_ms(empresa, 'apu-coherencia')})
 
 
 # ── Pasos 2 a 4: propuesta de la IA y guardado ────────────────────────────────

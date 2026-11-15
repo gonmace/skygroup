@@ -126,19 +126,18 @@
   function iniciarActividad(raiz) {
     var info = leerJson('apu-info-proyectos') || {};
     var sel = raiz.querySelector('[name=proyecto]');
-    var perfil = raiz.querySelector('[data-bloque-perfil]');
     var desc = raiz.querySelector('[data-bloque-descripcion]');
     var area = raiz.querySelector('[data-proyecto-descripcion]');
-    var etiquetaPerfil = raiz.querySelector('[data-perfil-actual]');
+    var perfil = raiz.querySelector('[data-perfil]');
     var filtro = raiz.querySelector('[data-filtro-proyecto]');
-    function actualizar() {
+    function actualizar() {   // el perfil se propone con el del proyecto (editable); la descripción se pide si no alcanza
       var p = info[sel.value];
-      if (!p) { perfil.classList.add('hidden'); desc.classList.add('hidden'); return; }
-      perfil.classList.toggle('hidden', !!p.perfil);
-      if (etiquetaPerfil) { etiquetaPerfil.textContent = p.perfil ? 'Perfil de cálculo del proyecto: ' + p.perfil : ''; }
+      if (!p) { desc.classList.add('hidden'); return; }
+      if (perfil && p.perfil_id && !perfil.dataset.tocado) perfil.value = String(p.perfil_id);
       desc.classList.toggle('hidden', !!p.descripcion_ok);
       if (area && !p.descripcion_ok && !area.value) area.value = p.descripcion;
     }
+    if (perfil) perfil.addEventListener('change', function () { perfil.dataset.tocado = '1'; });
     if (filtro) filtro.addEventListener('input', function () {
       var q = filtro.value.trim().toLowerCase();
       Array.prototype.forEach.call(sel.options, function (o) { o.hidden = q && o.value && o.text.toLowerCase().indexOf(q) < 0; });

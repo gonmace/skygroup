@@ -24,7 +24,6 @@
           {% for p in proyectos %}<option value="{{ p.pk }}" {% if inicial.proyecto|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nombre }}{% if p.codigo %} · {{ p.codigo }}{% endif %}</option>{% endfor %}
         </select>
         {% if borrador %}<input type="hidden" name="proyecto" value="{{ borrador.proyecto_id }}">{% endif %}
-        <span class="text-xs text-base-content/50" data-perfil-actual></span>
       </label>
 
       <div class="hidden sm:col-span-2" data-bloque-descripcion>
@@ -33,17 +32,6 @@
           <textarea name="proyecto_descripcion" rows="3" class="textarea textarea-bordered w-full text-sm" data-proyecto-descripcion
                     placeholder="Describe brevemente qué se construye, dónde y para qué."></textarea>
           <span class="text-xs text-base-content/50">Se guarda en el proyecto y la IA la usa en todos sus APU. Mínimo 15 palabras.</span>
-        </label>
-      </div>
-
-      <div class="hidden sm:col-span-2" data-bloque-perfil>
-        <label class="flex flex-col gap-1">
-          <span class="text-xs font-medium text-base-content/70">Perfil de cálculo del proyecto <span class="text-error" aria-hidden="true">*</span></span>
-          <select name="perfil" class="select select-bordered select-sm w-full">
-            <option value="">Elige un perfil…</option>
-            {% for p in perfiles %}<option value="{{ p.pk }}">{{ p.nombre }}{% if p.es_plantilla %} (plantilla){% endif %} · {{ p.moneda }}</option>{% endfor %}
-          </select>
-          <span class="text-xs text-base-content/50">Define los recargos (gastos generales, utilidad, impuestos…). Después puedes ajustar cada porcentaje solo para este proyecto.</span>
         </label>
       </div>
 
@@ -58,6 +46,15 @@
       <label class="flex flex-col gap-1">
         <span class="text-xs font-medium text-base-content/70">Región o ciudad de los precios</span>
         <input name="region" maxlength="80" class="input input-bordered input-sm w-full" value="{{ borrador.region }}" placeholder="Vacío = precios nacionales">
+      </label>
+      <label class="flex flex-col gap-1 sm:col-span-2">
+        <span class="text-xs font-medium text-base-content/70">Perfil de cálculo <span class="text-error" aria-hidden="true">*</span></span>
+        <select name="perfil" required class="select select-bordered select-sm w-full" data-perfil>
+          <option value="">Elige un perfil…</option>
+          {% if perfiles %}<optgroup label="Perfiles de tu empresa">{% for p in perfiles %}<option value="{{ p.pk }}">{{ p.nombre }} · {{ p.moneda }}</option>{% endfor %}</optgroup>{% endif %}
+          {% if plantillas %}<optgroup label="Plantillas (se copian a tu empresa al usarlas)">{% for p in plantillas %}<option value="{{ p.pk }}">{{ p.nombre }} · {{ p.moneda }}</option>{% endfor %}</optgroup>{% endif %}
+        </select>
+        <span class="text-xs text-base-content/50">Define los recargos (gastos generales, utilidad, impuestos…) de todos los APU del proyecto. Cada empresa trabaja con sus propios perfiles; después puedes ajustar cada porcentaje solo para este proyecto.</span>
       </label>
       <label class="flex flex-col gap-1 sm:col-span-2">
         <span class="text-xs font-medium text-base-content/70">Detalles de la actividad (opcional)</span>

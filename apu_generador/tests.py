@@ -158,12 +158,45 @@ class Paso1Tests(Base):
         p.refresh_from_db()
         self.assertEqual(p.descripcion, DESCRIPCION)
 
-    def test_proyecto_sin_perfil_exige_elegirlo_y_lo_crea(self):
+    def test_proyecto_sin_perfil_exige_elegirlo_y_usa_una_copia_propia_de_la_plantilla(self):
         p = Proyecto.objects.create(empresa=self.a, nombre='Nuevo', descripcion=DESCRIPCION)
         self.assertEqual(self.json(self.URL, self.datos(proyecto=p.pk), self.coord).status_code, 400)
         with mock.patch(LLAMAR, return_value=COHERENTE):
             self.json(self.URL, self.datos(proyecto=p.pk, perfil=self.perfil.pk))
-        self.assertEqual(ProyectoAPU.objects.get(proyecto=p).perfil, self.perfil)
+        propio = ProyectoAPU.objects.get(proyecto=p).perfil
+        self.assertEqual((propio.empresa, propio.nombre), (self.a, self.perfil.nombre))   # copia en la empresa, no la plantilla
+        self.assertNotEqual(propio, self.perfil)
+        # otro proyecto que elige la misma plantilla reutiliza la copia: no se duplica
+        q = Proyecto.objects.create(empresa=self.a, nombre='Otro', descripcion=DESCRIPCION)
+        with mock.patch(LLAMAR, return_value=COHERENTE):
+            self.json(self.URL, self.datos(proyecto=q.pk, perfil=self.perfil.pk))
+        self.assertEqual(ProyectoAPU.objects.get(proyecto=q).perfil, propio)
+        self.assertEqual(PerfilCalculo.objects.filter(empresa=self.a, nombre=self.perfil.nombre).count(), 1)
+
+    def test_se_puede_cambiar_el_perfil_del_proyecto_en_el_paso_1(self):
+        otro = self.perfil.copiar_a(self.a)
+        otro.nombre = 'Mi perfil'
+        otro.save()
+        with mock.patch(LLAMAR, return_value=COHERENTE):
+            self.json(self.URL, self.datos(perfil=otro.pk), self.coord)
+        self.pa.refresh_from_db()
+        self.assertEqual(self.pa.perfil, otro)
+        r = self.client.get(self.URL)
+        self.assertContains(r, 'Perfil de cálculo')
+        self.assertNotContains(r, 'Secreto')
+        ajeno = self.perfil.copiar_a(self.b)
+        ajeno.nombre = 'Secreto de Embol'
+        ajeno.save()
+        self.assertNotContains(self.client.get(self.URL), 'Secreto de Embol')            # nunca ofrece perfiles de otra empresa
+        self.assertEqual(self.json(self.URL, self.datos(perfil=ajeno.pk)).status_code, 400)
+
+    def test_el_perfil_es_unico_por_empresa_y_las_plantillas_tampoco_se_repiten(self):
+        from django.db import IntegrityError, transaction
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            PerfilCalculo.objects.create(empresa=self.a, nombre=self.perfil.nombre, moneda='BOB', datos=self.perfil.datos) \
+                and PerfilCalculo.objects.create(empresa=self.a, nombre=self.perfil.nombre, moneda='BOB', datos=self.perfil.datos)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            PerfilCalculo.objects.create(empresa=None, nombre=self.perfil.nombre, moneda='BOB', datos=self.perfil.datos)
 
     def test_exige_proyecto_de_la_propia_empresa(self):
         r = self.json(self.URL, self.datos(proyecto=self.proyecto_b.pk), self.coord)

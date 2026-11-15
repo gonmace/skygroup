@@ -202,7 +202,7 @@ def item_detalle(request, pk):
         'puede_generar': tiene_capacidad(request.user, 'apu.catalogo.manage', empresa),
         'puede_incidencias': tiene_capacidad(request.user, 'apu.perfiles.manage', empresa),
         'proyectos': Proyecto.objects.de_empresa(empresa).activos().order_by('nombre'),
-        'perfiles': PerfilCalculo.objects.filter(Q(empresa=empresa) | Q(empresa__isnull=True), activo=True),
+        'perfiles': PerfilCalculo.propios(empresa), 'plantillas': PerfilCalculo.objects.filter(empresa__isnull=True, activo=True),
         'con_apu': set(ProyectoAPU.objects.filter(proyecto__empresa=empresa).values_list('proyecto_id', flat=True))})
 
 
@@ -227,7 +227,7 @@ def incidencias(request, pk):
     empresa = request.empresa
     proyecto = get_object_or_404(Proyecto.objects.de_empresa(empresa).activos(), pk=pk)
     pa = ProyectoAPU.objects.select_related('perfil').filter(proyecto=proyecto).first()
-    perfiles = PerfilCalculo.objects.filter(Q(empresa=empresa) | Q(empresa__isnull=True), activo=True)
+    perfiles = PerfilCalculo.objects.filter(Q(empresa=empresa, activo=True) | Q(pk=pa.perfil_id if pa else 0))
     if request.method == 'POST':
         perfil = perfiles.filter(pk=request.POST.get('perfil') or 0).first() or (pa.perfil if pa else None)
     else:

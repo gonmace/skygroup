@@ -410,7 +410,12 @@ def diferencias(borrador, propuesta):
     nuevo_titulo = limpiar_titulo(propuesta.get('actividad'))
     if nuevo_titulo and clave_texto(nuevo_titulo) != clave_texto(borrador.actividad):
         cambios.append({'id': 'actividad', 'tipo': 'actividad', 'clase': 'cambiado', 'anterior': borrador.actividad,
-                        'nuevo': nuevo_titulo, 'texto': 'Cambiar el título del APU'})
+                        'nuevo': nuevo_titulo, 'texto': 'Cambiar el título del APU',
+                        'motivo': str(propuesta.get('motivo_titulo') or '')})
+    nueva_unidad = ' '.join(str(propuesta.get('unidad') or '').split())[:20]
+    if nueva_unidad and clave_texto(nueva_unidad) != clave_texto(borrador.unidad):
+        cambios.append({'id': 'unidad', 'tipo': 'unidad', 'clase': 'cambiado', 'anterior': borrador.unidad,
+                        'nuevo': nueva_unidad, 'texto': 'Cambiar la unidad del APU'})
     for tipo in ia.TIPOS_INSUMO:
         actuales = {_clave_fila(f): f for f in borrador.filas(tipo)}
         nuevas = {_clave_fila(f): f for f in (propuesta.get(tipo) or {}).get('filas', [])}
@@ -451,6 +456,13 @@ def con_ediciones(cambios, ediciones):
                 c['nuevo'] = titulo or v
                 if not titulo:
                     c['error'] = 'El título no puede quedar vacío.'
+        elif c['id'] == 'unidad':
+            v = get('valor')
+            if v is not None:
+                unidad = ' '.join(v.split())[:20]
+                c['nuevo'] = unidad or v
+                if not unidad:
+                    c['error'] = 'La unidad no puede quedar vacía.'
         elif c.get('fila') is not None and c['clase'] != 'quitado':
             f = c['fila']
             if c['clase'] == 'agregado' and get('descripcion') is not None:
@@ -493,6 +505,8 @@ def aplicar_cambios(borrador, propuesta, seleccionados, ediciones=None):
     for c in elegidos:
         if c['id'] == 'actividad':
             borrador.actividad = c['nuevo']
+        elif c['id'] == 'unidad':
+            borrador.unidad = c['nuevo']
     for tipo in ia.TIPOS_INSUMO:
         filas = list(borrador.filas(tipo))
         for c in [c for c in elegidos if c['tipo'] == tipo and 'fila' in c]:

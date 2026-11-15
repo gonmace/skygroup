@@ -1272,6 +1272,80 @@ class PendientesPaginaTests(Base):
         agregar_miembro(cls.otro, cls.a, rol_por_base(cls.a, RolBase.MIEMBRO))
 
 
+class UnidadYMotivoAlReutilizarTests(Base):
+    """La IA también propone la unidad (si cambia lo que se mide) y explica por qué cambió el título; todo se revisa."""
+
+    def setUp(self):
+        super().setUp()
+        b = self.borrador_en_paso5(actividad='Provisión e instalación de aire acondicionado', unidad='pza')
+        self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {}, self.su)
+        self.item = ItemModelo.objects.get()
+        self.destino = Proyecto.objects.create(empresa=self.a, nombre='Colegio', descripcion=DESCRIPCION)
+        ProyectoAPU.objects.create(proyecto=self.destino, perfil=self.perfil)
+
+    def reutilizar(self, **extra):
+        propuesta = {'actividad': 'Instalación de aire acondicionado', 'unidad': 'm2', 'motivo_titulo': 'Se eliminó la provisión del equipo.',
+                     'resumen_cambios': 'x',
+                     'materiales': {'filas': [{'descripcion': 'Ladrillo 6H', 'unidad': 'pza', 'cantidad': '38', 'desperdicio_pct': '5'}]},
+                     'mano_obra': {'filas': [{'descripcion': 'Albañil', 'personas': '2'}]}, 'equipos': {'filas': [{'descripcion': 'Mezcladora', 'cantidad': '0.1'}]}}
+        propuesta.update(extra)
+        with mock.patch(LLAMAR, return_value=propuesta):
+            r = self.json(f'/tekon/apu/lista/{self.item.pk}/reutilizar/', {'proyecto': self.destino.pk, 'instruccion': 'solo la instalación'}, self.su)
+        return r, APUBorrador.objects.get(modo='reutilizar')
+
+    def test_la_propuesta_guarda_unidad_y_motivo_y_ambos_son_cambios_para_revisar(self):
+        r, b = self.reutilizar()
+        prop = b.instrucciones[0]['propuesta']
+        self.assertEqual((prop['unidad'], prop['motivo_titulo']), ('m2', 'Se eliminó la provisión del equipo.'))
+        cambios = asistente.diferencias(b, prop)
+        self.assertEqual([c['id'] for c in cambios][:2], ['actividad', 'unidad'])
+        self.assertEqual((cambios[1]['anterior'], cambios[1]['nuevo']), ('pza', 'm2'))
+        self.client.force_login(self.su)
+        html = self.client.get(r.json()['continuar_url']).content.decode()
+        self.assertIn('Se eliminó la provisión del equipo.', html)                              # el porqué del título, a la vista
+        self.assertIn('name="ed:unidad:valor"', html)
+        self.assertIn('value="Instalación de aire acondicionado"', html)
+
+    def test_aplicar_la_unidad_editada_la_lleva_al_apu_guardado(self):
+        r, b = self.reutilizar()
+        self.client.force_login(self.su)
+        self.client.post(r.json()['continuar_url'], {'cambio': ['actividad', 'unidad'], 'ed:unidad:valor': '  ml ', 'ed:actividad:valor': 'Instalación de aire acondicionado split'})
+        b.refresh_from_db()
+        self.assertEqual((b.actividad, b.unidad), ('Instalación de aire acondicionado split', 'ml'))
+        self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {'actividad': b.actividad})
+        copia = ItemModelo.objects.get(proyecto=self.destino)
+        self.assertEqual((copia.descripcion, copia.unidad), ('Instalación de aire acondicionado split', 'ml'))
+        self.item.refresh_from_db()
+        self.assertEqual((self.item.descripcion, self.item.unidad), ('Provisión e instalación de aire acondicionado', 'pza'))   # el original no cambia
+
+    def test_si_no_se_marca_la_unidad_se_conserva(self):
+        r, b = self.reutilizar()
+        self.client.force_login(self.su)
+        self.client.post(r.json()['continuar_url'], {'cambio': ['actividad']})
+        b.refresh_from_db()
+        self.assertEqual(b.unidad, 'pza')
+
+    def test_unidad_vacia_o_igual_no_es_valida_ni_es_un_cambio(self):
+        r, b = self.reutilizar()
+        self.client.force_login(self.su)
+        malo = self.client.post(r.json()['continuar_url'], {'cambio': ['unidad'], 'ed:unidad:valor': '   '})
+        self.assertEqual(malo.status_code, 200)
+        self.assertContains(malo, 'La unidad no puede quedar vacía')
+        b.refresh_from_db()
+        self.assertEqual(b.unidad, 'pza')
+        for unidad in (' PZA ', 'pza', ''):
+            self.assertEqual([c['id'] for c in asistente.diferencias(b, {'unidad': unidad}) if c['id'] == 'unidad'], [], unidad)
+
+    def test_un_workflow_viejo_sin_unidad_ni_motivo_no_rompe(self):
+        r, b = self.reutilizar(unidad=None, motivo_titulo=None)
+        self.assertEqual(r.status_code, 200)
+        prop = b.instrucciones[0]['propuesta']
+        self.assertEqual((prop['unidad'], prop['motivo_titulo']), ('', ''))
+        self.assertEqual([c['id'] for c in asistente.diferencias(b, prop)], ['actividad'])
+        self.client.force_login(self.su)
+        self.assertEqual(self.client.get(r.json()['continuar_url']).status_code, 200)
+
+
 class CalculoTests(Base):
     def test_sub_items_desperdicio_region_e_insumos_sin_precio(self):
         cemento = self.insumo('MAT-1', 'Cemento', unidad='kg', precio='2')

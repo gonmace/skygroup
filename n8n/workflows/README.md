@@ -30,7 +30,7 @@ Reglas de construcción (para poder editarlos y mejorarlos a mano desde la inter
 | `APU_07precios.json` | APU · 07 Precios estimados (`apu0precios00001`) | `apu-precios` | gpt-5.1 con búsqueda web |
 
 ### `apu-coherencia`
-Entrada: `{actividad, unidad, descripcion, region, proyecto:{nombre, descripcion, tipo, ciudad, region}}`.
+Entrada: `{actividad, unidad, descripcion, region, proyecto:{nombre, descripcion, tipo, ciudad, region}, categorias:[nombre…]}` (las categorías de APU de la empresa; la IA debe reutilizar una exacta y solo proponer una nueva si ninguna sirve).
 Salida (una de):
 - `{proyecto_claro:false, falta, ejecucion_id}` — la descripción del proyecto no alcanza;
 - `{coherente:false, razon, ejecucion_id}`;
@@ -52,7 +52,9 @@ Entrada: `{instruccion, actividad, unidad, proyecto, apu:{materiales,mano_obra,e
 Salida: `{materiales:{filas}, mano_obra:{filas, rendimiento, horas_jornada}, equipos:{filas}, actividad, resumen_cambios,
 ejecucion_id}`. `actividad` es el título del APU: la IA lo ajusta si la instrucción cambia lo que describe (p. ej. «Hormigón H21
 en columnas» → «Hormigón H25 en vigas») y lo devuelve igual si no; solo el título, sin unidad ni paréntesis. En skygroup es un cambio
-más de la página de revisión, y el título también se puede editar en el paso 5.
+más de la página de revisión, y el título también se puede editar en el paso 5. Un segundo agente (modelo mini)
+verifica el título y la unidad contra la composición resultante y la instrucción y devuelve además `unidad` (la original salvo que
+cambie lo que se mide) y `motivo_titulo` (por qué cambió, que skygroup muestra bajo el campo); ambos se revisan como cambios más.
 
 ### `apu-tarifas`
 Entrada: `{modelos:[…]}`. Salida: `{tarifas:[{modelo, entrada_usd_mtok, salida_usd_mtok}], fuente, ejecucion_id}`.

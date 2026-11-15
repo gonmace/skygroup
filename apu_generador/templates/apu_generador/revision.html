@@ -26,6 +26,10 @@
               {% if c.id == 'actividad' %}
                 <label class="flex flex-col gap-1"><span class="text-xs text-base-content/50">Antes: «{{ c.anterior }}»</span>
                   <input name="ed:{{ c.id }}:valor" value="{{ c.nuevo }}" maxlength="200" class="input input-bordered input-sm w-full text-base-content" aria-label="Título nuevo"></label>
+                {% if c.motivo %}<span class="mt-1 flex items-start gap-1 text-xs text-base-content/50">{% include "components/icon.html" with name="sparkles" cls="mt-0.5 size-3 shrink-0" %} {{ c.motivo }}</span>{% endif %}
+              {% elif c.id == 'unidad' %}
+                <label class="flex flex-col gap-1"><span class="text-xs text-base-content/50">Antes: «{{ c.anterior }}»</span>
+                  <input name="ed:{{ c.id }}:valor" value="{{ c.nuevo }}" maxlength="20" class="input input-bordered input-sm w-28 text-base-content" aria-label="Unidad nueva"></label>
               {% elif c.fila and c.clase != 'quitado' %}
                 <div class="flex flex-wrap items-end gap-2">
                   {% if c.clase == 'agregado' %}<label class="flex min-w-40 flex-1 flex-col gap-1"><span class="text-xs text-base-content/50">Descripción</span>

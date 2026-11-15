@@ -9,7 +9,7 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "c7f8292a-0c69-4a44-9963-71d2637b3a1b",
+      "id": "a3e41432-8b35-46b1-823f-5ecf3ea17d15",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -17,7 +17,7 @@
         0,
         300
       ],
-      "webhookId": "a328b3f4-1e14-4a24-a6a0-bb2ceb7e0ece",
+      "webhookId": "35cd17f3-44db-42c8-abd7-3a4f93219126",
       "notes": "Lo llama skygroup (apu_generador/ia.py) con el payload descrito en n8n/workflows/README.md."
     },
     {
@@ -25,9 +25,9 @@
         "assignments": {
           "assignments": [
             {
-              "id": "a39eb138-062b-4223-b7c7-103c53785c34",
+              "id": "73a20774-91a9-4bda-b6ad-e9c6d6b2cf12",
               "name": "system_prompt",
-              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Recibes un APU ya armado (materiales, mano de obra y equipos por UNA unidad de la actividad) y una instrucción de la persona para modificarlo.\n\nDevuelve el APU COMPLETO modificado, con la misma estructura: «materiales», «mano_obra» (con «rendimiento» y «horas_jornada») y «equipos». Cambia solo lo que la instrucción pide y mantén lo demás igual.\n- Conserva exactamente la descripción de las filas que no cambian. Usa los términos del catálogo de la empresa cuando existan (codigo_catalogo) y marca nuevo=true solo si agregas un término que no está en el catálogo.\n- Materiales y equipos: cantidad por unidad de la actividad (y desperdicio_pct en materiales). Mano de obra: «personas» por oficio y el rendimiento de la cuadrilla.\n- Si la instrucción es ambigua, aplica la interpretación más razonable y explícala en «resumen_cambios».\n- TÍTULO: devuelve «actividad» con el título del APU. Si tu modificación cambia lo que el título describe (resistencia, elemento, material, dimensiones, espesor, sistema…), ajústalo para que siga siendo fiel a la composición resultante (p. ej. «Hormigón H21 en columnas» → «Hormigón H25 en vigas»). Si no cambia lo que describe, devuelve el MISMO título exacto. Devuelve SOLO el título: sin la unidad, sin paréntesis ni aclaraciones, con el mismo estilo del original; no agregues datos que la composición no respalde.\n- «resumen_cambios»: 2-4 frases claras con lo que cambiaste (incluye el cambio de título si lo hubo).\nResponde SOLO con el JSON pedido. Los números van sin unidades.",
+              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Recibes un APU ya armado (materiales, mano de obra y equipos por UNA unidad de la actividad) y una instrucción de la persona para modificarlo.\n\nDevuelve el APU COMPLETO modificado, con la misma estructura: «materiales», «mano_obra» (con «rendimiento» y «horas_jornada») y «equipos». Cambia solo lo que la instrucción pide y mantén lo demás igual.\n- Conserva exactamente la descripción de las filas que no cambian. Usa los términos del catálogo de la empresa cuando existan (codigo_catalogo) y marca nuevo=true solo si agregas un término que no está en el catálogo.\n- Materiales y equipos: cantidad por unidad de la actividad (y desperdicio_pct en materiales). Mano de obra: «personas» por oficio y el rendimiento de la cuadrilla.\n- Si la instrucción es ambigua, aplica la interpretación más razonable y explícala en «resumen_cambios».\n- TÍTULO: devuelve «actividad» con el título del APU. Si tu modificación cambia lo que el título describe (resistencia, elemento, material, dimensiones, espesor, sistema…), ajústalo para que siga siendo fiel a la composición resultante (p. ej. «Hormigón H21 en columnas» → «Hormigón H25 en vigas»). Si no cambia lo que describe, devuelve el MISMO título exacto. Devuelve SOLO el título: sin la unidad, sin paréntesis ni aclaraciones, con el mismo estilo del original; no agregues datos que la composición no respalde.\n- ELIMINAR: si la instrucción pide quitar un insumo, esa fila NO debe aparecer en tu respuesta (omítela). Antes de responder, revisa que ninguna fila que debías quitar siga en las listas.\n- ALCANCE: tu propuesta debe ser coherente de punta a punta con la instrucción. Si la instrucción quita o agrega una parte del alcance (p. ej. la provisión o el suministro del equipo, la instalación, el transporte, la preparación), cambia TODO lo que depende de ello: los insumos, la cuadrilla, los equipos, el título y la unidad si corresponde.\n- «resumen_cambios»: 2-4 frases claras con lo que cambiaste (incluye el cambio de título si lo hubo).\nResponde SOLO con el JSON pedido. Los números van sin unidades.",
               "type": "string"
             }
           ]
@@ -35,7 +35,7 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "90c6998a-c3f4-48c1-ad5f-3f122d08e558",
+      "id": "55207ea8-015e-46b5-a587-fbf12aa23baa",
       "name": "Prompt · Modificar",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -55,7 +55,7 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "15bb59fd-bcc1-443c-9fbd-e74e2f3417ec",
+      "id": "a03600e3-3b15-45a1-bee5-635fb02a5f97",
       "name": "Modelo principal",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
@@ -75,7 +75,7 @@
         "schemaType": "manual",
         "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"materiales\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"mano_obra\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        },\n        \"rendimiento\": {\n          \"type\": \"number\"\n        },\n        \"horas_jornada\": {\n          \"type\": \"number\"\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"equipos\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"filas\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"descripcion\": {\n                \"type\": \"string\"\n              },\n              \"unidad\": {\n                \"type\": \"string\"\n              },\n              \"cantidad\": {\n                \"type\": \"number\"\n              },\n              \"desperdicio_pct\": {\n                \"type\": \"number\"\n              },\n              \"personas\": {\n                \"type\": \"number\"\n              },\n              \"codigo_catalogo\": {\n                \"type\": \"string\"\n              },\n              \"codigo_subitem\": {\n                \"type\": \"string\"\n              },\n              \"nuevo\": {\n                \"type\": \"boolean\"\n              },\n              \"justificacion\": {\n                \"type\": \"string\"\n              }\n            },\n            \"required\": [\n              \"descripcion\",\n              \"unidad\"\n            ]\n          }\n        }\n      },\n      \"required\": [\n        \"filas\"\n      ]\n    },\n    \"actividad\": {\n      \"type\": \"string\"\n    },\n    \"resumen_cambios\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"materiales\",\n    \"mano_obra\",\n    \"equipos\",\n    \"actividad\",\n    \"resumen_cambios\"\n  ]\n}"
       },
-      "id": "994eb4e8-6714-4b69-a1f4-71919c70de49",
+      "id": "3b375048-4837-49da-9698-41d237825bc3",
       "name": "Esquema · APU modificado",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
@@ -94,7 +94,7 @@
           "systemMessage": "={{ $json.system_prompt }}"
         }
       },
-      "id": "c8bafe49-ad9f-4c64-895d-842df8e0eb9a",
+      "id": "0f51a5f6-d0e7-45bd-82cd-4be983671879",
       "name": "Agente · Modificar APU",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -105,16 +105,99 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ { ...$json.output, \"ejecucion_id\": $execution.id } }}",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "589fa8b5-5ddb-4f81-af26-adf5044f2d2f",
+              "name": "system_prompt",
+              "value": "Eres un revisor de análisis de precios unitarios (APU) de construcción. Recibes el título y la unidad ORIGINALES de un APU, la instrucción de la persona para modificarlo, el resumen de lo que se cambió y los insumos de la composición RESULTANTE. Tu tarea es decidir el título y la unidad FINALES.\n\nREGLAS\n1. El título debe describir fielmente el alcance de la composición resultante y de la instrucción. Compara palabra por palabra el título original con el resultado: si el original menciona una parte del alcance que la instrucción quitó (p. ej. «Provisión e instalación de…» cuando ya no se provee el equipo, «Suministro y colocación», «con transporte»), quítala; si se agregó una parte relevante, inclúyela; si cambiaron la resistencia, el elemento, el material o las dimensiones, actualízalos.\n2. Ejemplos: «Provisión e instalación de aire acondicionado 18000 BTU» + «la empresa dota el equipo, solo instalación» → «Instalación de aire acondicionado 18000 BTU». «Hormigón H21 en columnas» + «usa H25 y que sea para vigas» → «Hormigón H25 en vigas». «Muro de ladrillo» + «sube el desperdicio» → el mismo título.\n3. Si nada cambia el alcance, devuelve EXACTAMENTE el título original. Conserva el estilo, el idioma y la ortografía del original (si no lleva tildes, no las agregues). Devuelve SOLO el título: sin unidad, sin paréntesis ni aclaraciones.\n4. La unidad: devuelve la original, salvo que la instrucción o el nuevo alcance cambien lo que se mide (p. ej. de «pza» a «m2»). Escríbela corta (m2, m3, ml, kg, pza, glb, h).\n5. «motivo»: una frase corta que explique por qué cambiaste el título o la unidad, o «Sin cambios en el alcance» si no cambiaste nada.\nResponde SOLO con el JSON pedido.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
         "options": {}
       },
-      "id": "6448f054-cdd5-4f33-bdfb-433ad32c7b34",
+      "id": "1e1ee8f6-bb3c-4ff8-a451-15cb5c6cdd07",
+      "name": "Prompt · Verificar título",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        800,
+        300
+      ],
+      "notes": "Aquí vive el prompt de sistema. Edita el texto para mejorar el comportamiento de la IA."
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "8c4c3903-7368-4bb3-b803-1b28ed0c283b",
+      "name": "Modelo mini verificación",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        980,
+        540
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "W8XaJvGwacT4HUqW",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"actividad\": {\n      \"type\": \"string\"\n    },\n    \"unidad\": {\n      \"type\": \"string\"\n    },\n    \"motivo\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"actividad\",\n    \"unidad\",\n    \"motivo\"\n  ]\n}"
+      },
+      "id": "6a0c1dfb-8f4a-49f5-8c05-1064c03d050b",
+      "name": "Esquema · Título y unidad",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1120,
+        540
+      ],
+      "notes": "Esquema de lo que devuelve la IA. Si lo cambias, revisa también apu_generador/ia.py."
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Título original: {{ $('Webhook').item.json.body.actividad }}\nUnidad original: {{ $('Webhook').item.json.body.unidad }}\nInstrucción de la persona: {{ $('Webhook').item.json.body.instruccion }}\nResumen de los cambios: {{ $('Agente · Modificar APU').item.json.output.resumen_cambios }}\nTítulo que propuso la modificación: {{ $('Agente · Modificar APU').item.json.output.actividad }}\nMateriales resultantes: {{ $('Agente · Modificar APU').item.json.output.materiales.filas.map(f => f.descripcion).join('; ') }}\nMano de obra resultante: {{ $('Agente · Modificar APU').item.json.output.mano_obra.filas.map(f => f.descripcion).join('; ') }}\nEquipos resultantes: {{ $('Agente · Modificar APU').item.json.output.equipos.filas.map(f => f.descripcion).join('; ') }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "={{ $json.system_prompt }}"
+        }
+      },
+      "id": "f2c5ae72-a46e-4a3c-b283-3aec1755e397",
+      "name": "Agente · Verificar título",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ...$('Agente · Modificar APU').item.json.output, \"actividad\": $json.output.actividad, \"unidad\": $json.output.unidad, \"motivo_titulo\": $json.output.motivo, \"ejecucion_id\": $execution.id } }}",
+        "options": {}
+      },
+      "id": "b4946771-1c75-4edb-83e9-d36e82fda12d",
       "name": "Responder",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
       "position": [
-        800,
+        1280,
         300
       ],
       "notes": "Devuelve el JSON a skygroup. `ejecucion_id` permite medir los tokens de esta ejecución."
@@ -126,7 +209,7 @@
         "width": 560,
         "color": 4
       },
-      "id": "1a1d378d-0577-4b61-8215-15c2a57647d0",
+      "id": "ad157817-36d9-4f86-890f-02d0dc5132e7",
       "name": "Nota · Modificar con IA",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -163,8 +246,52 @@
       "main": [
         [
           {
+            "node": "Prompt · Verificar título",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt · Verificar título": {
+      "main": [
+        [
+          {
+            "node": "Agente · Verificar título",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente · Verificar título": {
+      "main": [
+        [
+          {
             "node": "Responder",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modelo mini verificación": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente · Verificar título",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esquema · Título y unidad": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Agente · Verificar título",
+            "type": "ai_outputParser",
             "index": 0
           }
         ]
@@ -200,7 +327,7 @@
     "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all"
   },
-  "versionId": "86c26733-ffae-436b-b839-b58b3dfdd6e4",
+  "versionId": "be9820bd-a562-4ddc-95bf-d507038911a8",
   "meta": {
     "templateCredsSetupCompleted": true
   },

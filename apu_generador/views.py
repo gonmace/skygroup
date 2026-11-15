@@ -452,6 +452,8 @@ def _proponer_modificacion(request, borrador, instruccion):
     for v in propuesta.values():
         v.pop('consultas', None)
     propuesta['actividad'] = asistente.limpiar_titulo(crudo.get('actividad'))      # el título también puede cambiar (se revisa)
+    propuesta['unidad'] = ' '.join(str(crudo.get('unidad') or '').split())[:20]     # y la unidad, si cambia lo que se mide
+    propuesta['motivo_titulo'] = str(crudo.get('motivo_titulo') or '').strip()[:300]
     if not asistente.diferencias(borrador, propuesta):
         creditos.revertir(request.user, request.empresa, ConsumoAPU.Tipo.MODIFICAR, referencia)
         return 'La IA no encontró cambios que aplicar con esa instrucción. No se descontó ningún crédito.', 200

@@ -992,6 +992,67 @@ class CalculoTests(Base):
         self.assertIsNone(calculo.analizar(item).total)
 
 
+class FichaTests(Base):
+    """La ficha del APU: composición agrupada con subtotales y pesos, y el precio unitario junto a su desglose."""
+
+    def setUp(self):
+        super().setUp()
+        b = self.borrador_en_paso5()
+        self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {}, self.su)
+        self.item = ItemModelo.objects.get()
+        self.url = f'/tekon/apu/lista/{self.item.pk}/'
+
+    def test_secciones_con_subtotales_y_pesos_que_suman_cien(self):
+        a = calculo.analizar(self.item)
+        secs = a.secciones
+        self.assertEqual([s['clave'] for s in secs], ['MAT', 'MO', 'EQ'])
+        self.assertEqual(sum((s['subtotal'] for s in secs), D(0)), a.directo)
+        self.assertAlmostEqual(float(sum(s['pct'] for s in secs)), 100.0, places=6)
+        self.assertAlmostEqual(float(sum(f.pct for s in secs for f in s['filas'])), 100.0, places=6)
+        mat = secs[0]
+        self.assertEqual(mat['subtotal'], D('38') * D('1.05') * D('1.5'))
+        self.assertEqual(mat['moneda'], 'BOB')
+
+    def test_un_sub_analisis_forma_su_propia_seccion(self):
+        sub = ItemModelo.objects.create(empresa=self.a, codigo='HOR', descripcion='Hormigón', unidad='m3')
+        LineaComposicion.objects.create(item=sub, insumo=self.item.lineas.first().insumo, cantidad=D('2'))
+        LineaComposicion.objects.create(item=self.item, subitem=sub, cantidad=D('0.1'))
+        claves = [s['clave'] for s in calculo.analizar(self.item).secciones]
+        self.assertEqual(claves[-1], 'SUB')
+        self.client.force_login(self.su)
+        self.assertContains(self.client.get(self.url), f'/tekon/apu/lista/{sub.pk}/')           # enlaza al sub-análisis
+
+    def test_la_pagina_muestra_precio_unitario_desglose_y_distribucion(self):
+        self.client.force_login(self.su)
+        r = self.client.get(self.url)
+        for texto in ('Precio unitario', 'Dónde se va el costo', 'Desglose del precio', 'Materiales', 'Mano de obra', 'Equipos',
+                      'Costo directo', 'Ladrillo 6H', 'MAT-001', 'Precios: nacionales'):
+            self.assertContains(r, texto)
+        html = r.content.decode()
+        self.assertEqual(html.count('<div'), html.count('</div>'))
+        self.assertEqual(html.count('<section'), html.count('</section>'))
+        self.assertEqual(html.count('<table'), html.count('</table>'))
+        self.assertNotIn('style="', html.split('<main', 1)[1])                                      # sin estilos en línea (CSP)
+        self.assertIn(str(calculo.analizar(self.item).total).replace('.', ','), html)              # el número sale con coma (es)
+
+    def test_sin_perfil_muestra_el_costo_directo_en_lugar_del_precio(self):
+        p = Proyecto.objects.create(empresa=self.a, nombre='Sin habilitar', descripcion=DESCRIPCION)
+        self.item.proyecto = p
+        self.item.save()
+        self.client.force_login(self.su)
+        r = self.client.get(self.url)
+        self.assertContains(r, 'Costo directo')
+        self.assertContains(r, 'no tiene un proyecto habilitado')
+
+    def test_los_porcentajes_no_fallan_con_costo_cero(self):
+        vacio = ItemModelo.objects.create(empresa=self.a, proyecto=self.proyecto, codigo='APU-009', descripcion='Vacío', unidad='m2')
+        self.client.force_login(self.su)
+        self.assertContains(self.client.get(f'/tekon/apu/lista/{vacio.pk}/'), 'aún no tiene composición')
+        sin_precio = self.insumo('MAT-077', 'Sin precio aún')
+        LineaComposicion.objects.create(item=vacio, insumo=sin_precio, cantidad=D('1'))
+        self.assertEqual(self.client.get(f'/tekon/apu/lista/{vacio.pk}/').status_code, 200)       # directo = 0 sin dividir por cero
+
+
 class TokensTests(Base):
     EJECUCION = {
         'workflowData': {'nodes': [{'name': 'OpenAI Chat Model', 'parameters': {'model': {'value': 'gpt-5.1'}}},

@@ -26,6 +26,7 @@ class Fila:
     sin_precio: bool = False
     subitem: bool = False
     estimado: bool = False
+    pct: Decimal = CERO          # % del costo directo (se calcula en Analisis.secciones)
 
 
 @dataclass
@@ -40,6 +41,35 @@ class Analisis:
     @property
     def total(self):
         return self.resultado.total if self.resultado else None
+
+    @property
+    def n_estimados(self):
+        return sum(1 for f in self.filas if f.estimado)
+
+    @property
+    def directo(self):
+        """Costo directo: la suma de todas las líneas de la composición, antes de los recargos del perfil."""
+        return sum((f.costo for f in self.filas), CERO)
+
+    @property
+    def secciones(self):
+        """La composición agrupada para mostrarla: materiales, mano de obra, equipos y sub-análisis, cada uno con su
+        subtotal y su % del costo directo (y el % de cada fila). Solo las secciones que tienen filas."""
+        directo = self.directo
+        definicion = [('MAT', 'Materiales', 'layers'), ('MO', 'Mano de obra', 'hardhat'), ('EQ', 'Equipos', 'settings'),
+                      ('SUB', 'Sub-análisis', 'list')]
+        salida = []
+        for clave, nombre, icono in definicion:
+            filas = [f for f in self.filas if (f.subitem and clave == 'SUB') or (not f.subitem and f.tipo == clave)]
+            if not filas:
+                continue
+            for f in filas:
+                f.pct = (f.costo / directo * 100) if directo else CERO
+            subtotal = sum((f.costo for f in filas), CERO)
+            moneda = self.moneda or next((f.moneda for f in filas if f.moneda), '')
+            salida.append({'clave': clave, 'nombre': nombre, 'icono': icono, 'filas': filas, 'subtotal': subtotal, 'moneda': moneda,
+                           'pct': (subtotal / directo * 100) if directo else CERO})
+        return salida
 
 
 def _proyecto_apu(proyecto):

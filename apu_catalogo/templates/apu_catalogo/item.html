@@ -3,73 +3,135 @@
 {% block page_title %}{{ item.codigo }} · APU{% endblock %}
 {% block wrap_class %}space-y-6{% endblock %}
 {% block content_main %}
-<div class="flex flex-wrap items-start justify-between gap-4">
-  <div class="min-w-0">
-    <a href="{% url 'apu_catalogo:items' %}" class="inline-flex items-center gap-1 text-sm text-base-content/60 hover:text-base-content">{% include "components/icon.html" with name="chevron-left" cls="size-4" %} APU</a>
-    <h1 class="mt-1 text-2xl font-semibold">{{ item.descripcion }} <span class="text-base font-normal text-base-content/50">[{{ item.unidad }}]</span></h1>
-    <div class="mt-2 flex flex-wrap items-center gap-2 text-sm">
+{% with secciones=analisis.secciones %}
+<header class="flex flex-wrap items-start justify-between gap-4">
+  <div class="min-w-0 space-y-2">
+    <a href="{% url 'apu_catalogo:items' %}" class="inline-flex items-center gap-1 text-sm text-base-content/60 hover:text-base-content">{% include "components/icon.html" with name="chevron-left" cls="size-4" %} Base de APU</a>
+    <h1 class="text-2xl font-semibold leading-tight">{{ item.descripcion }} <span class="whitespace-nowrap text-base font-normal text-base-content/50">por 1 {{ item.unidad }}</span></h1>
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-base-content/70">
       <span class="badge badge-outline font-mono">{{ item.codigo }}</span>
-      {% if item.proyecto %}<span class="badge badge-ghost">{{ item.proyecto.nombre }}</span>{% endif %}
-      {% if item.categoria %}<span class="badge badge-outline">{{ item.categoria }}</span>{% endif %}
-      {% if item.origen %}<span class="badge badge-ghost">Reutilizado de <a class="link" href="{% url 'apu_catalogo:item_detalle' item.origen.pk %}">{{ item.origen.codigo }}</a></span>{% endif %}
+      {% if item.proyecto %}<span class="inline-flex items-center gap-1.5">{% include "components/icon.html" with name="folder" cls="size-4 text-base-content/50" %} {{ item.proyecto.nombre }}</span>{% endif %}
+      <span class="inline-flex items-center gap-1.5" title="Región de los precios">{% include "components/icon.html" with name="map-pin" cls="size-4 text-base-content/50" %} Precios: {% if region %}{{ region }}{% else %}nacionales{% endif %}</span>
+      {% if item.categoria %}<span class="badge badge-ghost">{{ item.categoria }}</span>{% endif %}
+      {% if item.origen %}<span class="inline-flex items-center gap-1.5">{% include "components/icon.html" with name="copy" cls="size-4 text-base-content/50" %} Reutilizado de <a class="link" href="{% url 'apu_catalogo:item_detalle' item.origen.pk %}">{{ item.origen.codigo }}</a></span>{% endif %}
     </div>
   </div>
   {% if puede_generar %}
   <div class="flex flex-wrap gap-2">
-    {% if item.proyecto_id %}<button class="btn btn-sm btn-outline gap-1" data-abrir-modal="apu-modificar-ficha">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Modificar con IA</button>{% endif %}
+    {% if item.proyecto_id %}<button class="btn btn-sm btn-primary btn-soft gap-1" data-abrir-modal="apu-modificar-ficha">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Modificar con IA</button>{% endif %}
     <button class="btn btn-sm gap-1" data-abrir-modal="apu-reutilizar">{% include "components/icon.html" with name="copy" cls="size-4" %} Reutilizar en otro proyecto</button>
   </div>
   {% endif %}
+</header>
+
+{% if analisis.sin_precio or analisis.n_estimados or not analisis.perfil %}
+<div class="space-y-2">
+  {% if analisis.sin_precio %}
+  <div role="alert" class="alert alert-warning alert-soft items-start text-sm">{% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}
+    <div><p class="font-medium">{{ analisis.sin_precio|length }} insumo{{ analisis.sin_precio|length|pluralize }} sin precio</p>
+      <p class="mt-0.5 text-base-content/70">{% for i in analisis.sin_precio %}{{ i.descripcion }}{% if not forloop.last %} · {% endif %}{% endfor %}. El precio unitario no es real hasta cargarlos.</p></div></div>
+  {% endif %}
+  {% if analisis.n_estimados %}
+  <div role="alert" class="alert alert-info alert-soft text-sm">{% include "components/icon.html" with name="sparkles" cls="size-5 shrink-0" %}
+    <span>{{ analisis.n_estimados }} precio{{ analisis.n_estimados|pluralize }} de este APU {{ analisis.n_estimados|pluralize:"es,son" }} estimado{{ analisis.n_estimados|pluralize }} por IA. Conviene confirmarlo{{ analisis.n_estimados|pluralize }} con precios reales.</span></div>
+  {% endif %}
+  {% if not analisis.perfil %}
+  <div role="alert" class="alert alert-info alert-soft text-sm">Este APU no tiene un proyecto habilitado con perfil de cálculo, así que no se calcula su precio unitario; abajo se muestra el costo directo.</div>
+  {% endif %}
 </div>
-
-{% if analisis.sin_precio %}
-<div role="alert" class="alert alert-warning alert-soft items-start text-sm">{% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}
-  <span>{{ analisis.sin_precio|length }} insumo{{ analisis.sin_precio|length|pluralize }} sin precio: {% for i in analisis.sin_precio %}{{ i.descripcion }}{% if not forloop.last %}, {% endif %}{% endfor %}. El precio unitario no es real hasta cargarlos.</span></div>
-{% endif %}
-{% if not analisis.perfil %}
-<div role="alert" class="alert alert-info alert-soft text-sm">Este APU no tiene proyecto con perfil de cálculo, así que no se calcula su precio unitario.</div>
 {% endif %}
 
-<section class="card bg-base-100"><div class="card-body gap-4 p-5">
-  <h2 class="font-semibold">Composición por 1 {{ item.unidad }}</h2>
-  <div class="table-card">
-    <table class="table">
-      <thead><tr><th>Insumo</th><th>Tipo</th><th class="text-right">Cantidad</th><th class="text-right">Desperdicio</th><th class="text-right">Precio</th><th class="text-right">Costo</th></tr></thead>
-      <tbody>
-      {% for f in analisis.filas %}
-        <tr {% if f.sin_precio %}class="bg-warning/10"{% endif %}>
-          <td>{{ f.nombre }}{% if f.subitem %} <span class="badge badge-ghost badge-sm">Sub-análisis</span>{% endif %}</td>
-          <td>{% if f.tipo == 'MAT' %}Material{% elif f.tipo == 'MO' %}Mano de obra{% elif f.tipo == 'EQ' %}Equipo{% else %}—{% endif %}</td>
-          <td class="text-right tabular-nums">{{ f.cantidad|floatformat:"-6" }} {{ f.unidad }}</td>
-          <td class="text-right tabular-nums">{% if f.desperdicio_pct %}{{ f.desperdicio_pct|floatformat:"-2" }} %{% else %}—{% endif %}</td>
-          <td class="text-right tabular-nums">{% if f.precio is not None %}{{ f.precio|floatformat:"-4" }} {{ f.moneda }}{% if f.estimado %} <span class="badge badge-info badge-soft badge-sm" title="Estimado por IA: confírmalo con un precio real">Estimado</span>{% endif %}{% else %}—{% endif %}</td>
-          <td class="text-right tabular-nums">{{ f.costo|floatformat:2 }}</td>
-        </tr>
-      {% empty %}<tr><td colspan="6" class="py-6 text-center text-base-content/60">Este APU aún no tiene composición.</td></tr>{% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div></section>
-
-{% if desglose %}
-<section class="card bg-base-100"><div class="card-body gap-4 p-5">
-  <div class="flex flex-wrap items-center justify-between gap-2">
-    <h2 class="font-semibold">Precio unitario</h2>
-    <span class="text-sm text-base-content/60">Perfil: {{ proyecto_apu.perfil.nombre }}{% if proyecto_apu.ajustes %} · <span class="badge badge-ghost badge-sm">con incidencias del proyecto</span>{% endif %}{% if puede_incidencias %} · <a class="link" href="{% url 'apu_catalogo:incidencias' item.proyecto_id %}">Ajustar incidencias</a>{% endif %}</span>
-  </div>
-  <div class="table-card">
-    <table class="table"><tbody>
-    {% for l in desglose %}
-      <tr {% if l.total %}class="bg-primary/10 font-semibold"{% elif l.tipo == 'subtotal' %}class="bg-base-content/5 font-medium"{% endif %}>
-        <td>{{ l.nombre }}{% if l.total %} <span class="badge badge-primary badge-sm ml-1">{% if l.nivel == 'presupuesto' %}Total del presupuesto{% else %}Precio unitario{% endif %}</span>{% endif %}</td>
-        <td class="text-right tabular-nums">{{ l.valor|floatformat:2 }} {{ analisis.moneda }}</td>
-      </tr>
+<div class="grid items-start gap-6 lg:grid-cols-3">
+  <div class="space-y-6 lg:col-span-2">
+    {% for sec in secciones %}
+    <section class="table-card">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 px-5 py-3.5">
+        <h2 class="flex items-center gap-2.5 text-base font-semibold">
+          <span class="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary-text">{% include "components/icon.html" with name=sec.icono cls="size-4" %}</span>
+          {{ sec.nombre }} <span class="text-sm font-normal text-base-content/50">{{ sec.filas|length }}</span>
+        </h2>
+        <div class="text-right leading-tight">
+          <p class="font-semibold tabular-nums">{{ sec.subtotal|floatformat:2 }} <span class="text-sm font-normal text-base-content/60">{{ sec.moneda }}</span></p>
+          <p class="text-xs text-base-content/50">{{ sec.pct|floatformat:0 }} % del costo directo</p>
+        </div>
+      </div>
+      <table class="table">
+        <thead><tr><th>Insumo</th><th class="text-right">Cantidad</th><th class="text-right">Precio</th><th class="text-right">Costo</th><th class="hidden w-28 sm:table-cell">Peso</th></tr></thead>
+        <tbody>
+        {% for f in sec.filas %}
+          <tr {% if f.sin_precio %}class="bg-warning/10"{% endif %}>
+            <td>
+              {% if f.subitem %}<a class="font-medium hover:underline" href="{% url 'apu_catalogo:item_detalle' f.linea.subitem_id %}">{{ f.nombre }}</a>
+              {% else %}<span class="font-medium">{{ f.nombre }}</span>{% endif %}
+              <span class="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-base-content/50">
+                {% if f.subitem %}<span>{{ f.linea.subitem.codigo }}</span>{% else %}<span class="font-mono">{{ f.linea.insumo.codigo }}</span>{% endif %}
+                {% if f.sin_precio %}<span class="badge badge-warning badge-soft badge-xs">Sin precio</span>{% endif %}
+                {% if f.estimado %}<span class="badge badge-info badge-soft badge-xs" title="Estimado por IA: confírmalo con un precio real">Estimado</span>{% endif %}
+              </span>
+            </td>
+            <td class="text-right tabular-nums">{{ f.cantidad|floatformat:"-4" }} <span class="text-base-content/60">{{ f.unidad }}</span>
+              {% if f.desperdicio_pct %}<span class="block text-xs text-base-content/50">+{{ f.desperdicio_pct|floatformat:"-2" }} % desperdicio</span>{% endif %}</td>
+            <td class="text-right tabular-nums">{% if f.precio is not None %}{{ f.precio|floatformat:"-4" }} <span class="text-xs text-base-content/50">{{ f.moneda }}</span>{% else %}<span class="text-base-content/40">—</span>{% endif %}</td>
+            <td class="text-right font-medium tabular-nums">{{ f.costo|floatformat:2 }}</td>
+            <td class="hidden sm:table-cell"><div class="flex items-center gap-2"><progress class="progress progress-primary h-1.5 w-14" value="{{ f.pct|floatformat:'2u' }}" max="100" aria-hidden="true"></progress><span class="w-8 text-xs tabular-nums text-base-content/50">{{ f.pct|floatformat:0 }}%</span></div></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% empty %}
+    <section class="card bg-base-100"><div class="card-body items-center gap-2 py-12 text-center">
+      <span class="grid size-12 place-items-center rounded-box bg-primary/10 text-primary-text">{% include "components/icon.html" with name="layers" cls="size-6" %}</span>
+      <h2 class="font-semibold">Este APU aún no tiene composición</h2>
+      <p class="max-w-sm text-sm text-base-content/60">Agrega insumos desde el generador o modifícalo con IA para armar su composición.</p>
+    </div></section>
     {% endfor %}
-    </tbody></table>
   </div>
-  <p class="text-right text-3xl font-semibold tabular-nums">{{ analisis.total }} <span class="text-base font-normal text-base-content/60">{{ analisis.moneda }} / {{ item.unidad }}</span></p>
-</div></section>
-{% endif %}
+
+  <aside class="space-y-4 lg:sticky lg:top-2">
+    <section class="card bg-base-100"><div class="card-body gap-4 p-5">
+      <div>
+        <p class="text-xs font-medium uppercase tracking-wide text-base-content/50">{% if analisis.perfil %}Precio unitario{% else %}Costo directo{% endif %}</p>
+        <p class="mt-1 flex flex-wrap items-baseline gap-x-2 text-4xl font-semibold leading-none tabular-nums">
+          {% if analisis.perfil %}{{ analisis.total }}{% else %}{{ analisis.directo|floatformat:2 }}{% endif %}
+          <span class="text-base font-normal text-base-content/60">{{ analisis.moneda }}{% if analisis.moneda %} / {% else %}por {% endif %}{{ item.unidad }}</span>
+        </p>
+        {% if analisis.perfil %}<p class="mt-2 text-xs text-base-content/50">Costo directo {{ analisis.directo|floatformat:2 }} {{ analisis.moneda }} + recargos del perfil</p>{% endif %}
+      </div>
+
+      {% if secciones|length > 1 %}
+      <div class="space-y-2.5 border-t border-base-300 pt-4">
+        <p class="text-xs font-medium uppercase tracking-wide text-base-content/50">Dónde se va el costo</p>
+        {% for sec in secciones %}
+        <div>
+          <div class="flex items-center justify-between text-sm"><span>{{ sec.nombre }}</span><span class="tabular-nums text-base-content/70">{{ sec.pct|floatformat:0 }} %</span></div>
+          <progress class="progress progress-primary mt-1 h-1.5 w-full" value="{{ sec.pct|floatformat:'2u' }}" max="100" aria-label="{{ sec.nombre }}"></progress>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if desglose %}
+      <div class="border-t border-base-300 pt-4">
+        <p class="mb-2 text-xs font-medium uppercase tracking-wide text-base-content/50">Desglose del precio</p>
+        <dl class="space-y-1 text-sm">
+          {% for l in desglose %}
+          <div class="flex items-baseline justify-between gap-3 rounded-lg px-2 py-1 {% if l.total %}bg-primary/10 font-semibold{% elif l.tipo == 'subtotal' %}bg-base-content/5 font-medium{% endif %}">
+            <dt class="min-w-0 truncate" title="{{ l.nombre }}">{{ l.nombre }}</dt>
+            <dd class="shrink-0 tabular-nums">{{ l.valor|floatformat:2 }}</dd>
+          </div>
+          {% endfor %}
+        </dl>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-base-300 pt-3 text-xs text-base-content/60">
+        <span>Perfil: <span class="font-medium text-base-content/80">{{ proyecto_apu.perfil.nombre }}</span>{% if proyecto_apu.ajustes %} <span class="badge badge-ghost badge-xs">con incidencias</span>{% endif %}</span>
+        {% if puede_incidencias %}<a class="link" href="{% url 'apu_catalogo:incidencias' item.proyecto_id %}">Ajustar incidencias</a>{% endif %}
+      </div>
+      {% endif %}
+    </div></section>
+  </aside>
+</div>
+{% endwith %}
 
 {% if consumo %}
 <section class="card bg-base-100"><div class="card-body gap-3 p-5">
@@ -124,4 +186,4 @@
 {% endif %}
 {% endif %}
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=4" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=5" defer></script>{% endblock %}

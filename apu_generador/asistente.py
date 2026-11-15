@@ -1,5 +1,6 @@
 """Lógica del generador de APU (sin vistas): vocabulario de la empresa, guardado de pasos, vista previa, guardado
 idempotente del APU y reutilización. La IA no vive aquí: ver `ia.py` y los workflows de n8n."""
+import copy
 import re
 from decimal import Decimal
 
@@ -436,10 +437,59 @@ def diferencias(borrador, propuesta):
     return cambios
 
 
-def aplicar_cambios(borrador, propuesta, seleccionados):
+def con_ediciones(cambios, ediciones):
+    """Copia de `cambios` con lo que la persona editó en la revisión (campos `ed:<id>:<campo>`). Un valor inválido deja
+    el cambio con una clave `error` (con el valor escrito) en vez de lanzar: la página se vuelve a mostrar con el mensaje."""
+    salida = []
+    for original in cambios:
+        c = copy.deepcopy(original)
+        get = lambda campo: ediciones.get(f"ed:{c['id']}:{campo}")   # noqa: E731
+        if c['id'] == 'actividad':
+            v = get('valor')
+            if v is not None:
+                titulo = limpiar_titulo(v)
+                c['nuevo'] = titulo or v
+                if not titulo:
+                    c['error'] = 'El título no puede quedar vacío.'
+        elif c.get('fila') is not None and c['clase'] != 'quitado':
+            f = c['fila']
+            if c['clase'] == 'agregado' and get('descripcion') is not None:
+                f['descripcion'] = ' '.join(get('descripcion').split())[:200]
+                if not f['descripcion']:
+                    c['error'] = 'La descripción no puede quedar vacía.'
+            campo = 'personas' if c['tipo'] == 'mano_obra' else 'cantidad'
+            if get(campo) is not None:
+                n = numero(get(campo))
+                f[campo] = get(campo).strip()
+                if n is None or n <= 0:
+                    c['error'] = c.get('error') or ('Indica un número de personas mayor que cero.' if campo == 'personas' else 'Indica una cantidad mayor que cero.')
+                else:
+                    f[campo] = ia.texto_numero(n)
+            if c['tipo'] == 'materiales' and get('desperdicio_pct') is not None:
+                n = numero(get('desperdicio_pct'), Decimal(0))
+                f['desperdicio_pct'] = get('desperdicio_pct').strip()
+                if n is None or not 0 <= n <= 100:
+                    c['error'] = c.get('error') or 'El desperdicio debe estar entre 0 y 100 %.'
+                else:
+                    f['desperdicio_pct'] = ia.texto_numero(n)
+        elif 'valor' in c and get('valor') is not None:
+            n = numero(get('valor'))
+            c['valor'] = get('valor').strip()
+            if n is None or n <= 0:
+                c['error'] = 'Indica un número mayor que cero.'
+            else:
+                c['valor'] = ia.texto_numero(n)
+        salida.append(c)
+    return salida
+
+
+def aplicar_cambios(borrador, propuesta, seleccionados, ediciones=None):
     """Aplica al borrador solo los cambios marcados. Las filas nuevas pasan por el vocabulario de la empresa."""
-    por_id = {c['id']: c for c in diferencias(borrador, propuesta)}
+    por_id = {c['id']: c for c in con_ediciones(diferencias(borrador, propuesta), ediciones or {})}
     elegidos = [por_id[i] for i in seleccionados if i in por_id]
+    for c in elegidos:
+        if c.get('error'):
+            raise ErrorPaso(f"{c['texto']}: {c['error']}")
     for c in elegidos:
         if c['id'] == 'actividad':
             borrador.actividad = c['nuevo']

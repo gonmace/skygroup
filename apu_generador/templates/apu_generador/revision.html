@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% load apu_tags %}
 {% block page_title %}Revisar cambios · APU{% endblock %}
 {% block wrap_class %}space-y-6{% endblock %}
 {% block content_main %}
@@ -7,7 +8,7 @@
   <section class="card bg-base-100"><div class="card-body gap-4 p-5">
     <div>
       <h2 class="font-semibold">Cambios propuestos por la IA</h2>
-      <p class="mt-0.5 text-sm text-base-content/60">Tu instrucción: «{{ mod.instruccion }}». Marca los cambios que quieres aplicar; lo demás queda como está.</p>
+      <p class="mt-0.5 text-sm text-base-content/60">Tu instrucción: «{{ mod.instruccion }}». Marca los cambios que quieres aplicar y, si hace falta, corrige los valores en la columna «Detalle»; lo demás queda como está.</p>
     </div>
     {% if mod.resumen_cambios %}<div role="alert" class="alert alert-info alert-soft text-sm">{{ mod.resumen_cambios }}</div>{% endif %}
     <div class="table-card">
@@ -16,20 +17,33 @@
         <tbody>
         {% for c in cambios %}
           <tr>
-            <td><input type="checkbox" name="cambio" value="{{ c.id }}" class="checkbox checkbox-sm checkbox-primary" checked aria-label="Aplicar: {{ c.texto }}"></td>
+            <td><input type="checkbox" name="cambio" value="{{ c.id }}" class="checkbox checkbox-sm checkbox-primary" {% if marcados is None or c.id in marcados %}checked{% endif %} aria-label="Aplicar: {{ c.texto }}"></td>
             <td>
               <span class="badge badge-sm {% if c.clase == 'agregado' %}badge-success badge-soft{% elif c.clase == 'quitado' %}badge-ghost{% else %}badge-info badge-soft{% endif %} mr-1">{% if c.clase == 'agregado' %}Agregar{% elif c.clase == 'quitado' %}Quitar{% else %}Cambiar{% endif %}</span>
               {{ c.texto }}
             </td>
-            <td class="text-sm text-base-content/70">
-              {% if c.id == 'actividad' %}«{{ c.anterior }}» → <strong class="text-base-content">«{{ c.nuevo }}»</strong>
+            <td class="min-w-64 text-sm text-base-content/70">
+              {% if c.id == 'actividad' %}
+                <label class="flex flex-col gap-1"><span class="text-xs text-base-content/50">Antes: «{{ c.anterior }}»</span>
+                  <input name="ed:{{ c.id }}:valor" value="{{ c.nuevo }}" maxlength="200" class="input input-bordered input-sm w-full text-base-content" aria-label="Título nuevo"></label>
+              {% elif c.fila and c.clase != 'quitado' %}
+                <div class="flex flex-wrap items-end gap-2">
+                  {% if c.clase == 'agregado' %}<label class="flex min-w-40 flex-1 flex-col gap-1"><span class="text-xs text-base-content/50">Descripción</span>
+                    <input name="ed:{{ c.id }}:descripcion" value="{{ c.fila.descripcion }}" maxlength="200" class="input input-bordered input-sm w-full text-base-content"></label>{% endif %}
+                  <label class="flex flex-col gap-1"><span class="text-xs text-base-content/50">{% if c.tipo == 'mano_obra' %}Personas{% else %}Cantidad{% endif %}{% if c.fila.unidad and c.tipo != 'mano_obra' %} ({{ c.fila.unidad }}){% endif %}</span>
+                    <input name="ed:{{ c.id }}:{% if c.tipo == 'mano_obra' %}personas{% else %}cantidad{% endif %}" value="{% if c.tipo == 'mano_obra' %}{{ c.fila.personas|numlimpio:'u' }}{% else %}{{ c.fila.cantidad|numlimpio:'u' }}{% endif %}" inputmode="decimal" class="input input-bordered input-sm w-24 text-right tabular-nums text-base-content"></label>
+                  {% if c.tipo == 'materiales' %}<label class="flex flex-col gap-1"><span class="text-xs text-base-content/50">Desperdicio %</span>
+                    <input name="ed:{{ c.id }}:desperdicio_pct" value="{{ c.fila.desperdicio_pct|numlimpio:'u' }}" inputmode="decimal" class="input input-bordered input-sm w-20 text-right tabular-nums text-base-content"></label>{% endif %}
+                </div>
+                {% if c.anterior %}<span class="mt-1 block text-xs text-base-content/50">Antes: {% if c.tipo == 'mano_obra' %}{{ c.anterior.personas|numlimpio }} persona(s){% else %}{{ c.anterior.cantidad|numlimpio }}{% endif %}{% if c.tipo == 'materiales' and c.anterior.desperdicio_pct %} · desperdicio {{ c.anterior.desperdicio_pct|numlimpio }} %{% endif %}</span>{% endif %}
+                {% if c.fila.justificacion %}<span class="mt-1 block text-xs text-base-content/50">{{ c.fila.justificacion }}</span>{% endif %}
               {% elif c.fila %}
-                {% if c.fila.personas %}{{ c.fila.personas }} persona(s){% elif c.fila.cantidad %}{{ c.fila.cantidad }} {{ c.fila.unidad }}{% endif %}
-                {% if c.anterior %}<span class="text-base-content/50"> (antes {% if c.anterior.personas %}{{ c.anterior.personas }}{% else %}{{ c.anterior.cantidad }}{% endif %}{% if c.anterior.desperdicio_pct %}, desperdicio {{ c.anterior.desperdicio_pct }} %{% endif %})</span>{% endif %}
-                {% if c.fila.desperdicio_pct and c.fila.desperdicio_pct != '0' %} · desperdicio {{ c.fila.desperdicio_pct }} %{% endif %}
-                {% if c.fila.justificacion %}<span class="block text-xs text-base-content/50">{{ c.fila.justificacion }}</span>{% endif %}
+                <span class="text-base-content/60">Se quita de la composición; el insumo y su precio no se borran.</span>
+              {% elif c.valor %}
+                <label class="flex flex-col gap-1"><span class="text-xs text-base-content/50">Valor nuevo</span>
+                  <input name="ed:{{ c.id }}:valor" value="{{ c.valor|numlimpio:'u' }}" inputmode="decimal" class="input input-bordered input-sm w-28 text-right tabular-nums text-base-content"></label>
               {% endif %}
-            </td>
+              {% if c.error %}<p class="mt-1 text-xs text-error" role="alert">{{ c.error }}</p>{% endif %}
           </tr>
         {% endfor %}
         </tbody>

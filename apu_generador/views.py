@@ -479,20 +479,22 @@ def revision(request, pk):
     if mod is None:
         return redirect(_url_paso(borrador))
     cambios = asistente.diferencias(borrador, mod['propuesta'])
+    marcados = None            # en GET todos vienen marcados; tras un error se conserva lo que la persona marcó y escribió
     if request.method == 'POST':
         elegidos = request.POST.getlist('cambio')
         try:
-            asistente.aplicar_cambios(borrador, mod['propuesta'], elegidos)
+            asistente.aplicar_cambios(borrador, mod['propuesta'], elegidos, request.POST)
         except ErrorPaso as e:
             messages.error(request, str(e))
-            return redirect('apu_generador:revision', pk=borrador.pk)
-        mod['aplicada'] = True
-        borrador.save(update_fields=['instrucciones', 'actualizado'])
-        messages.success(request, f'Se aplicaron {len(elegidos)} cambio(s) a la composición.' if elegidos
-                         else 'No se aplicó ningún cambio.')
-        return redirect(_url_paso(borrador))
+            cambios, marcados = asistente.con_ediciones(cambios, request.POST), set(elegidos)
+        else:
+            mod['aplicada'] = True
+            borrador.save(update_fields=['instrucciones', 'actualizado'])
+            messages.success(request, f'Se aplicaron {len(elegidos)} cambio(s) a la composición.' if elegidos
+                             else 'No se aplicó ningún cambio.')
+            return redirect(_url_paso(borrador))
     return render(request, 'apu_generador/revision.html', {
-        **_contexto_base(request, borrador), 'mod': mod, 'cambios': cambios})
+        **_contexto_base(request, borrador), 'mod': mod, 'cambios': cambios, 'marcados': marcados})
 
 
 def _apu_de_la_empresa(request, pk):

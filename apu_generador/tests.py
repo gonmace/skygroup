@@ -987,7 +987,7 @@ class TituloAlReutilizarTests(Base):
         self.assertEqual(cambios[0]['id'], 'actividad')
         self.assertEqual((cambios[0]['anterior'], cambios[0]['nuevo']), ('Hormigón H21 en columnas', 'Hormigón H25 en vigas'))
         self.client.force_login(self.su)
-        self.assertContains(self.client.get(r.json()['continuar_url']), '«Hormigón H25 en vigas»')
+        self.assertContains(self.client.get(r.json()['continuar_url']), 'value="Hormigón H25 en vigas"')        # editable
 
     def test_aplicar_el_cambio_de_titulo_lo_lleva_al_apu_guardado(self):
         r, b = self.reutilizar('Hormigón H25 en vigas')
@@ -1043,6 +1043,86 @@ class TituloAlReutilizarTests(Base):
         self.assertEqual(self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {'actividad': 'x' * 201}).status_code, 400)
         self.assertEqual(self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {'actividad': '  Hormigón   H25 en   vigas '}).status_code, 200)
         self.assertEqual(ItemModelo.objects.get(proyecto=self.destino).descripcion, 'Hormigón H25 en vigas')
+
+    # ── la columna «Detalle» de la revisión se puede editar ──
+    def revision_con_cambios(self):
+        propuesta = {'actividad': 'Hormigón H25 en vigas', 'resumen_cambios': 'x',
+                     'materiales': {'filas': [{'descripcion': 'Ladrillo 6H', 'unidad': 'pza', 'cantidad': '40', 'desperdicio_pct': '5'},
+                                              {'descripcion': 'Cemento portland', 'unidad': 'kg', 'cantidad': '5', 'desperdicio_pct': '2'}]},
+                     'mano_obra': {'filas': [{'descripcion': 'Albañil', 'personas': '2'}], 'rendimiento': '12'},
+                     'equipos': {'filas': []}}
+        with mock.patch(LLAMAR, return_value=propuesta):
+            r = self.json(f'/tekon/apu/lista/{self.item.pk}/reutilizar/', {'proyecto': self.destino.pk, 'instruccion': 'cambia varias cosas'}, self.su)
+        b = APUBorrador.objects.get(modo='reutilizar')
+        return b, r.json()['continuar_url']
+
+    def test_la_revision_muestra_campos_editables_en_el_detalle(self):
+        b, url = self.revision_con_cambios()
+        ids = [c['id'] for c in asistente.diferencias(b, b.instrucciones[0]['propuesta'])]
+        self.assertEqual(ids, ['actividad', 'materiales:~:ladrillo 6h', 'materiales:+:cemento portland', 'equipos:-:mezcladora', 'mano_obra:r:rendimiento'])
+        self.client.force_login(self.su)
+        html = self.client.get(url).content.decode()
+        for campo in ('ed:actividad:valor', 'ed:materiales:~:ladrillo 6h:cantidad', 'ed:materiales:~:ladrillo 6h:desperdicio_pct',
+                      'ed:materiales:+:cemento portland:descripcion', 'ed:materiales:+:cemento portland:cantidad', 'ed:mano_obra:r:rendimiento:valor'):
+            self.assertIn(f'name="{campo}"', html)
+        self.assertNotIn('ed:equipos:-:mezcladora', html)                                   # quitar no tiene nada que editar
+        self.assertIn('value="Hormigón H25 en vigas"', html)
+        self.assertIn('value="40"', html)
+
+    def test_aplicar_con_valores_editados(self):
+        b, url = self.revision_con_cambios()
+        self.client.force_login(self.su)
+        r = self.client.post(url, {
+            'cambio': ['actividad', 'materiales:~:ladrillo 6h', 'materiales:+:cemento portland', 'mano_obra:r:rendimiento'],
+            'ed:actividad:valor': ' Hormigón  H25 en vigas de entrepiso (unidad: m3)',
+            'ed:materiales:~:ladrillo 6h:cantidad': '41,5', 'ed:materiales:~:ladrillo 6h:desperdicio_pct': '7',
+            'ed:materiales:+:cemento portland:descripcion': 'Cemento Portland IP-40', 'ed:materiales:+:cemento portland:cantidad': '6,5',
+            'ed:materiales:+:cemento portland:desperdicio_pct': '3', 'ed:mano_obra:r:rendimiento:valor': '10'})
+        self.assertRedirects(r, f'/tekon/apu/borrador/{b.pk}/resultado/', fetch_redirect_response=False)
+        b.refresh_from_db()
+        self.assertEqual(b.actividad, 'Hormigón H25 en vigas de entrepiso')                  # editado y sin la unidad
+        lad = next(f for f in b.materiales['filas'] if f['descripcion'] == 'Ladrillo 6H')
+        self.assertEqual((lad['cantidad'], lad['desperdicio_pct']), ('41.5', '7'))
+        cem = next(f for f in b.materiales['filas'] if f['descripcion'] == 'Cemento Portland IP-40')
+        self.assertEqual((cem['cantidad'], cem['desperdicio_pct']), ('6.5', '3'))
+        self.assertTrue(Insumo.objects.filter(empresa=self.a, descripcion='Cemento Portland IP-40').exists())   # entra al catálogo con lo editado
+        self.assertFalse(Insumo.objects.filter(descripcion='Cemento portland').exists())
+        self.assertEqual(b.mano_obra['rendimiento'], '10')
+        self.assertTrue(b.filas('equipos'))                                                    # «quitar» no se marcó: la mezcladora sigue
+
+    def test_sin_editar_se_aplica_lo_que_propuso_la_ia(self):
+        b, url = self.revision_con_cambios()
+        self.client.force_login(self.su)
+        self.client.post(url, {'cambio': ['actividad', 'materiales:~:ladrillo 6h']})
+        b.refresh_from_db()
+        self.assertEqual(b.actividad, 'Hormigón H25 en vigas')
+        self.assertEqual(next(f for f in b.materiales['filas'] if f['descripcion'] == 'Ladrillo 6H')['cantidad'], '40')
+
+    def test_valores_invalidos_vuelven_a_mostrar_la_pagina_con_lo_escrito_y_no_aplican_nada(self):
+        b, url = self.revision_con_cambios()
+        self.client.force_login(self.su)
+        r = self.client.post(url, {
+            'cambio': ['actividad', 'materiales:~:ladrillo 6h', 'mano_obra:r:rendimiento'],
+            'ed:actividad:valor': '  ', 'ed:materiales:~:ladrillo 6h:cantidad': 'abc', 'ed:materiales:~:ladrillo 6h:desperdicio_pct': '150',
+            'ed:mano_obra:r:rendimiento:valor': '0'})
+        self.assertEqual(r.status_code, 200)
+        for texto in ('El título no puede quedar vacío', 'Indica una cantidad mayor que cero', 'Indica un número mayor que cero'):
+            self.assertContains(r, texto)
+        self.assertContains(r, 'value="abc"')                                                  # se conserva lo escrito
+        html = r.content.decode()
+        self.assertNotIn('checked aria-label="Aplicar: Agregar', html)
+        b.refresh_from_db()
+        self.assertEqual(b.actividad, 'Hormigón H21 en columnas')                              # nada se aplicó
+        self.assertEqual(D(next(f for f in b.materiales['filas'] if f['descripcion'] == 'Ladrillo 6H')['cantidad']), D('38'))
+        self.assertFalse(b.instrucciones[0]['aplicada'])
+
+    def test_un_valor_invalido_en_un_cambio_sin_marcar_no_bloquea(self):
+        b, url = self.revision_con_cambios()
+        self.client.force_login(self.su)
+        r = self.client.post(url, {'cambio': ['actividad'], 'ed:materiales:~:ladrillo 6h:cantidad': 'abc'})
+        self.assertEqual(r.status_code, 302)
+        b.refresh_from_db()
+        self.assertEqual(b.actividad, 'Hormigón H25 en vigas')
 
     def test_un_titulo_vacio_conserva_el_actual(self):
         self.json(f'/tekon/apu/lista/{self.item.pk}/reutilizar/', {'proyecto': self.destino.pk}, self.su)

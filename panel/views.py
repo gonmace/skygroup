@@ -327,8 +327,9 @@ def miembros(request):
     if request.user.is_superuser:  # papelera: solo la ve el superusuario
         eliminados = (Membresia.objects.filter(empresa=empresa, user__is_deleted=True)
                       .select_related('user', 'rol').order_by('-user__eliminado_en'))
-    # Administradores que no son miembros: los superusuarios (de todas las empresas) y los administradores de esta empresa.
-    administradores = (User.objects.filter(is_deleted=False).filter(Q(is_superuser=True) | Q(empresas_administradas=empresa))
+    # Administradores de ESTA empresa que no son miembros. Un superusuario sin cargo ni asignación como administrador
+    # no se lista: no recibe mensajes ni tareas de la empresa.
+    administradores = (User.objects.filter(is_deleted=False, empresas_administradas=empresa)
                        .exclude(membresias__empresa=empresa).distinct().order_by('-is_superuser', 'email'))
     administradores = list(administradores)
     ids_admin = set(User.objects.filter(empresas_administradas=empresa).values_list('pk', flat=True))

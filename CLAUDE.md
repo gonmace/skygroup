@@ -38,7 +38,8 @@ tiene cargo, su papel de plataforma («Administrador» rosa). **Un superusuario 
 ### Superusuario que además es miembro de una empresa
 Un superusuario **se ve como «Superusuario» (ámbar)**, no como administrador. Solo se ve como **«Administrador» (rosa)** si
 además está asignado como administrador de esa empresa (`Membresia.es_admin_aqui`). En Usuarios, los administradores sin cargo
-salen como filas de la tabla: un superusuario con insignia ámbar, un administrador con rosa, y los dos si es ambas cosas;
+salen como filas de la tabla (rosa; más la ámbar si además es superusuario). Un superusuario que no tiene cargo ni está
+asignado como administrador de esa empresa **no se lista** (no recibe mensajes ni tareas);
 en la lista de Administradores (plataforma) también se muestran ambas insignias. Usar siempre las propiedades de `Membresia`
 al mostrar cargo o color de una persona, nunca `m.rol.nombre` / `badge-rol-{{ m.rol.jerarquia }}` directamente:
 `m.cargo_visible`, `m.clase_color`, `m.clase_avatar`. En Usuarios su cargo no es editable (se muestra fijo).

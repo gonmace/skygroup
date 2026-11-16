@@ -19,3 +19,12 @@ if (window.self !== window.top) {
     nc.classList.replace('btn-outline', 'btn-primary');
   }
 }
+
+// Dentro del iframe la contraseña no es obligatoria: «Usar correo y contraseña» muestra el formulario.
+document.querySelectorAll('[data-mostrar-clave]').forEach((boton) => {
+  if (window.self !== window.top) boton.classList.remove('hidden');
+  boton.addEventListener('click', () => {
+    document.querySelectorAll('[data-solo-fuera-iframe]').forEach((el) => el.classList.remove('hidden'));
+    boton.classList.add('hidden');
+  });
+});

@@ -3,12 +3,12 @@
 {% block auth_titulo %}Iniciar sesión{% endblock %}
 {% block auth_subtitulo %}{% if embebido %}Usa tu cuenta de Nextcloud{% elif empresa %}Accede a tu espacio de {{ marca }}{% else %}Accede a tu cuenta{% endif %}{% endblock %}
 {% block auth_cuerpo %}
-{% for m in messages %}<div class="alert alert-{% if m.tags == 'error' %}error{% else %}info{% endif %} alert-soft mb-4 text-sm">{{ m }}</div>{% endfor %}
+{% for m in messages %}<div role="alert" class="alert alert-{% if m.tags == 'error' %}error{% else %}info{% endif %} mb-4 text-sm">{% if m.tags == 'error' %}{% include "components/icon.html" with name="alert-triangle" cls="size-5" %}{% else %}{% include "components/icon.html" with name="info" cls="size-5" %}{% endif %}<span>{{ m }}</span></div>{% endfor %}
 <form method="post" class="flex flex-col gap-4">
   {% csrf_token %}
   <div data-solo-fuera-iframe class="flex flex-col gap-4{% if embebido %} hidden{% endif %}">
   {% if form.non_field_errors %}
-    <div class="alert alert-error alert-soft text-sm">{{ form.non_field_errors.0 }}</div>
+    <div role="alert" class="alert alert-error text-sm">{% include "components/icon.html" with name="alert-triangle" cls="size-5" %}<span>{{ form.non_field_errors.0 }}</span></div>
   {% endif %}
   <div>
     <label for="{{ form.username.id_for_label }}" class="mb-1.5 block text-sm font-medium">{{ form.username.label }}</label>
@@ -38,9 +38,10 @@
   {% if nextcloud %}<div class="divider my-0 text-xs text-base-content/50">o continúa con</div>{% endif %}
   </div>
   {% if nextcloud %}
-    <a href="{% url 'cuentas:nextcloud_iniciar' %}{% if next %}?next={{ next|urlencode }}{% endif %}" data-nextcloud-entrar class="btn h-12 w-full rounded-xl {% if embebido %}btn-primary{% else %}btn-outline{% endif %}">
+    <a href="{% url 'cuentas:nextcloud_iniciar' %}{% if next %}?next={{ next|urlencode }}{% endif %}" data-nextcloud-entrar class="btn h-12 w-full rounded-xl {% if embebido %}btn-primary{% else %}btn-ghost{% endif %}">
       {% include "components/icon.html" with name="cloud" cls="size-5" %}{{ nextcloud.texto_boton }}
     </a>
+    <button type="button" data-mostrar-clave class="link link-hover mx-auto text-sm text-base-content/60{% if not embebido %} hidden{% endif %}">Usar correo y contraseña</button>
   {% endif %}
   {% if registro_abierto %}
     <p data-solo-fuera-iframe class="mt-1 text-center text-sm text-base-content/70{% if embebido %} hidden{% endif %}">¿Tienes correo de la empresa? <a href="{% url 'cuentas:registro' %}" class="link link-primary font-medium">Crea tu acceso</a></p>

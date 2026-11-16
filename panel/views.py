@@ -123,6 +123,27 @@ def administrador_editar(request, pk=None):
 
 @require_POST
 @superusuario_requerido
+def administrador_reinvitar(request, pk):
+    """Reenvía el correo para elegir contraseña a un administrador que aún no se registró."""
+    usuario = get_object_or_404(User, pk=pk, is_deleted=False)
+    empresa = usuario.empresas_administradas.filter(pk=request.empresa.pk).first() or usuario.empresas_administradas.first() or request.empresa
+    if usuario.has_usable_password():
+        messages.warning(request, f'{usuario.email} ya tiene contraseña.')
+    elif not usuario.is_active:
+        messages.error(request, 'La cuenta está bloqueada.')
+    else:
+        try:
+            correos.preparar_invitacion_admin(request, usuario, empresa)()
+        except Exception:
+            correos.logger.exception('No se pudo reenviar la invitación a %s', usuario.email)
+            messages.error(request, f'No se pudo enviar el correo a {usuario.email}. Revisa que el buzón exista.')
+        else:
+            messages.success(request, f'Invitación reenviada a {usuario.email}.')
+    return redirect('panel:administradores')
+
+
+@require_POST
+@superusuario_requerido
 def administrador_quitar(request, pk):
     """Quita la administración de sistema (empresas y superusuario). La cuenta y sus membresías no se tocan."""
     usuario = get_object_or_404(User, pk=pk, is_deleted=False)

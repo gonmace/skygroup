@@ -12,6 +12,7 @@ urlpatterns = [
     path('panel/administradores/', views.administradores, name='administradores'),
     path('panel/administradores/nuevo/', views.administrador_editar, name='administrador_nuevo'),
     path('panel/administradores/<int:pk>/', views.administrador_editar, name='administrador_editar'),
+    path('panel/administradores/<int:pk>/reinvitar/', views.administrador_reinvitar, name='administrador_reinvitar'),
     path('panel/administradores/<int:pk>/quitar/', views.administrador_quitar, name='administrador_quitar'),
     path('panel/correo/', views.correo, name='correo'),
     path('panel/correo/probar/', views.correo_probar, name='correo_probar'),

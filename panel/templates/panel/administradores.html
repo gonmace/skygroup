@@ -7,14 +7,21 @@
 </div>
 <div class="table-card">
   <table class="table">
-    <thead><tr><th>Persona</th><th>Tipo</th><th>Empresas</th><th></th></tr></thead>
+    <thead><tr><th>Persona</th><th>Tipo</th><th>Empresas</th><th>Estado</th><th>Última conexión</th><th></th></tr></thead>
     <tbody>
     {% for u in lista %}
       <tr>
         <td><div class="font-medium">{{ u.get_full_name|default:u.email }}{% if not u.is_active %} <span class="badge badge-error badge-sm">Bloqueado</span>{% endif %}</div><div class="text-xs text-base-content/60">{{ u.email }}</div></td>
         <td>{% if u.is_superuser %}<span class="badge badge-sm badge-outline badge-plat-super">Superusuario</span>{% endif %}{% if u.empresas_administradas.all %} <span class="badge badge-sm badge-outline badge-plat-admin">Administrador</span>{% endif %}</td>
         <td>{% if u.is_superuser %}<span class="text-base-content/60">Todas{% if u.empresas_administradas.all %} · administra: {% else %} · no figura como administrador en ninguna{% endif %}</span>{% endif %}{% for e in u.empresas_administradas.all %}{{ e.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+        <td>{% if not u.is_active %}<span class="badge badge-error badge-sm gap-1 whitespace-nowrap">{% include "components/icon.html" with name="ban" cls="size-3" %}Bloqueado</span>{% elif not u.has_usable_password %}<span class="badge badge-warning badge-sm gap-1 whitespace-nowrap" title="Aún no eligió su contraseña">{% include "components/icon.html" with name="clock" cls="size-3" %}Pendiente de registro</span>{% else %}<span class="badge badge-success badge-sm gap-1 whitespace-nowrap">{% include "components/icon.html" with name="check" cls="size-3" %}Activo</span>{% endif %}</td>
+        <td class="whitespace-nowrap text-sm text-base-content/70">{% if u.last_login %}{{ u.last_login|date:"d/m/Y H:i" }}{% else %}Nunca{% endif %}</td>
         <td class="text-right whitespace-nowrap">
+          {% if not u.has_usable_password and u.is_active %}
+          <form method="post" action="{% url 'panel:administrador_reinvitar' u.pk %}" class="inline">{% csrf_token %}
+            <button type="submit" class="btn-icono icono-ver" title="Reenviar invitación a {{ u.email }}" aria-label="Reenviar invitación a {{ u.email }}">{% include "components/icon.html" with name="mail" cls="size-5" %}</button>
+          </form>
+          {% endif %}
           {% if request.user.is_superuser and not request.impersonador and u.is_active and not u.is_superuser %}
           <form method="post" action="{% url 'cuentas:impersonar' u.pk %}" class="inline">{% csrf_token %}
             <button type="submit" class="btn-icono icono-ver" title="Ver como {{ u.email }}" aria-label="Ver la aplicación como {{ u.email }}">{% include "components/icon.html" with name="user-switch" cls="size-5" %}</button>
@@ -29,7 +36,7 @@
         </td>
       </tr>
     {% empty %}
-      <tr><td colspan="4" class="text-center text-base-content/60">Aún no hay administradores.</td></tr>
+      <tr><td colspan="6" class="text-center text-base-content/60">Aún no hay administradores.</td></tr>
     {% endfor %}
     </tbody>
   </table>

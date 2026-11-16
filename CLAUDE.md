@@ -36,9 +36,11 @@ tiene cargo, su papel de plataforma («Administrador» rosa). **Un superusuario 
 (`mi_cargo`, `papel_plataforma`).
 
 ### Superusuario que además es miembro de una empresa
-Para el resto de la interfaz (listas de usuarios, equipo, asistencia, ficha de persona) se muestra como **«Administrador»**
-(rosa), no con el cargo que tenga asignado. Usar siempre las propiedades de `Membresia` al mostrar cargo o color de una
-persona, nunca `m.rol.nombre` / `badge-rol-{{ m.rol.jerarquia }}` directamente:
+Un superusuario **se ve como «Superusuario» (ámbar)**, no como administrador. Solo se ve como **«Administrador» (rosa)** si
+además está asignado como administrador de esa empresa (`Membresia.es_admin_aqui`). En Usuarios, los administradores sin cargo
+salen como filas de la tabla: un superusuario con insignia ámbar, un administrador con rosa, y los dos si es ambas cosas;
+en la lista de Administradores (plataforma) también se muestran ambas insignias. Usar siempre las propiedades de `Membresia`
+al mostrar cargo o color de una persona, nunca `m.rol.nombre` / `badge-rol-{{ m.rol.jerarquia }}` directamente:
 `m.cargo_visible`, `m.clase_color`, `m.clase_avatar`. En Usuarios su cargo no es editable (se muestra fijo).
 
 ## Estándar de interfaz (regla única de estilo)

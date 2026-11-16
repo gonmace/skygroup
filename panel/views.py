@@ -290,7 +290,8 @@ COLUMNAS_MIEMBROS = [
 @requiere_capacidad('cuentas.usuarios.manage')
 def miembros(request):
     lista = (Membresia.objects.filter(empresa=request.empresa, user__is_deleted=False)
-             .select_related('user', 'rol', 'contratista', 'sede', 'perfil_jor'))
+             .select_related('user', 'rol', 'contratista', 'sede', 'perfil_jor')
+             .prefetch_related('user__empresas_administradas'))
     orden = request.GET.get('orden', '')
     descendente = request.GET.get('dir') == 'desc'
     expresion = {k: e for k, _, e in COLUMNAS_MIEMBROS}.get(orden)
@@ -329,6 +330,10 @@ def miembros(request):
     # Administradores que no son miembros: los superusuarios (de todas las empresas) y los administradores de esta empresa.
     administradores = (User.objects.filter(is_deleted=False).filter(Q(is_superuser=True) | Q(empresas_administradas=empresa))
                        .exclude(membresias__empresa=empresa).distinct().order_by('-is_superuser', 'email'))
+    administradores = list(administradores)
+    ids_admin = set(User.objects.filter(empresas_administradas=empresa).values_list('pk', flat=True))
+    for u in administradores:
+        u.admin_aqui = u.pk in ids_admin
     return render(request, 'panel/miembros.html', {
         'administradores': administradores,
         'resumen': resumen, 'con_puesto': con_puesto, 'puestos': puestos, 'eliminados': eliminados, 'lista': lista, 'columnas': columnas, 'roles': empresa.roles.filter(activo=True),

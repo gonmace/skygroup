@@ -156,15 +156,26 @@ class Membresia(models.Model):
     # avatares, no con el cargo que se le asignó; su papel real («Superusuario») va en la cabecera.
     @property
     def cargo_visible(self):
-        return 'Administrador' if self.user.is_superuser else self.rol.nombre
+        if self.user.is_superuser:
+            return 'Administrador' if self.es_admin_aqui else 'Superusuario'
+        return self.rol.nombre
+
+    @property
+    def es_admin_aqui(self):
+        """¿Además administra esta empresa? (usa el prefetch de `empresas_administradas` si lo hay)."""
+        return any(e.pk == self.empresa_id for e in self.user.empresas_administradas.all())
 
     @property
     def clase_color(self):
-        return 'badge-plat-admin' if self.user.is_superuser else f'badge-rol-{self.rol.jerarquia}'
+        if self.user.is_superuser:
+            return 'badge-plat-admin' if self.es_admin_aqui else 'badge-plat-super'
+        return f'badge-rol-{self.rol.jerarquia}'
 
     @property
     def clase_avatar(self):
-        return 'badge-plat-admin tono-1' if self.user.is_superuser else f'badge-rol-{self.rol.jerarquia} tono-{self.rol.tono}'
+        if self.user.is_superuser:
+            return f'{self.clase_color} tono-1'
+        return f'badge-rol-{self.rol.jerarquia} tono-{self.rol.tono}'
 
     def clean(self):
         from django.core.exceptions import ValidationError

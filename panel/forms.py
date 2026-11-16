@@ -113,10 +113,13 @@ class AdministradorForm(EstiloMixin, forms.Form):
     empresas = forms.ModelMultipleChoiceField(
         label='Empresas que administra', queryset=Empresa.objects.none(), required=False,
         widget=forms.CheckboxSelectMultiple,
-        help_text='Gestiona miembros, cargos, marca, contratistas y proyectos de esas empresas, aunque no sea miembro.')
+        help_text='Gestiona miembros, cargos, marca, contratistas y proyectos de esas empresas, aunque no sea miembro. '
+                  'Un superusuario también puede ser administrador: márcale aquí las empresas donde debe figurar como '
+                  'administrador (en sus usuarios, mensajes y tareas). Sin marcar, el superusuario no aparece en ellas.')
     superusuario = forms.BooleanField(
         label='Superusuario', required=False,
-        help_text='Administra toda la plataforma: todas las empresas, Plataforma y los administradores.')
+        help_text='Administra toda la plataforma: todas las empresas, Plataforma y los administradores. '
+                  'Es independiente de ser administrador de una empresa (ver más abajo).')
     enviar_correo = forms.BooleanField(label='Enviar correo', required=False, initial=True,
                                        help_text='Cuenta nueva: invitación para elegir contraseña.')
 

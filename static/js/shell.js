@@ -32,6 +32,52 @@ document.addEventListener('click', function (e) {
 });
 
 (function () {
+  // Aviso estándar (toast): ficha con icono + título + detalle + acción opcional + cierre con icono. Ver docs/estandar-interfaz.html.
+  var TRAZOS = {
+    ok: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    alerta: '<path d="M12 4 2.5 20h19z"/><path d="M12 10v4M12 17.5v.01"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/>',
+    x: '<path d="M6 6l12 12M18 6 6 18"/>',
+    papelera: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>'
+  };
+  window.iconoSVG = function (nombre, cls) {
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="' +
+      (cls || 'size-5') + '" aria-hidden="true">' + (TRAZOS[nombre] || TRAZOS.info) + '</svg>';
+  };
+  var TIPOS = {
+    success: { icono: 'ok', ficha: 'ficha-ok', titulo: 'Listo' },
+    error: { icono: 'alerta', ficha: 'ficha-error', titulo: 'No se pudo completar' },
+    warning: { icono: 'alerta', ficha: 'ficha-aviso', titulo: 'Atención' },
+    info: { icono: 'info', ficha: 'ficha-info', titulo: 'Información' }
+  };
+  function crear(tag, cls, texto) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (texto !== undefined) e.textContent = texto;
+    return e;
+  }
+  // Construye (sin temporizador) un aviso. opciones: {titulo, accion: {texto, alClick}}.
+  window.crearAviso = function (detalle, tipo, opciones) {
+    opciones = opciones || {};
+    var t = TIPOS[tipo] || TIPOS.info;
+    tipo = TIPOS[tipo] ? tipo : 'info';
+    var el = crear('div', 'aviso aviso-' + tipo);
+    el.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
+    var ficha = crear('span', 'ficha ' + t.ficha); ficha.innerHTML = window.iconoSVG(t.icono);
+    var cuerpo = crear('div', 'aviso__cuerpo');
+    cuerpo.append(crear('span', 'aviso__titulo', opciones.titulo || t.titulo), crear('span', 'aviso__detalle', detalle));
+    el.append(ficha, cuerpo);
+    if (opciones.accion) {
+      var acc = crear('button', 'btn btn-sm aviso__accion', opciones.accion.texto); acc.type = 'button';
+      acc.className += tipo === 'error' ? ' btn-error' : tipo === 'warning' ? ' btn-warning' : tipo === 'info' ? ' btn-info' : ' btn-success';
+      acc.addEventListener('click', function () { try { opciones.accion.alClick(); } finally { el.remove(); } });
+      el.append(acc);
+    }
+    var x = crear('button', 'btn-icono'); x.type = 'button'; x.setAttribute('data-accion', 'cerrar-aviso'); x.setAttribute('aria-label', 'Cerrar aviso');
+    x.innerHTML = window.iconoSVG('x', 'size-4'); el.append(x);
+    return el;
+  };
+
   window.confirmarUI = function (msg, op) {
     op = op || {};
     // Destructivas (eliminar, borrar, quitar) en rojo; el resto en advertencia. Se puede forzar con op.tipo.
@@ -44,17 +90,17 @@ document.addEventListener('click', function (e) {
       document.body.appendChild(caja);
     }
     return new Promise(function (resolver) {
-      var el = document.createElement('div');
-      el.className = 'w-80 max-w-[90vw] rounded-box border border-base-300 border-l-4 ' + (peligro ? 'border-l-error' : 'border-l-warning') + ' bg-base-100 p-4 text-base-content shadow-xl';
+      var el = crear('div', 'aviso aviso-confirmar ' + (peligro ? 'aviso-error' : 'aviso-warning'));
       el.setAttribute('role', 'alertdialog');
-      var cuerpo = document.createElement('div');
-      cuerpo.className = 'block';
-      var h = document.createElement('h4'); h.className = 'mb-1 text-sm font-semibold'; h.textContent = op.titulo || (peligro ? 'Eliminar' : 'Confirmar');
-      var p = document.createElement('p'); p.className = 'mb-3 text-sm'; p.textContent = msg;
-      var fila = document.createElement('div'); fila.className = 'flex gap-2';
-      var si = document.createElement('button'); si.type = 'button'; si.className = 'btn btn-sm ' + (peligro ? 'btn-error' : 'btn-warning'); si.textContent = op.aceptar || (peligro ? 'Eliminar' : 'Confirmar');
-      var no = document.createElement('button'); no.type = 'button'; no.className = 'btn btn-sm btn-ghost'; no.textContent = op.cancelar || 'Cancelar';
-      fila.append(si, no); cuerpo.append(h, p, fila); el.append(cuerpo);
+      var fila = crear('div', 'aviso__fila');
+      var ficha = crear('span', 'ficha ' + (peligro ? 'ficha-error' : 'ficha-aviso')); ficha.innerHTML = window.iconoSVG(peligro ? 'papelera' : 'alerta');
+      var cuerpo = crear('div', 'aviso__cuerpo');
+      cuerpo.append(crear('span', 'aviso__titulo', op.titulo || (peligro ? 'Eliminar' : 'Confirmar')), crear('span', 'aviso__detalle', msg));
+      fila.append(ficha, cuerpo);
+      var botones = crear('div', 'aviso__botones');
+      var no = crear('button', 'btn btn-sm btn-ghost', op.cancelar || 'Cancelar'); no.type = 'button';
+      var si = crear('button', 'btn btn-sm ' + (peligro ? 'btn-error' : 'btn-warning'), op.aceptar || (peligro ? 'Eliminar' : 'Confirmar')); si.type = 'button';
+      botones.append(no, si); el.append(fila, botones);
       function fin(ok) { document.removeEventListener('keydown', tecla); el.remove(); resolver(ok); }
       function tecla(e) { if (e.key === 'Escape') fin(false); }
       si.addEventListener('click', function () { fin(true); });
@@ -114,20 +160,22 @@ document.addEventListener('DOMContentLoaded', function () {
     if (sidebar && !sidebar.classList.contains('-translate-x-full') && window.matchMedia('(max-width: 767px)').matches) abrir(false);
   });
 
-  // Mensajes (toasts): se cierran solos a los 6 s (los de error, a los 12 s); el puntero o el
-  // foco encima los mantiene, y siempre se pueden cerrar a mano.
+  // Mensajes (toasts): se cierran solos a los 6 s (los de error, a los 12 s). El puntero o el foco encima los detienen
+  // (y la barra de tiempo con ellos) y al salir siguen donde iban; siempre se pueden cerrar a mano.
   function armarAviso(el) {
-    var ms = el.getAttribute('role') === 'alert' ? 12000 : 6000, t;
-    function armar() { clearTimeout(t); t = setTimeout(function () { el.remove(); }, ms); }
-    function parar() { clearTimeout(t); }
-    el.addEventListener('mouseenter', parar); el.addEventListener('mouseleave', armar);
-    el.addEventListener('focusin', parar); el.addEventListener('focusout', armar);
-    armar();
+    var ms = el.getAttribute('role') === 'alert' ? 12000 : 6000, resto = ms, t0 = 0, t = null;
+    el.style.setProperty('--ms', ms + 'ms'); el.setAttribute('data-ms', ms);
+    function seguir() { t0 = Date.now(); clearTimeout(t); t = setTimeout(function () { el.remove(); }, resto); el.classList.remove('en-pausa'); }
+    function parar() { if (t === null) return; clearTimeout(t); t = null; resto = Math.max(500, resto - (Date.now() - t0)); el.classList.add('en-pausa'); }
+    el.addEventListener('mouseenter', parar); el.addEventListener('mouseleave', seguir);
+    el.addEventListener('focusin', parar); el.addEventListener('focusout', seguir);
+    seguir();
   }
   document.querySelectorAll('[data-autocerrar]').forEach(armarAviso);
 
   // Aviso creado por código (acciones AJAX): mismo aspecto que los mensajes que pinta el servidor.
   // tipo: «success», «error», «warning» o «info» (la etiqueta del mensaje de Django).
+  // opciones: {fijo: true} (progreso: lo cierra quien lo creó), {titulo}, {accion: {texto, alClick}}.
   window.avisar = function (texto, tipo, opciones) {
     var region = document.querySelector('.toast[aria-label="Avisos"]');
     if (!region) {
@@ -136,21 +184,14 @@ document.addEventListener('DOMContentLoaded', function () {
       region.setAttribute('role', 'region'); region.setAttribute('aria-label', 'Avisos');
       document.body.appendChild(region);
     }
-    var el = document.createElement('div');
-    var clase = tipo === 'error' ? 'alert-error' : tipo === 'success' ? 'alert-success' : tipo === 'warning' ? 'alert-warning' : 'alert-info';
-    el.className = 'alert ' + clase;
-    el.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
-    var span = document.createElement('span'); span.textContent = texto;
-    var b = document.createElement('button');
-    b.type = 'button'; b.className = 'btn btn-ghost btn-xs btn-square'; b.setAttribute('data-accion', 'cerrar-aviso');
-    b.setAttribute('aria-label', 'Cerrar aviso'); b.textContent = '✕';
-    el.appendChild(span); el.appendChild(b); region.appendChild(el);
-    if (!(opciones && opciones.fijo)) armarAviso(el);   // «fijo»: progreso, lo cierra quien lo creó
+    var el = window.crearAviso(texto, tipo, opciones);
+    region.appendChild(el);
+    if (opciones && opciones.fijo) el.classList.add('aviso-fijo'); else armarAviso(el);   // «fijo»: progreso, lo cierra quien lo creó
     return el;
   };
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-accion="cerrar-aviso"]');
-    if (b) b.closest('.alert').remove();
+    if (b) b.closest('.aviso, .alert').remove();
   });
 
   // Filas enlazadas: <tr data-href="…"> abre su destino al hacer click en cualquier parte de la fila
@@ -196,8 +237,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (sel && sel.matches && sel.matches('select[data-autoenviar-select], input[data-autoenviar-select]') && sel.form) {
       // Una opción con data-confirmar pide confirmación; si se cancela, el select vuelve a su valor original.
       var op = sel.selectedOptions && sel.selectedOptions[0];
-      if (op && op.dataset.confirmar && !window.confirm(op.dataset.confirmar)) {
-        for (var i = 0; i < sel.options.length; i++) sel.options[i].selected = sel.options[i].defaultSelected;
+      if (op && op.dataset.confirmar) {
+        window.confirmarUI(op.dataset.confirmar).then(function (ok) {
+          if (ok) { enviarForm(sel.form); return; }
+          for (var i = 0; i < sel.options.length; i++) sel.options[i].selected = sel.options[i].defaultSelected;
+        });
         return;
       }
       enviarForm(sel.form);

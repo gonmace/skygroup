@@ -23,7 +23,7 @@
 {% if borradores %}
 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
   {% for b in borradores %}
-  <article class="card border border-base-300 bg-base-100 transition-shadow hover:shadow-md">
+  <article class="card">
     <div class="card-body gap-4 p-5">
       <div class="flex items-start justify-between gap-2">
         <div class="min-w-0">
@@ -35,7 +35,7 @@
           </p>
         </div>
         <form method="post" action="{% url 'apu_generador:eliminar' b.pk %}" class="shrink-0" data-confirmar="¿Eliminar el borrador «{{ b.actividad }}»? Se pierde lo que avanzaste.">{% csrf_token %}
-          <button class="btn btn-ghost btn-square btn-sm text-base-content/50 hover:text-error" title="Eliminar borrador" aria-label="Eliminar el borrador {{ b.actividad }}">{% include "components/icon.html" with name="trash" cls="size-4" %}</button>
+          <button class="btn-icono icono-peligro" title="Eliminar borrador" aria-label="Eliminar el borrador {{ b.actividad }}">{% include "components/icon.html" with name="trash" cls="size-4" %}</button>
         </form>
       </div>
 

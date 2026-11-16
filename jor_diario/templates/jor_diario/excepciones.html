@@ -20,9 +20,9 @@
         </td>
         <td class="whitespace-nowrap text-right">
           {% if j.puede_decidir %}<form method="post" action="{% url 'jor_diario:excepcion_decidir' j.pk %}" class="inline">{% csrf_token %}
-            <button name="decision" value="aprobar" class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Aprobar" aria-label="Aprobar la jornada de {{ j.perfil.nombre }}">{% include "components/icon.html" with name="check" cls="size-5" %}</button>
-            {% if j.equipo_nuevo %}<button name="decision" value="aprobar_equipo" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Aprobar y registrar este equipo como habitual" aria-label="Aprobar y registrar el equipo de {{ j.perfil.nombre }} como habitual">{% include "components/icon.html" with name="monitor" cls="size-5" %}</button>{% endif %}
-            <button name="decision" value="rechazar" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Rechazar" aria-label="Rechazar la jornada de {{ j.perfil.nombre }}">{% include "components/icon.html" with name="ban" cls="size-5" %}</button>
+            <button name="decision" value="aprobar" class="btn-icono icono-ok" title="Aprobar" aria-label="Aprobar la jornada de {{ j.perfil.nombre }}">{% include "components/icon.html" with name="check" cls="size-5" %}</button>
+            {% if j.equipo_nuevo %}<button name="decision" value="aprobar_equipo" class="btn-icono icono-ver" title="Aprobar y registrar este equipo como habitual" aria-label="Aprobar y registrar el equipo de {{ j.perfil.nombre }} como habitual">{% include "components/icon.html" with name="monitor" cls="size-5" %}</button>{% endif %}
+            <button name="decision" value="rechazar" class="btn-icono icono-peligro" title="Rechazar" aria-label="Rechazar la jornada de {{ j.perfil.nombre }}">{% include "components/icon.html" with name="ban" cls="size-5" %}</button>
           </form>{% else %}<span class="text-xs text-base-content/50">Lo revisa otro rol</span>{% endif %}
         </td>
       </tr>
@@ -40,7 +40,7 @@
     {% for j in resueltas %}
       <tr><td class="font-medium">{{ j.perfil.nombre }}</td><td class="whitespace-nowrap">{{ j.inicio|date:"d/m/Y H:i" }}</td>
         <td class="max-w-xs whitespace-normal">{{ j.motivo_excepcion }}</td>
-        <td class="whitespace-nowrap"><span class="badge badge-sm {% if j.estado_verificacion == 'rechazada' %}badge-error{% else %}badge-success{% endif %}">{{ j.get_estado_verificacion_display }}</span>
+        <td class="whitespace-nowrap"><span class="badge badge-sm gap-1 {% if j.estado_verificacion == 'rechazada' %}badge-error">{% include "components/icon.html" with name="x-circle" cls="size-3.5" %}{% else %}badge-success">{% include "components/icon.html" with name="check-circle" cls="size-3.5" %}{% endif %}{{ j.get_estado_verificacion_display }}</span>
           <span class="text-xs text-base-content/60">{{ j.revisada_por }} · {{ j.revisada_en|date:"d/m H:i" }}</span></td></tr>
     {% empty %}<tr><td colspan="4" class="py-6 text-center text-base-content/60">Aún no hay resoluciones.</td></tr>{% endfor %}
     </tbody>

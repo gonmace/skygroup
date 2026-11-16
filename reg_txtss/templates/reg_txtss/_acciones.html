@@ -5,7 +5,7 @@
 {% include "reg_base/_acciones.html" with tg_url=u_concluir tg_on=r.concluido tg_titulo=r.concluido|yesno:"Registro concluido,Concluir registro" tg_sub=r.concluido|yesno:"Apágalo para reabrir,Pasa a solo lectura" tg_ayuda="Al concluir queda de solo lectura." tg_confirmar=r.concluido|yesno:"¿Reabrir el registro?,¿Concluir el registro? Quedará de solo lectura." pdf_modal="pdf-opciones" formatear_url=u_formatear eliminar_url=u_eliminar eliminar_confirmar="¿Eliminar este registro?" %}
 {% if siguiente and puede_escribir or siguiente and r.concluido %}
 <form method="post" action="{% url 'reg_txtss:copiar' r.pk %}" data-confirmar="¿Copiar con la alternativa {{ siguiente }}?">{% csrf_token %}
-  <button class="btn btn-outline btn-tactil w-full">Copiar como alternativa {{ siguiente }}</button>
+  <button class="btn btn-tactil w-full">Copiar como alternativa {{ siguiente }}</button>
 </form>
 {% endif %}
 
@@ -13,7 +13,7 @@
 <input type="checkbox" id="pdf-opciones" class="modal-toggle">
 <div class="modal modal-bottom sm:modal-middle" role="dialog" aria-labelledby="pdf-opciones-titulo">
   <div class="modal-box">
-    <h3 id="pdf-opciones-titulo" class="text-lg font-semibold">Generar PDF{% if not r.concluido %} <span class="badge badge-ghost align-middle">borrador</span>{% endif %}</h3>
+    <h3 id="pdf-opciones-titulo" class="flex items-center gap-2 text-lg font-semibold">{% include "components/icon.html" with name="pdf" cls="size-5" %} Generar PDF{% if not r.concluido %} <span class="badge badge-ghost align-middle">borrador</span>{% endif %}</h3>
     <form method="get" action="{% url 'reg_txtss:pdf' r.pk %}" target="_blank" data-pdf-opciones>
       <p class="mt-1 text-sm text-base-content/60">Elige cuántas imágenes se ven por fila en cada paso.</p>
       <ul class="mt-4 divide-y divide-base-content/10">
@@ -35,7 +35,7 @@
       </ul>
       <div class="modal-action">
         <label for="pdf-opciones" class="btn btn-ghost">Cancelar</label>
-        <button class="btn btn-primary">Generar PDF</button>
+        <button class="btn btn-primary gap-1">{% include "components/icon.html" with name="pdf" cls="size-4" %} Generar PDF</button>
       </div>
     </form>
   </div>

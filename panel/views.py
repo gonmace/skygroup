@@ -26,7 +26,7 @@ from archivos.storage import s3_activo
 from cuentas import capacidades
 from cuentas.capacidades import requiere_capacidad
 from cuentas import correos
-from cuentas.models import (CorreoBloqueado, CorreoConfig, CredencialesPlataforma, DominioPermitido, Membresia, NextcloudConfig, RolEmpresa,
+from cuentas.models import (CorreoBloqueado, CorreoConfig, CredencialesEmpresa, DominioPermitido, Membresia, NextcloudConfig, RolEmpresa,
                             RolPermiso, User)
 from cuentas.services import agregar_miembro, sembrar_roles
 from empresas.models import Contratista, Empresa, Sede
@@ -219,21 +219,29 @@ def correo_probar(request):
 
 
 @superusuario_requerido
+@empresa_requerida
 def credenciales(request):
-    """Credenciales de servicios externos de la plataforma (todas las empresas). Solo el superusuario.
-    Hoy: la clave de Google Maps (Static Maps API) con la que se generan las imágenes de los mapas."""
+    """Credenciales de servicios externos PROPIAS de la empresa activa (nunca se comparten entre empresas). Solo el
+    superusuario. Hoy: la clave de Google Maps (Static Maps API) de los mapas y la API de n8n con que se mide la IA."""
     from reg_actividades import mapas
-    cred = CredencialesPlataforma.de()
+    cred = CredencialesEmpresa.de(request.empresa)
     form = CredencialesForm(request.POST or None, instance=cred)
     if request.method == 'POST' and form.is_valid():
         if request.POST.get('accion') == 'probar':
             # Prueba la clave escrita (o, vacía, la guardada) sin guardarla.
-            clave = form.cleaned_data['google_maps_api_key'] or mapas.clave_google()
+            clave = form.cleaned_data['google_maps_api_key'] or mapas.clave_google(request.empresa)
             if not clave:
                 messages.error(request, 'No hay ninguna clave que probar.')
             else:
                 ok, mensaje = mapas.probar_clave(clave)
                 (messages.success if ok else messages.error)(request, mensaje)
+            return render(request, 'panel/credenciales.html', {'form': CredencialesForm(instance=cred), **_ctx_credenciales(cred)})
+        if request.POST.get('accion') == 'probar_n8n':
+            # Prueba la URL y la clave escritas (vacías, las guardadas o las del .env) sin guardarlas.
+            from apu_generador import ia
+            url_g, clave_g = CredencialesEmpresa.n8n_api(request.empresa)
+            ok, mensaje = ia.probar_api_n8n(form.cleaned_data['n8n_api_url'] or url_g, form.cleaned_data['n8n_api_key'] or clave_g)
+            (messages.success if ok else messages.error)(request, mensaje)
             return render(request, 'panel/credenciales.html', {'form': CredencialesForm(instance=cred), **_ctx_credenciales(cred)})
         form.save()
         messages.success(request, 'Credenciales guardadas.')
@@ -247,6 +255,8 @@ def _ctx_credenciales(cred):
     return {
         'maps_guardada': bool(clave), 'maps_final': clave[-4:] if clave else '',
         'maps_env': bool(getattr(settings, 'GOOGLE_MAPS_API_KEY', '')) and not clave,
+        'n8n_guardada': bool(cred.n8n_api_key), 'n8n_final': cred.n8n_api_key[-4:] if cred.n8n_api_key else '',
+        'n8n_env': bool(getattr(settings, 'N8N_API_KEY', '')) and not cred.n8n_api_key,
     }
 
 

@@ -2,14 +2,14 @@
 {% block page_title %}Mis reportes{% endblock %}
 {% block content_main %}
 <div class="mb-5 grid grid-cols-3 gap-2 sm:gap-3">
-  <div class="rounded-2xl border border-base-300 bg-base-100 p-2 sm:p-4 text-center"><p class="text-[9px] sm:text-[10px] font-semibold uppercase leading-tight tracking-wide sm:tracking-widest text-base-content/40">Jornadas</p><p class="mt-1 text-lg sm:text-3xl font-black tabular-nums whitespace-nowrap">{{ total_jornadas }}</p></div>
-  <div class="rounded-2xl border border-base-300 bg-base-100 p-2 sm:p-4 text-center"><p class="text-[9px] sm:text-[10px] font-semibold uppercase leading-tight tracking-wide sm:tracking-widest text-base-content/40">Horas acumuladas</p><p class="mt-1 text-lg sm:text-3xl font-black tabular-nums whitespace-nowrap text-info">{{ total_horas }}</p></div>
-  <div class="rounded-2xl border border-base-300 bg-base-100 p-2 sm:p-4 text-center"><p class="text-[9px] sm:text-[10px] font-semibold uppercase leading-tight tracking-wide sm:tracking-widest text-base-content/40">Promedio por jornada</p><p class="mt-1 text-lg sm:text-3xl font-black tabular-nums whitespace-nowrap text-success">{{ promedio }}</p></div>
+  <div class="superficie p-2 sm:p-4 text-center"><p class="text-[9px] sm:text-[10px] font-semibold uppercase leading-tight tracking-wide sm:tracking-widest text-base-content/40">Jornadas</p><p class="mt-1 text-lg sm:text-3xl font-black tabular-nums whitespace-nowrap">{{ total_jornadas }}</p></div>
+  <div class="superficie p-2 sm:p-4 text-center"><p class="text-[9px] sm:text-[10px] font-semibold uppercase leading-tight tracking-wide sm:tracking-widest text-base-content/40">Horas acumuladas</p><p class="mt-1 text-lg sm:text-3xl font-black tabular-nums whitespace-nowrap text-info">{{ total_horas }}</p></div>
+  <div class="superficie p-2 sm:p-4 text-center"><p class="text-[9px] sm:text-[10px] font-semibold uppercase leading-tight tracking-wide sm:tracking-widest text-base-content/40">Promedio por jornada</p><p class="mt-1 text-lg sm:text-3xl font-black tabular-nums whitespace-nowrap text-success">{{ promedio }}</p></div>
 </div>
 
 <div class="space-y-3">
   {% for j in pagina %}
-    <article class="flex gap-4 rounded-2xl border border-base-300 border-l-4 bg-base-100 p-4 {% if j.estado == 'completada' %}border-l-success{% elif j.estado == 'en_curso' %}border-l-warning{% else %}border-l-error{% endif %}">
+    <article class="flex gap-4 superficie border-l-4 p-4 {% if j.estado == 'completada' %}border-l-success{% elif j.estado == 'en_curso' %}border-l-warning{% else %}border-l-error{% endif %}">
       <div class="w-14 shrink-0 text-center">
         <p class="text-2xl font-black leading-none tabular-nums">{{ j.inicio|date:"d" }}</p>
         <p class="mt-1 text-[10px] font-semibold uppercase tracking-widest text-base-content/50">{{ j.inicio|date:"M" }} {{ j.inicio|date:"Y" }}</p>
@@ -34,7 +34,7 @@
       </div>
     </article>
   {% empty %}
-    <div class="rounded-2xl border border-dashed border-base-300 p-12 text-center text-base-content/40">Aún no tienes jornadas.</div>
+    <div class="superficie p-12 text-center text-base-content/40">Aún no tienes jornadas.</div>
   {% endfor %}
 </div>
 {% if pagina.has_other_pages %}<div class="join mt-5">

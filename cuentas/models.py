@@ -416,36 +416,54 @@ class CorreoConfig(models.Model):
         return cls.objects.first() or cls()
 
 
-class CredencialesPlataforma(models.Model):
-    """Credenciales de servicios externos de la plataforma (UNA sola, para todas las empresas). Las edita el
-    superusuario en Plataforma → Credenciales. Hoy: la clave de Google Maps (Static Maps API) que genera las imágenes de
-    los widgets de mapa. Se guardan en la base de datos (igual que la contraseña SMTP); vacías, se usa lo del .env."""
+class CredencialesEmpresa(models.Model):
+    """Credenciales de servicios externos PROPIAS de cada empresa (nunca se comparten). Las edita el superusuario en la
+    empresa → Credenciales. Hoy: la clave de Google Maps (Static Maps API) de los widgets de mapa y la API de n8n con la
+    que se mide el consumo de IA de APU. Una credencial nueva = un campo nuevo aquí + su formulario en
+    `panel.forms.CredencialesForm`. Se guardan en la base de datos; vacías, se usa lo del .env (respaldo del servidor)."""
 
+    empresa = models.OneToOneField('empresas.Empresa', on_delete=models.CASCADE, related_name='credenciales')
     google_maps_api_key = models.CharField(
         'Clave de Google Maps (Static Maps API)', max_length=255, blank=True,
         help_text='Se guarda en la base de datos. Debe tener habilitada la «Maps Static API» en Google Cloud.')
+    n8n_api_url = models.CharField(
+        'URL de n8n (para medir el consumo de IA)', max_length=255, blank=True,
+        help_text='Base de la instancia de n8n, sin /api/v1. Ej.: https://n8n.tuempresa.com')
+    n8n_api_key = models.CharField(
+        'API key de n8n', max_length=1024, blank=True,
+        help_text='Se crea en n8n → Settings → n8n API. Con ella se leen los tokens de cada ejecución de APU.')
     actualizada = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'credenciales de la plataforma'
-        verbose_name_plural = 'credenciales de la plataforma'
+        verbose_name = 'credenciales de la empresa'
+        verbose_name_plural = 'credenciales de las empresas'
 
     def __str__(self):
-        return 'Credenciales de la plataforma'
+        return f'Credenciales de {self.empresa}'
 
     def save(self, *args, **kwargs):
-        self.pk = 1      # singleton
         self.google_maps_api_key = self.google_maps_api_key.strip()
+        self.n8n_api_url = self.n8n_api_url.strip().rstrip('/')
+        self.n8n_api_key = self.n8n_api_key.strip()
         super().save(*args, **kwargs)
 
     @classmethod
-    def de(cls):
-        """Las credenciales guardadas o unas vacías (sin guardar)."""
-        return cls.objects.first() or cls()
+    def de(cls, empresa):
+        """Las credenciales guardadas de la empresa o unas vacías (sin guardar)."""
+        return cls.objects.filter(empresa=empresa).first() or cls(empresa=empresa)
 
     @classmethod
-    def clave_google_maps(cls):
-        """Clave de Google Maps: la de Plataforma → Credenciales; si no hay, GOOGLE_MAPS_API_KEY del .env."""
+    def clave_google_maps(cls, empresa=None):
+        """Clave de Google Maps de la empresa; si no tiene, GOOGLE_MAPS_API_KEY del .env (respaldo del servidor)."""
         from django.conf import settings
-        guardada = cls.objects.values_list('google_maps_api_key', flat=True).first()
+        guardada = cls.objects.filter(empresa=empresa).values_list('google_maps_api_key', flat=True).first() if empresa is not None else ''
         return guardada or getattr(settings, 'GOOGLE_MAPS_API_KEY', '') or ''
+
+    @classmethod
+    def n8n_api(cls, empresa=None):
+        """(url, api_key) de la API de n8n de la empresa; lo que falte sale de N8N_API_URL / N8N_API_KEY del .env."""
+        from django.conf import settings
+        c = cls.objects.filter(empresa=empresa).first() if empresa is not None else None
+        c = c or cls()
+        return ((c.n8n_api_url or getattr(settings, 'N8N_API_URL', '') or '').rstrip('/'),
+                c.n8n_api_key or getattr(settings, 'N8N_API_KEY', '') or '')

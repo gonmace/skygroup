@@ -3,7 +3,7 @@
 {% block content_main %}
 <div class="max-w-2xl space-y-5">
   <p class="text-sm text-base-content/50">Clasifica los tickets por tipo de actividad.</p>
-  <section class="rounded-2xl border border-base-300 bg-base-100 p-5">
+  <section class="superficie p-5">
     <h2 class="mb-3 text-sm font-bold">Nuevo tipo de actividad</h2>
     <form method="post" class="flex flex-col gap-2 sm:flex-row">{% csrf_token %}
       <input type="hidden" name="action" value="add">
@@ -12,7 +12,7 @@
       <button class="btn btn-success btn-sm">Crear</button>
     </form>
   </section>
-  <section class="rounded-2xl border border-base-300 bg-base-100 p-5">
+  <section class="superficie p-5">
     <h2 class="mb-3 text-sm font-bold">Existentes</h2>
     <div class="flex flex-wrap gap-2">
       {% for l in etiquetas %}
@@ -20,7 +20,7 @@
           <span class="label-chip" data-color="{{ l.color }}">{{ l.nombre }}</span>
           <form method="post" class="inline" data-confirmar="¿Eliminar el tipo de actividad {{ l.nombre }}?">{% csrf_token %}
             <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ l.pk }}">
-            <button class="btn btn-ghost btn-xs text-error">✕</button>
+            <button class="btn-icono icono-peligro" title="Eliminar tipo de actividad" aria-label="Eliminar tipo de actividad {{ l.nombre }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
           </form>
         </div>
       {% empty %}<p class="text-sm text-base-content/40">Sin tipos de actividad todavía.</p>{% endfor %}

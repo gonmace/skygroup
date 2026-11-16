@@ -2,7 +2,7 @@
 {% block page_title %}Archivados{% endblock %}
 {% block content_main %}
 <p class="mb-4 text-sm text-base-content/50">Tickets Concluidos o Suspendidos/Cancelados que fueron archivados.</p>
-<div class="overflow-hidden rounded-2xl border border-base-300 bg-base-100">
+<div class="overflow-hidden superficie">
   <div class="divide-y divide-base-200">
     {% for t in pagina %}
       <div class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
@@ -13,7 +13,7 @@
           <p class="text-xs text-base-content/40">Archivado {{ t.archivado_en|date:"d/m/Y H:i" }}</p>
         </div>
         {% if puede_desarchivar %}
-          <form class="ml-auto" method="post" action="{% url 'tar_tickets:desarchivar' t.pk %}" data-confirmar="¿Desarchivar {{ t.clave }}?">{% csrf_token %}<button class="btn btn-outline btn-sm gap-1">{% include "components/icon.html" with name="restore" cls="size-4" %}Desarchivar</button></form>
+          <form class="ml-auto" method="post" action="{% url 'tar_tickets:desarchivar' t.pk %}" data-confirmar="¿Desarchivar {{ t.clave }}?">{% csrf_token %}<button class="btn btn-ghost btn-sm gap-1">{% include "components/icon.html" with name="restore" cls="size-4" %}Desarchivar</button></form>
         {% endif %}
       </div>
     {% empty %}<div class="p-10 text-center text-base-content/40">No hay tickets archivados.</div>{% endfor %}

@@ -166,24 +166,37 @@ def desglose(perfil, resultado):
 def resumen_proyecto(proyecto):
     """Resumen de los APU de un proyecto: cada APU con su precio unitario y el estado de sus precios, la suma de precios
     unitarios, cuántos están completos / incompletos y el desglose por categoría. El perfil efectivo y la región se
-    calculan una sola vez. Sin metrados no hay un presupuesto: la suma es una referencia del conjunto."""
+    calculan una sola vez. El presupuesto es Σ cantidad (metrado) × precio unitario de los APU que tienen cantidad;
+    sin cantidades solo hay `suma`, que es una referencia del conjunto."""
     pa = _proyecto_apu(proyecto)
     perfil = pa.perfil_efectivo() if pa else None
     region = pa.region if pa else ''
     filas, suma, estados, categorias = [], CERO, {'completo': 0, 'parcial': 0, 'ninguno': 0, 'vacio': 0}, {}
-    for item in ItemModelo.objects.filter(proyecto=proyecto).order_by('codigo'):
+    presupuesto, n_con_metrado = None, 0     # presupuesto = Σ cantidad × precio unitario (None si ningún APU tiene cantidad)
+    for item in ItemModelo.objects.filter(proyecto=proyecto).select_related('categoria').order_by('codigo'):
         a = analizar(item, region=region, perfil=perfil)
         categoria = str(item.categoria or '')
         estados[a.estado_precios] += 1
         if a.total is not None:
             suma += a.total
-        cat = categorias.setdefault(categoria, {'nombre': categoria, 'n': 0, 'suma': CERO})
+        cat = categorias.setdefault(categoria, {'nombre': categoria, 'n': 0, 'suma': CERO, 'presupuesto': CERO,
+                                                'orden': item.categoria.orden if item.categoria_id else None})
         cat['n'] += 1
         cat['suma'] += a.total or CERO
+        # Con cantidad (metrado) cada APU aporta al presupuesto: cantidad × precio unitario.
+        subtotal = item.metrado * a.total if (item.metrado is not None and a.total is not None) else None
+        if subtotal is not None:
+            presupuesto = (presupuesto or CERO) + subtotal
+            cat['presupuesto'] += subtotal
+            n_con_metrado += 1
         filas.append({'item': item, 'total': a.total, 'estado': a.estado_precios, 'n_insumos': a.n_insumos,
-                      'n_sin_precio': len(a.sin_precio), 'categoria': categoria, 'pct': CERO})
+                      'n_sin_precio': len(a.sin_precio), 'categoria': categoria, 'pct': CERO, 'metrado': item.metrado,
+                      'subtotal': subtotal, 'pct_presupuesto': CERO})
     for f in filas:
         f['pct'] = (f['total'] / suma * 100) if (suma and f['total'] is not None) else CERO
-    return {'filas': filas, 'n': len(filas), 'suma': suma if perfil else None, 'moneda': perfil['moneda'] if perfil else '',
+        f['pct_presupuesto'] = (f['subtotal'] / presupuesto * 100) if (presupuesto and f['subtotal'] is not None) else CERO
+    return {'filas': filas, 'n': len(filas), 'suma': suma if perfil else None,
+            'presupuesto': presupuesto if perfil else None, 'n_con_metrado': n_con_metrado, 'moneda': perfil['moneda'] if perfil else '',
             'region': region, 'estados': estados, 'n_incompletos': estados['parcial'] + estados['ninguno'],
-            'categorias': sorted(categorias.values(), key=lambda c: (c['nombre'] == '', c['nombre'].lower()))}
+            # En el orden que la empresa definió a mano (APU → Categorías); «Sin categoría» al final.
+            'categorias': sorted(categorias.values(), key=lambda c: (c['orden'] is None, c['orden'] or 0, c['nombre'].lower()))}

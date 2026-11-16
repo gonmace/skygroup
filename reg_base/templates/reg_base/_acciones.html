@@ -19,20 +19,20 @@
   {% endif %}
   <div class="ml-auto flex shrink-0 items-center gap-1">
     {% if pdf_modal %}
-    <label for="{{ pdf_modal }}" class="btn btn-ghost btn-square btn-tactil size-12 cursor-pointer text-red-600 hover:bg-red-600/10" role="button" tabindex="0"
+    <label for="{{ pdf_modal }}" class="btn-icono icono-ver size-12 cursor-pointer" role="button" tabindex="0"
        title="{% if r.concluido %}Generar PDF{% else %}Generar PDF (borrador){% endif %}" aria-label="Generar PDF">{% include "components/icon.html" with name="pdf" cls="size-6" %}</label>
     {% elif pdf_url %}
-    <a href="{{ pdf_url }}" target="_blank" rel="noopener" class="btn btn-ghost btn-square btn-tactil size-12 text-red-600 hover:bg-red-600/10"
+    <a href="{{ pdf_url }}" target="_blank" rel="noopener" class="btn-icono icono-ver size-12"
        title="{% if r.concluido %}Generar PDF{% else %}Generar PDF (borrador){% endif %}" aria-label="Generar PDF">{% include "components/icon.html" with name="pdf" cls="size-6" %}</a>
     {% endif %}
     {% if formatear_url %}
     <form method="post" action="{{ formatear_url }}" data-confirmar="¿Formatear? Se borrarán fotos, mapas y datos de todos los pasos. No se puede deshacer.">{% csrf_token %}
-      <button class="btn btn-soft btn-error btn-tactil btn-square size-12" title="Formatear todos los datos" aria-label="Formatear todos los datos">{% include "components/icon.html" with name="eraser" cls="size-5" %}</button>
+      <button class="btn-icono icono-peligro size-12" title="Formatear todos los datos" aria-label="Formatear todos los datos">{% include "components/icon.html" with name="eraser" cls="size-5" %}</button>
     </form>
     {% endif %}
     {% if eliminar_url %}
     <form method="post" action="{{ eliminar_url }}" data-confirmar="{{ eliminar_confirmar }}">{% csrf_token %}
-      <button class="btn btn-soft btn-error btn-tactil btn-square size-12" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+      <button class="btn-icono icono-peligro size-12" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
     </form>
     {% endif %}
   </div>

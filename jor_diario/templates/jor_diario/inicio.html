@@ -3,10 +3,10 @@
 {% block page_title %}Mi jornada{% endblock %}
 {% block content_main %}
 {% if not perfil %}
-  <div class="alert alert-info">Eres administrador de la plataforma sin membresía en esta empresa: no tienes jornada propia. Revisa el <a class="link" href="{% url 'jor_diario:equipo' %}">equipo</a>.</div>
+  <div class="alert alert-info" role="status">{% include "components/icon.html" with name="info" cls="size-5" %}<span>Eres administrador de la plataforma sin membresía en esta empresa: no tienes jornada propia. Revisa el <a class="link" href="{% url 'jor_diario:equipo' %}">equipo</a>.</span></div>
 {% else %}
 {# Estado de la jornada de hoy, lo primero que se ve al entrar. #}
-<section class="mb-4 flex flex-wrap items-center gap-4 rounded-2xl border p-4 {% if estado_hoy == 'en_curso' %}border-success/40 bg-success/10{% elif estado_hoy == 'cerrada' %}border-base-content/15 bg-base-100{% else %}border-warning/50 bg-warning/10{% endif %}" role="status" aria-live="polite">
+<section class="mb-4 flex flex-wrap items-center gap-4 superficie border p-4 {% if estado_hoy == 'en_curso' %}border-success/40 bg-success/10{% elif estado_hoy == 'cerrada' %}border-base-content/15{% else %}border-warning/50 bg-warning/10{% endif %}" role="status" aria-live="polite">
   <span class="relative flex size-4 shrink-0" aria-hidden="true">
     {% if estado_hoy == 'en_curso' %}<span class="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60 motion-reduce:animate-none"></span><span class="relative inline-flex size-4 rounded-full bg-success"></span>
     {% elif estado_hoy == 'cerrada' %}<span class="relative inline-flex size-4 rounded-full bg-base-content/40"></span>
@@ -29,9 +29,8 @@
 </section>
 <div class="grid gap-4 lg:grid-cols-3">
   <div class="card bg-base-100 lg:col-span-2"><div class="card-body gap-4" data-marcar-raiz>
-    <div class="alert alert-error hidden text-sm" role="alert" data-marcar-error></div>
     {% if es_movil and not puede_movil %}
-      <div class="rounded-xl border-2 border-warning bg-warning/15 p-4" role="alert">
+      <div class="alert alert-warning items-start" role="alert">
         <div class="flex items-start gap-3">
           <span class="mt-0.5 shrink-0 text-warning">{% include "components/icon.html" with name="shield" cls="size-7" %}</span>
           <div class="min-w-0 space-y-1">

@@ -1,7 +1,7 @@
 {% extends "shell.html" %}
 {% block page_title %}Paso · {{ paso.titulo }}{% endblock %}
 {% block content_main %}
-<div class="mb-4 flex items-center gap-2"><a href="{% url 'reg_actividades:pasos_config' %}" class="btn btn-ghost btn-sm">← Pasos</a>
+<div class="mb-4 flex items-center gap-2"><a href="{% url 'reg_actividades:pasos_config' %}" class="btn btn-ghost btn-sm">{% include "components/icon.html" with name="arrow-left" cls="size-4" %} Pasos</a>
   <form method="post" action="{% url 'reg_actividades:paso_eliminar' paso.pk %}" class="ml-auto" data-confirmar="¿Eliminar el paso «{{ paso.titulo }}»?">{% csrf_token %}<button class="btn btn-ghost btn-sm text-error">Eliminar paso</button></form></div>
 <div class="grid gap-4 lg:grid-cols-3">
   <form method="post" class="card bg-base-100"><div class="card-body gap-3">{% csrf_token %}

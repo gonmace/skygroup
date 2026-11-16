@@ -14,6 +14,7 @@
   <input type="hidden" name="n" value="{{ filas|length }}">
   {% if errores %}
   <div role="alert" class="alert alert-warning alert-soft items-start text-sm">
+    {% include "components/icon.html" with name="alert-triangle" cls="size-5 shrink-0" %}
     <ul class="list-inside list-disc space-y-0.5">{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul>
   </div>
   {% endif %}
@@ -52,9 +53,9 @@
             </select>
             {% endif %}
             <div class="ml-auto flex items-center gap-0.5">
-              {% if f.puede_subir %}<button name="accion" value="subir:{{ f.i }}" class="btn btn-ghost btn-square btn-sm" title="Subir" aria-label="Subir">{% include "components/icon.html" with name="arrow-up" cls="size-4" %}</button>{% endif %}
-              {% if f.puede_bajar %}<button name="accion" value="bajar:{{ f.i }}" class="btn btn-ghost btn-square btn-sm" title="Bajar" aria-label="Bajar">{% include "components/icon.html" with name="arrow-down" cls="size-4" %}</button>{% endif %}
-              {% if not f.es_suma %}<button name="accion" value="quitar:{{ f.i }}" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Quitar" aria-label="Quitar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>{% endif %}
+              {% if f.puede_subir %}<button name="accion" value="subir:{{ f.i }}" class="btn-icono" title="Subir" aria-label="Subir">{% include "components/icon.html" with name="arrow-up" cls="size-4" %}</button>{% endif %}
+              {% if f.puede_bajar %}<button name="accion" value="bajar:{{ f.i }}" class="btn-icono" title="Bajar" aria-label="Bajar">{% include "components/icon.html" with name="arrow-down" cls="size-4" %}</button>{% endif %}
+              {% if not f.es_suma %}<button name="accion" value="quitar:{{ f.i }}" class="btn-icono icono-peligro" title="Quitar" aria-label="Quitar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>{% endif %}
             </div>
           </div>
 
@@ -87,8 +88,8 @@
     {% endfor %}
 
     <div class="flex flex-wrap gap-2 pt-1">
-      <button name="accion" value="agregar_recargo" class="btn btn-sm btn-outline gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar recargo</button>
-      <button name="accion" value="agregar_subtotal" class="btn btn-sm btn-outline gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar subtotal</button>
+      <button name="accion" value="agregar_recargo" class="btn btn-sm btn-ghost gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar recargo</button>
+      <button name="accion" value="agregar_subtotal" class="btn btn-sm btn-ghost gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar subtotal</button>
     </div>
   </div>
 
@@ -125,7 +126,7 @@
     </div>
     {% if vista_previa %}
     <div class="grid gap-4 lg:grid-cols-2">
-      <div class="overflow-hidden rounded-box border border-base-300">
+      <div class="superficie overflow-hidden">
         <h3 class="border-b border-base-300 bg-base-content/5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-base-content/60">En cada APU</h3>
         <table class="table table-sm">
           {% for nombre, valor, es_total in vista_previa.apu %}<tr {% if es_total %}class="font-semibold"{% endif %}><td>{{ nombre }}</td><td class="text-right tabular-nums">{{ valor|floatformat:2 }}</td></tr>{% endfor %}
@@ -133,7 +134,7 @@
         </table>
       </div>
       {% if vista_previa.presupuesto %}
-      <div class="overflow-hidden rounded-box border border-base-300">
+      <div class="superficie overflow-hidden">
         <h3 class="border-b border-base-300 bg-base-content/5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-base-content/60">Presupuesto <span class="font-normal normal-case">(los montos son el total de la obra)</span></h3>
         <table class="table table-sm">
           {% for nombre, valor, es_total in vista_previa.presupuesto %}<tr {% if es_total %}class="font-semibold"{% endif %}><td>{{ nombre }}</td><td class="text-right tabular-nums">{{ valor|floatformat:2 }}</td></tr>{% endfor %}

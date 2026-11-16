@@ -3,13 +3,13 @@
 {% block page_title %}TX/TSS · {{ r.proyecto.codigo|default:"—" }}{% endblock %}
 {% block content_main %}
 <div class="mx-auto mb-3 flex max-w-2xl items-center gap-2">
-  <a href="{% url 'reg_txtss:lista' %}" class="btn btn-ghost btn-sm -ml-2 min-h-11">← Registros</a>
-  <span class="ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium {% if r.concluido %}bg-success/15 text-success{% else %}bg-base-content/[0.07] text-base-content/80{% endif %}">
-    <span class="inline-block size-2.5 rounded-full {% if r.color == 'verde' %}bg-success{% elif r.color == 'amarillo' %}bg-warning{% else %}bg-error{% endif %}"></span>{% if r.concluido %}Concluido{% else %}Abierto{% endif %}
+  <a href="{% url 'reg_txtss:lista' %}" class="btn btn-ghost btn-sm -ml-2 min-h-11">{% include "components/icon.html" with name="arrow-left" cls="size-4" %} Registros</a>
+  <span class="ml-auto badge {% if r.concluido %}badge-success{% else %}badge-ghost{% endif %} gap-1.5">
+    <span class="inline-block size-2 rounded-full {% if r.color == 'verde' %}bg-success{% elif r.color == 'amarillo' %}bg-warning{% else %}bg-error{% endif %}"></span>{% if r.concluido %}Concluido{% else %}Abierto{% endif %}
   </span>
 </div>
 <div class="mx-auto grid max-w-2xl gap-4">
-  <section class="card bg-base-100 shadow-sm"><div class="card-body gap-3 p-4 sm:p-6">
+  <section class="card bg-base-100"><div class="card-body gap-3 p-4 sm:p-6">
     <div class="min-w-0">
       <p class="text-xs font-medium uppercase tracking-wide text-base-content/55">{{ r.proyecto.tipo|default:termino_proyecto }}{% if r.proyecto.codigo %} · <span class="font-mono normal-case">{{ r.proyecto.codigo }}</span>{% endif %}</p>
       <h1 class="mt-0.5 text-lg font-semibold leading-snug">{% if r.proyecto %}<a class="link link-hover" href="{% url 'proyectos:detalle' r.proyecto.pk %}">{{ r.proyecto.nombre }}</a>{% else %}(proyecto eliminado){% endif %}</h1>

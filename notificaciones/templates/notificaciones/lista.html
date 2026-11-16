@@ -10,7 +10,7 @@
     <button type="submit" class="btn btn-ghost btn-sm">Marcar todas como leídas</button>
   </form>
 </div>
-<ul class="divide-y divide-base-300 rounded-box bg-base-100 ring-1 ring-base-300">
+<ul class="superficie divide-y divide-base-content/10">
   {% for n in notificaciones %}
     <li>
       <form method="post" action="{% url 'notificaciones:leer' n.pk %}">{% csrf_token %}

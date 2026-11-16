@@ -12,17 +12,17 @@
       <span class="badge badge-outline font-mono">{{ item.codigo }}</span>
       {% if item.proyecto %}<span class="inline-flex items-center gap-1.5">{% include "components/icon.html" with name="folder" cls="size-4 text-base-content/50" %} {{ item.proyecto.nombre }}</span>{% endif %}
       <span class="inline-flex items-center gap-1.5" title="Región de los precios">{% include "components/icon.html" with name="map-pin" cls="size-4 text-base-content/50" %} Precios: {% if region %}{{ region }}{% else %}nacionales{% endif %}</span>
-      {% if item.categoria %}<span class="badge badge-ghost">{{ item.categoria }}</span>{% endif %}
+      {% if item.categoria %}<span class="badge badge-ghost">{{ item.categoria.nombre }}</span>{% endif %}
       {% if item.origen %}<span class="inline-flex items-center gap-1.5">{% include "components/icon.html" with name="copy" cls="size-4 text-base-content/50" %} Reutilizado de <a class="link" href="{% url 'apu_catalogo:item_detalle' item.origen.pk %}">{{ item.origen.codigo }}</a></span>{% endif %}
     </div>
   </div>
   {% if puede_generar or request.user.is_superuser or item.creado_por_id == request.user.pk %}
   <div class="flex flex-wrap gap-2">
-    {% if puede_generar and item.proyecto_id %}<button class="btn btn-sm btn-primary btn-soft gap-1" data-abrir-modal="apu-modificar-ficha">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Modificar con IA</button>{% endif %}
+    {% if puede_generar and item.proyecto_id %}<button class="btn btn-sm btn-primary gap-1" data-abrir-modal="apu-modificar-ficha">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Modificar con IA</button>{% endif %}
     {% if puede_generar %}<button class="btn btn-sm gap-1" data-abrir-modal="apu-reutilizar">{% include "components/icon.html" with name="copy" cls="size-4" %} Reutilizar en otro proyecto</button>{% endif %}
     {% if request.user.is_superuser or item.creado_por_id == request.user.pk %}
     <form method="post" action="{% url 'apu_lineas:apu_eliminar' item.pk %}" data-confirmar="¿Eliminar el APU «{{ item.codigo }} · {{ item.descripcion }}»? Se elimina su composición; los insumos y sus precios no se borran.">{% csrf_token %}
-      <button class="btn btn-sm btn-error btn-soft gap-1">{% include "components/icon.html" with name="trash" cls="size-4" %} Eliminar</button>
+      <button class="btn btn-sm btn-error gap-1">{% include "components/icon.html" with name="trash" cls="size-4" %} Eliminar</button>
     </form>{% endif %}
   </div>
   {% endif %}
@@ -40,7 +40,7 @@
     <span>{{ analisis.n_estimados }} precio{{ analisis.n_estimados|pluralize }} de este APU {{ analisis.n_estimados|pluralize:"es,son" }} estimado{{ analisis.n_estimados|pluralize }} por IA. Conviene confirmarlo{{ analisis.n_estimados|pluralize }} con precios reales.</span></div>
   {% endif %}
   {% if not analisis.perfil %}
-  <div role="alert" class="alert alert-info alert-soft text-sm">Este APU no tiene un proyecto habilitado con perfil de cálculo, así que no se calcula su precio unitario; abajo se muestra el costo directo.</div>
+  <div role="alert" class="alert alert-info alert-soft text-sm">{% include "components/icon.html" with name="info" cls="size-5 shrink-0" %}<span>Este APU no tiene un proyecto habilitado con perfil de cálculo, así que no se calcula su precio unitario; abajo se muestra el costo directo.</span></div>
   {% endif %}
 </div>
 {% endif %}
@@ -83,7 +83,7 @@
             <td class="text-right tabular-nums">{% if f.precio is not None %}{{ f.precio|numlimpio }} <span class="text-xs text-base-content/50">{{ f.moneda }}</span>{% else %}<span class="text-base-content/40">—</span>{% endif %}</td>
             <td class="text-right font-medium tabular-nums">{{ f.costo|floatformat:2 }}</td>
             <td class="hidden sm:table-cell"><div class="flex items-center gap-2"><progress class="progress progress-primary h-1.5 w-14" value="{{ f.pct|floatformat:'2u' }}" max="100" aria-hidden="true"></progress><span class="w-8 text-xs tabular-nums text-base-content/50">{{ f.pct|floatformat:0 }}%</span></div></td>
-            {% if puede_generar %}<td class="w-px"><button type="button" class="btn btn-ghost btn-square btn-sm text-primary-text" data-editar-linea title="Editar" aria-label="Editar {{ f.nombre }}">{% include "components/icon.html" with name="pencil" cls="size-4" %}</button></td>{% endif %}
+            {% if puede_generar %}<td class="w-px"><button type="button" class="btn-icono icono-editar" data-editar-linea title="Editar" aria-label="Editar {{ f.nombre }}">{% include "components/icon.html" with name="pencil" cls="size-4" %}</button></td>{% endif %}
           </tr>
         {% endfor %}
         </tbody>

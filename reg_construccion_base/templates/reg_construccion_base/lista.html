@@ -20,14 +20,14 @@
         <td class="whitespace-nowrap text-sm">{{ s.ultima|date:"d/m/Y" }}</td>
         <td class="text-right tabular-nums">{% if s.n_abiertos %}<span class="badge badge-warning badge-soft">{{ s.n_abiertos }}</span>{% else %}0{% endif %}</td>
         <td class="whitespace-nowrap text-right">
-          <a href="{% url 'reg_construccion_base:detalle' s.ultimo_id %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Abrir la última visita" aria-label="Abrir la última visita">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+          <a href="{% url 'reg_construccion_base:detalle' s.ultimo_id %}" class="btn-icono icono-ver" title="Abrir la última visita" aria-label="Abrir la última visita">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
           {% if puede_nueva %}
           <form method="post" action="{% url 'reg_construccion_base:nueva_visita' s.ultimo_id %}" data-confirmar="¿Crear una nueva visita con la fecha de hoy?" class="inline">{% csrf_token %}
-            <button class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Nueva visita (hoy)" aria-label="Nueva visita">{% include "components/icon.html" with name="calendar" cls="size-5" %}</button>
+            <button class="btn-icono icono-ok" title="Nueva visita (hoy)" aria-label="Nueva visita">{% include "components/icon.html" with name="calendar" cls="size-5" %}</button>
           </form>
           {% endif %}
           {% if puede_editar_sitio %}
-          <a href="{% url 'proyectos:editar' s.proyecto_id %}" class="btn btn-ghost btn-square btn-sm text-warning hover:bg-warning/10" title="Editar {{ termino_proyecto|lower }}" aria-label="Editar {{ termino_proyecto|lower }}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+          <a href="{% url 'proyectos:editar' s.proyecto_id %}" class="btn-icono icono-editar" title="Editar {{ termino_proyecto|lower }}" aria-label="Editar {{ termino_proyecto|lower }}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
           {% endif %}
         </td>
       </tr>
@@ -38,7 +38,7 @@
 
 <ul class="mb-5 space-y-2 sm:hidden">
   {% for s in sitios %}
-  <li class="flex items-center gap-1 rounded-box bg-base-100 p-3 pr-2 shadow-sm {% if s.proyecto_id == sel %}ring-2 ring-primary{% endif %}">
+  <li class="flex items-center gap-1 superficie p-3 pr-2 {% if s.proyecto_id == sel %}ring-2 ring-primary{% endif %}">
     <a class="min-w-0 flex-1" href="?{% if q %}q={{ q|urlencode }}&{% endif %}proyecto={{ s.proyecto_id }}" {% if s.proyecto_id == sel %}aria-current="true"{% endif %}>
       <div class="truncate font-semibold">{{ s.proyecto__codigo|default:s.proyecto__nombre }}</div>
       {% if s.proyecto__codigo %}<div class="truncate text-sm text-base-content/60">{{ s.proyecto__nombre }}</div>{% endif %}
@@ -48,10 +48,10 @@
       </div>
     </a>
     <div class="flex shrink-0 flex-col">
-      <a href="{% url 'reg_construccion_base:detalle' s.ultimo_id %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Abrir la última visita" aria-label="Abrir la última visita">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+      <a href="{% url 'reg_construccion_base:detalle' s.ultimo_id %}" class="btn-icono icono-ver" title="Abrir la última visita" aria-label="Abrir la última visita">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
       {% if puede_nueva %}
       <form method="post" action="{% url 'reg_construccion_base:nueva_visita' s.ultimo_id %}" data-confirmar="¿Crear una nueva visita con la fecha de hoy?">{% csrf_token %}
-        <button class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Nueva visita (hoy)" aria-label="Nueva visita">{% include "components/icon.html" with name="calendar" cls="size-5" %}</button>
+        <button class="btn-icono icono-ok" title="Nueva visita (hoy)" aria-label="Nueva visita">{% include "components/icon.html" with name="calendar" cls="size-5" %}</button>
       </form>
       {% endif %}
     </div>
@@ -83,49 +83,50 @@
 </form>
 <div class="table-card hidden sm:block">
   <table class="table">
-    <thead><tr><th>Visita</th><th>Fecha</th><th>Supervisor</th><th>Contratista</th><th class="text-right">Hallazgos abiertos</th><th>Revisión</th><th class="w-0"><span class="sr-only">Acciones</span></th></tr></thead>
+    <thead><tr><th>Visita</th><th>Estado</th><th>Fecha</th><th>Supervisor</th><th>Contratista</th><th class="text-right">Hallazgos abiertos</th><th>Revisión</th><th class="w-0"><span class="sr-only">Acciones</span></th></tr></thead>
     <tbody>
     {% for r in pagina %}
-      <tr data-href="{% url 'reg_construccion_base:detalle' r.pk %}" class="hover cursor-pointer row-{% if r.color == 'verde' %}concluido{% elif r.color == 'amarillo' %}parcial{% else %}vacio{% endif %}">
-        <td class="tabular-nums"><span class="sr-only">{% if r.color == 'verde' %}Emitida{% elif r.color == 'amarillo' %}En proceso{% else %}Vacía{% endif %}. </span><a class="link font-medium" href="{% url 'reg_construccion_base:detalle' r.pk %}">#{{ r.numero }}</a></td>
+      <tr data-href="{% url 'reg_construccion_base:detalle' r.pk %}" class="hover cursor-pointer fila-estado fila-estado-{% if r.color == 'verde' %}ok{% elif r.color == 'amarillo' %}parcial{% else %}vacio{% endif %}">
+        <td class="tabular-nums"><a class="link font-medium" href="{% url 'reg_construccion_base:detalle' r.pk %}">#{{ r.numero }}</a></td>
+        <td>{% include "reg_base/_estado_fila.html" with c=r.color txt_ok="Emitida" %}</td>
         <td class="whitespace-nowrap text-sm">{{ r.fecha|date:"d/m/Y" }}</td>
         <td class="text-sm">{{ r.responsable_nombre }}</td>
         <td class="text-sm">{{ r.contratista.nombre|default:"—" }}</td>
         <td class="text-right tabular-nums">{% if r.n_abiertos %}<span class="badge badge-warning badge-soft">{{ r.n_abiertos }}</span>{% else %}0{% endif %}</td>
         <td class="whitespace-nowrap text-sm">{{ r.rev_etiqueta }}{% if r.n_revisiones > 1 %} <span class="text-xs text-base-content/50">de {{ r.n_revisiones }}</span>{% endif %}</td>
         <td class="whitespace-nowrap text-right">
-          <a href="{% url 'reg_construccion_base:detalle' r.pk %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Ver" aria-label="Ver">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
-          <a href="{% url 'reg_construccion_base:pdf' r.pk %}" target="_blank" rel="noopener" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="{% if r.concluido %}Generar PDF{% else %}Generar PDF (borrador){% endif %}" aria-label="Generar PDF">{% include "components/icon.html" with name="file-text" cls="size-5" %}</a>
-          {% if not r.concluido %}<a href="{% url 'reg_construccion_base:detalle' r.pk %}" class="btn btn-ghost btn-square btn-sm text-warning hover:bg-warning/10" title="Completar la visita" aria-label="Completar la visita">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>{% endif %}
+          <a href="{% url 'reg_construccion_base:detalle' r.pk %}" class="btn-icono icono-ver" title="Ver" aria-label="Ver">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+          <a href="{% url 'reg_construccion_base:pdf' r.pk %}" target="_blank" rel="noopener" class="btn-icono" title="{% if r.concluido %}Generar PDF{% else %}Generar PDF (borrador){% endif %}" aria-label="Generar PDF">{% include "components/icon.html" with name="pdf" cls="size-5" %}</a>
+          {% if not r.concluido %}<a href="{% url 'reg_construccion_base:detalle' r.pk %}" class="btn-icono icono-editar" title="Completar la visita" aria-label="Completar la visita">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>{% endif %}
           {% if request.user.is_superuser and not r.concluido %}
           <form method="post" action="{% url 'reg_construccion_base:eliminar' r.pk %}" data-confirmar="¿Eliminar esta visita?" class="inline">{% csrf_token %}
-            <button class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+            <button class="btn-icono icono-peligro" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
           </form>
           {% endif %}
         </td>
       </tr>
-    {% empty %}<tr><td colspan="7" class="py-8 text-center text-base-content/60">No hay visitas{% if q or estado or desde or hasta %} con esos filtros{% endif %}.</td></tr>{% endfor %}
+    {% empty %}<tr><td colspan="8" class="py-8 text-center text-base-content/60">No hay visitas{% if q or estado or desde or hasta %} con esos filtros{% endif %}.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
 
 <ul class="space-y-2 sm:hidden">
   {% for r in pagina %}
-  <li class="flex items-center gap-1 rounded-box bg-base-100 py-3 pl-4 pr-2 shadow-sm row-{% if r.color == 'verde' %}concluido{% elif r.color == 'amarillo' %}parcial{% else %}vacio{% endif %}">
+  <li class="flex items-center gap-1 superficie py-3 pl-4 pr-2 row-{% if r.color == 'verde' %}concluido{% elif r.color == 'amarillo' %}parcial{% else %}vacio{% endif %}">
     <a class="min-w-0 flex-1" href="{% url 'reg_construccion_base:detalle' r.pk %}">
       <div class="flex items-baseline justify-between gap-2">
-        <span class="font-semibold tabular-nums"><span class="sr-only">{% if r.color == 'verde' %}Emitida{% elif r.color == 'amarillo' %}En proceso{% else %}Vacía{% endif %}. </span>Visita #{{ r.numero }}</span>
+        <span class="font-semibold tabular-nums">Visita #{{ r.numero }}</span>
         <span class="text-sm tabular-nums text-base-content/70">{{ r.fecha|date:"d/m/Y" }}</span>
       </div>
       <div class="mt-0.5 truncate text-sm text-base-content/70">{{ r.rev_etiqueta }} · {{ r.responsable_nombre }}</div>
       <div class="mt-1.5 flex items-center gap-2 text-xs">
-        <span class="badge badge-sm {% if r.color == 'verde' %}badge-success{% elif r.color == 'amarillo' %}badge-warning{% else %}badge-error{% endif %}">{% if r.color == 'verde' %}Emitida{% elif r.color == 'amarillo' %}En proceso{% else %}Vacía{% endif %}</span>
+        {% include "reg_base/_estado_fila.html" with c=r.color txt_ok="Emitida" %}
         {% if r.n_abiertos %}<span class="text-base-content/70 tabular-nums">{{ r.n_abiertos }} hallazgo{{ r.n_abiertos|pluralize }} abierto{{ r.n_abiertos|pluralize }}</span>{% endif %}
       </div>
     </a>
     <div class="flex shrink-0 flex-col">
-      <a href="{% url 'reg_construccion_base:detalle' r.pk %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Ver" aria-label="Ver">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
-      <a href="{% url 'reg_construccion_base:pdf' r.pk %}" target="_blank" rel="noopener" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Generar PDF" aria-label="Generar PDF">{% include "components/icon.html" with name="file-text" cls="size-5" %}</a>
+      <a href="{% url 'reg_construccion_base:detalle' r.pk %}" class="btn-icono icono-ver" title="Ver" aria-label="Ver">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+      <a href="{% url 'reg_construccion_base:pdf' r.pk %}" target="_blank" rel="noopener" class="btn-icono" title="Generar PDF" aria-label="Generar PDF">{% include "components/icon.html" with name="pdf" cls="size-5" %}</a>
     </div>
   </li>
   {% empty %}<li class="rounded-box bg-base-100 py-8 text-center text-base-content/60">No hay visitas.</li>{% endfor %}

@@ -23,7 +23,7 @@
     </form>
     {% if not perfil.es_plantilla %}
     <form method="post" action="{% url 'apu_catalogo:perfil_eliminar' perfil.pk %}" data-confirmar="¿Eliminar el perfil «{{ perfil.nombre }}»? Los presupuestos ya hechos no cambian.">{% csrf_token %}
-      <button class="btn btn-error btn-soft btn-sm gap-1">{% include "components/icon.html" with name="trash" cls="size-4" %} Eliminar</button>
+      <button class="btn btn-error btn-sm gap-1">{% include "components/icon.html" with name="trash" cls="size-4" %} Eliminar</button>
     </form>
     {% endif %}
   </div>

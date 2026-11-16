@@ -33,11 +33,11 @@
 
 {% if personas %}
 <div class="table-card !overflow-visible">
-  <div class="hidden grid-cols-[minmax(0,2.5fr)_repeat(5,minmax(0,1fr))_1.5rem] gap-x-3 border-b border-base-300 bg-base-content/5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-base-content/60 md:grid">
+  <div class="hidden grid-cols-[minmax(0,2.5fr)_repeat(5,minmax(0,1fr))_1.5rem] gap-x-3 border-b border-base-content/10 bg-base-content/5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-base-content/60 md:grid">
     <span>Persona</span><span class="text-right">Días</span><span class="text-right">Horas</span><span class="text-right">Atraso</span><span class="text-right">Sin cerrar</span><span class="text-right">Ausencias</span><span></span>
   </div>
   {% for p in personas %}
-  <details class="group border-b border-base-300 last:border-0" {% if personas|length == 1 %}open{% endif %}>
+  <details class="group border-b border-base-content/10 last:border-0" {% if personas|length == 1 %}open{% endif %}>
     <summary class="grid cursor-pointer list-none grid-cols-3 items-center gap-x-3 gap-y-2 px-4 py-3 hover:bg-base-200/50 md:grid-cols-[minmax(0,2.5fr)_repeat(5,minmax(0,1fr))_1.5rem] [&::-webkit-details-marker]:hidden">
       <div class="col-span-3 flex min-w-0 items-center gap-3 md:col-span-1">
         <span class="avatar-iniciales {{ p.perfil.membresia.clase_avatar }}" aria-hidden="true">{{ p.perfil.membresia.user.iniciales }}</span>
@@ -51,19 +51,19 @@
       <div class="md:text-right"><span class="block text-xs text-base-content/60 md:hidden">Ausencias</span><span class="tabular-nums {% if not p.ausencias %}text-base-content/40{% endif %}">{% if p.ausencias %}{{ p.ausencias }}{% else %}—{% endif %}</span></div>
       <span class="hidden justify-self-end text-base-content/50 md:block"><span class="inline-block rotate-180 transition-transform group-open:-rotate-90">{% include "components/icon.html" with name="chevron-left" cls="size-5" %}</span></span>
     </summary>
-    <div class="overflow-x-auto border-t border-base-300 bg-base-200/30">
+    <div class="overflow-x-auto border-t border-base-content/10 bg-base-200/30">
       <table class="table table-sm">
         <thead><tr><th>Fecha</th><th>Día</th><th class="text-right">Ingreso</th><th class="text-right">Salida</th><th class="text-right">Horas</th><th class="text-right">Atraso</th><th>Comentario</th></tr></thead>
         <tbody>
         {% for f in p.filas %}
-          <tr class="{% if f.fin_semana %}text-base-content/40{% endif %}">
+          <tr class="{% if f.no_cerro %}fila-estado fila-estado-vacio{% elif f.atraso_min %}fila-estado fila-estado-parcial{% endif %} {% if f.fin_semana %}text-base-content/40{% endif %}">
             <td class="tabular-nums">{{ f.fecha|date:"d/m/Y" }}</td>
             <td class="capitalize">{{ f.dia }}</td>
             <td class="text-right tabular-nums">{{ f.ingreso|default:"—" }}</td>
             <td class="text-right tabular-nums">{{ f.salida|default:"—" }}</td>
             <td class="text-right font-mono tabular-nums">{{ f.horas|default:"—" }}</td>
             <td class="text-right tabular-nums">{% if f.atraso_min %}<span class="text-warning">{{ f.atraso_min }} min</span>{% else %}<span class="text-base-content/40">—</span>{% endif %}</td>
-            <td>{% for c in f.comentarios %}<span class="badge badge-soft badge-info badge-sm mr-1">{{ c }}</span>{% endfor %}{% if f.no_cerro %}<span class="badge badge-soft badge-error badge-sm">Sin cerrar</span>{% endif %}</td>
+            <td>{% for c in f.comentarios %}<span class="badge badge-soft badge-info badge-sm mr-1">{{ c }}</span>{% endfor %}{% if f.no_cerro %}<span class="badge badge-error badge-sm gap-1">{% include "components/icon.html" with name="alert-triangle" cls="size-3.5" %}Sin cerrar</span>{% endif %}</td>
           </tr>
         {% endfor %}
         </tbody>

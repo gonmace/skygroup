@@ -17,9 +17,9 @@
         <td>{{ r.membresias.all|length }}</td>
         <td>{% if r.activo %}<span class="badge badge-success badge-sm">Activo</span>{% else %}<span class="badge badge-ghost badge-sm">Inactivo</span>{% endif %}</td>
         <td class="text-right whitespace-nowrap">
-          <a class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Permisos" aria-label="Permisos" href="{% url 'panel:rol_matriz' r.pk %}">{% include "components/icon.html" with name="shield" cls="size-5" %}</a>
-          <a class="btn btn-ghost btn-square btn-sm text-primary-text hover:bg-primary/10" title="Editar" aria-label="Editar" href="{% url 'panel:rol_editar' r.pk %}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
-          <a class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar" href="{% url 'panel:rol_eliminar' r.pk %}">{% include "components/icon.html" with name="trash" cls="size-5" %}</a>
+          <a class="btn-icono icono-ver" title="Permisos" aria-label="Permisos" href="{% url 'panel:rol_matriz' r.pk %}">{% include "components/icon.html" with name="shield" cls="size-5" %}</a>
+          <a class="btn-icono icono-editar" title="Editar" aria-label="Editar" href="{% url 'panel:rol_editar' r.pk %}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+          <a class="btn-icono icono-peligro" title="Eliminar" aria-label="Eliminar" href="{% url 'panel:rol_eliminar' r.pk %}">{% include "components/icon.html" with name="trash" cls="size-5" %}</a>
         </td>
       </tr>
     {% endfor %}

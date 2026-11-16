@@ -1,5 +1,5 @@
 {% extends "shell.html" %}
-{% load static %}
+{% load static apu_tags %}
 {% block page_title %}Nuevo APU{% endblock %}
 {% block wrap_class %}space-y-6{% endblock %}
 {% block content_main %}
@@ -41,7 +41,9 @@
       </label>
       <label class="flex flex-col gap-1">
         <span class="text-xs font-medium text-base-content/70">Unidad <span class="text-error" aria-hidden="true">*</span></span>
-        <input name="unidad" maxlength="20" required class="input input-bordered input-sm w-full" value="{{ borrador.unidad }}" placeholder="m², m³, ml, kg, pza…">
+        <input name="unidad" maxlength="20" required list="apu-unidades" autocomplete="off" class="input input-bordered input-sm w-full" value="{{ borrador.unidad }}" placeholder="m², m³, ml, kg, ha, pza…">
+        <span class="text-xs text-base-content/50">Puedes escribirla completa («hectárea», «metros cuadrados»): se abrevia sola.</span>
+        {% lista_unidades %}
       </label>
       <p class="flex items-end pb-1 text-xs text-base-content/50" data-region-actual></p>
       <label class="flex flex-col gap-1 sm:col-span-2">

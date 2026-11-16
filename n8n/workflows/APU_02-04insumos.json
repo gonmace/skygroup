@@ -193,7 +193,8 @@
           "value": "gpt-5.1"
         },
         "builtInTools": {},
-        "options": {}
+        "options": {},
+        "responsesApiEnabled": false
       },
       "id": "65b631c8-cd6e-421c-b833-8ada25a8ba6a",
       "name": "Modelo principal",
@@ -276,7 +277,8 @@
           "value": "gpt-4.1-mini"
         },
         "builtInTools": {},
-        "options": {}
+        "options": {},
+        "responsesApiEnabled": false
       },
       "id": "c737b446-5843-4783-b24b-46f96ac691b8",
       "name": "Modelo mini",

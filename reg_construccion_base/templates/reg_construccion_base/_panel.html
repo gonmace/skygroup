@@ -40,7 +40,7 @@
   <section class="card bg-base-100"><div class="card-body p-5">
     <h3 class="mb-2 text-sm font-semibold">Últimas visitas</h3>
     {% for v in ultimas %}
-    <a href="{{ v.url }}" class="-mx-1 flex items-center gap-3 rounded-md border-t border-base-300 px-1 py-2 first:border-0 hover:bg-base-200/60">
+    <a href="{{ v.url }}" class="-mx-1 flex items-center gap-3 rounded-md border-t border-base-content/10 px-1 py-2 first:border-0 hover:bg-base-200/60">
       <span class="size-2 shrink-0 rounded-full {% if v.emitida %}bg-success{% else %}bg-warning{% endif %}"></span>
       <div class="min-w-0 flex-1"><p class="truncate text-sm font-medium">{% if v.codigo %}{{ v.codigo }} · {% endif %}{{ v.proyecto }}</p><p class="truncate text-xs text-base-content/60">Visita {{ v.numero }} · {{ v.fecha|date:"d/m/Y" }} · {{ v.usuario }}</p></div>
       {% if v.abiertos %}<span class="badge badge-soft badge-warning badge-sm shrink-0">{{ v.abiertos }} abierto{{ v.abiertos|pluralize }}</span>{% endif %}
@@ -50,7 +50,7 @@
   <section class="card bg-base-100"><div class="card-body p-5">
     <h3 class="mb-2 text-sm font-semibold">Hallazgos críticos abiertos</h3>
     {% for h in criticos %}
-    <a href="{{ h.url }}" class="-mx-1 flex items-center gap-3 rounded-md border-t border-base-300 px-1 py-2 first:border-0 hover:bg-base-200/60">
+    <a href="{{ h.url }}" class="-mx-1 flex items-center gap-3 rounded-md border-t border-base-content/10 px-1 py-2 first:border-0 hover:bg-base-200/60">
       <div class="min-w-0 flex-1"><p class="truncate text-sm font-medium"><span class="tabular-nums">{{ h.codigo }}</span> · {{ h.proyecto }}</p><p class="truncate text-xs text-base-content/60">{{ h.descripcion }}</p></div>
       {% if h.plazo %}<span class="badge badge-soft badge-sm shrink-0 {% if h.vencido %}badge-error{% else %}badge-ghost{% endif %}">{{ h.plazo|date:"d/m/Y" }}</span>{% endif %}
     </a>

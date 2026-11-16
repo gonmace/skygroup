@@ -18,19 +18,20 @@
 <div class="table-card">
   <table class="table">
     <thead><tr>
-      {% include "components/th_orden.html" with col=orden.proyecto texto=termino_proyecto %}{% include "components/th_orden.html" with col=orden.tipo texto="Tipo" %}{% include "components/th_orden.html" with col=orden.alt texto="Alt." %}{% include "components/th_orden.html" with col=orden.fecha texto="Fecha" %}{% include "components/th_orden.html" with col=orden.responsable texto="Responsable" %}<th class="text-center">Acciones</th>
+      {% include "components/th_orden.html" with col=orden.proyecto texto=termino_proyecto %}<th>Estado</th>{% include "components/th_orden.html" with col=orden.tipo texto="Tipo" %}{% include "components/th_orden.html" with col=orden.alt texto="Alt." %}{% include "components/th_orden.html" with col=orden.fecha texto="Fecha" %}{% include "components/th_orden.html" with col=orden.responsable texto="Responsable" %}<th class="text-center">Acciones</th>
     </tr></thead>
     <tbody>
     {% for r in pagina %}
-      <tr data-href="{% url 'reg_txtss:detalle' r.pk %}" class="hover cursor-pointer row-{% if r.color == 'verde' %}concluido{% elif r.color == 'amarillo' %}parcial{% else %}vacio{% endif %}">
-        <td><span class="sr-only">{% if r.color == 'verde' %}Concluido{% elif r.color == 'amarillo' %}En proceso{% else %}Vacío{% endif %}. </span><a class="link font-medium" href="{% url 'reg_txtss:detalle' r.pk %}">{{ r.proyecto.codigo|default:"—" }}</a> <span class="text-sm text-base-content/60">{{ r.proyecto.nombre }}</span></td>
+      <tr data-href="{% url 'reg_txtss:detalle' r.pk %}" class="hover cursor-pointer fila-estado fila-estado-{% if r.color == 'verde' %}ok{% elif r.color == 'amarillo' %}parcial{% else %}vacio{% endif %}">
+        <td><a class="link font-medium" href="{% url 'reg_txtss:detalle' r.pk %}">{{ r.proyecto.codigo|default:"—" }}</a> <span class="text-sm text-base-content/60">{{ r.proyecto.nombre }}</span></td>
+        <td>{% include "reg_base/_estado_fila.html" with c=r.color %}</td>
         <td class="text-sm">{{ r.proyecto.tipo|default:termino_proyecto }}</td>
         <td>{% if r.alternativa %}<span class="badge badge-ghost font-mono">{{ r.alternativa }}</span>{% else %}<span class="text-base-content/50">—</span>{% endif %}</td>
         <td class="whitespace-nowrap text-sm">{{ r.fecha|date:"d/m/Y" }}</td>
         <td class="text-sm">{{ r.responsable_nombre|default:"—" }}</td>
         <td class="whitespace-nowrap">{% include "reg_txtss/_acciones_fila.html" %}</td>
       </tr>
-    {% empty %}<tr><td colspan="6" class="py-8 text-center text-base-content/60">No hay registros{% if q or estado or tipo %} con esos filtros{% endif %}.</td></tr>{% endfor %}
+    {% empty %}<tr><td colspan="7" class="py-8 text-center text-base-content/60">No hay registros{% if q or estado or tipo %} con esos filtros{% endif %}.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
@@ -69,7 +70,7 @@
           <td class="whitespace-nowrap text-sm">{{ b.updated_at|date:"d/m/Y H:i" }}</td>
           <td class="text-center">
             <form method="post" action="{% url 'reg_txtss:restaurar' b.pk %}" data-confirmar="¿Restaurar este registro?">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
-              <button class="btn btn-ghost btn-square btn-sm text-success" title="Restaurar" aria-label="Restaurar">{% include "components/icon.html" with name="restore" cls="size-5" %}</button>
+              <button class="btn-icono icono-ok" title="Restaurar" aria-label="Restaurar">{% include "components/icon.html" with name="restore" cls="size-5" %}</button>
             </form>
           </td>
         </tr>
@@ -79,7 +80,7 @@
   </div>
   {% if borrados.paginator.num_pages > 1 %}
   <div class="mt-5 flex items-center justify-center gap-3">
-    {% if borrados.has_previous %}<a href="{% querystring pb=borrados.previous_page_number %}" class="btn btn-ghost btn-sm">← Anterior</a>{% endif %}
+    {% if borrados.has_previous %}<a href="{% querystring pb=borrados.previous_page_number %}" class="btn btn-ghost btn-sm">{% include "components/icon.html" with name="arrow-left" cls="size-4" %} Anterior</a>{% endif %}
     <span class="text-sm text-base-content/60">Página {{ borrados.number }} / {{ borrados.paginator.num_pages }}</span>
     {% if borrados.has_next %}<a href="{% querystring pb=borrados.next_page_number %}" class="btn btn-ghost btn-sm">Siguiente →</a>{% endif %}
   </div>

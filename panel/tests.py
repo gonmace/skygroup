@@ -172,7 +172,7 @@ class PanelTests(TestCase):
         self.assertNotIn('plataforma', [a['codigo'] for a in m['apps']])        # no está en la empresa
         m = self._menu(root, '/tekon/panel/', self.a)
         self.assertEqual(m['app_activa']['codigo'], 'plataforma')              # sí mientras se usa
-        self.assertEqual([i['nombre'] for i in m['items']], ['Empresas', 'Administradores', 'Almacenamiento', 'Correo', 'Credenciales'])
+        self.assertEqual([i['nombre'] for i in m['items']], ['Empresas', 'Administradores', 'Almacenamiento', 'Correo'])
         self.assertNotIn('plataforma', [a['codigo'] for a in self._menu(self.pmo, '/tekon/panel/', self.a)['apps']])
 
     def test_entradas_registradas_hacen_disponible_la_app(self):
@@ -219,7 +219,7 @@ class PanelTests(TestCase):
     def test_superusuario_ve_plataforma(self):
         m = self._menu(self.root, '/panel/')
         self.assertEqual(m['app_activa']['codigo'], 'plataforma')
-        self.assertEqual([i['nombre'] for i in m['items']], ['Empresas', 'Administradores', 'Almacenamiento', 'Correo', 'Credenciales'])
+        self.assertEqual([i['nombre'] for i in m['items']], ['Empresas', 'Administradores', 'Almacenamiento', 'Correo'])
 
     def test_lanzador_de_inicio_muestra_las_apps(self):
         self.vaciar_modulo('jor')
@@ -246,6 +246,7 @@ class PanelTests(TestCase):
         self.assertEqual(estados, {'reg': 'no_habilitado', 'tar': 'disponible', 'jor': 'proximamente', 'msj': 'no_habilitado',
                                    'apu': 'no_habilitado'})
 
+    @override_settings(APU_SOLO_ADMIN=False)
     def test_apu_se_anuncia_como_beta(self):
         # Módulo disponible y en pruebas: tarjeta con la cinta «Beta» (ya no «Próximamente») y con enlace.
         Empresa.objects.filter(pk=self.a.pk).update(modulos=['tar', 'apu'])
@@ -260,6 +261,14 @@ class PanelTests(TestCase):
         self.assertContains(r, 'class="mod-ia"')                  # «con IA» resaltado dentro del título
         self.assertContains(r, '<span class="mod-cinta">Beta</span>')
         self.assertNotContains(r, 'Próximamente')
+
+    def test_apu_para_quien_no_administra_figura_como_proximamente(self):
+        Empresa.objects.filter(pk=self.a.pk).update(modulos=['tar', 'apu'])
+        from django.core.cache import cache
+        cache.clear()
+        self.client.force_login(self.pmo)
+        tarjeta = next(t for t in self.client.get('/tekon/').context['lanzador_modulos'] if t['codigo'] == 'apu')
+        self.assertEqual((tarjeta['estado'], tarjeta['url']), ('proximamente', ''))
 
     def test_cada_modulo_tiene_su_propio_color_pastel(self):
         self.vaciar_modulo('jor')
@@ -877,41 +886,108 @@ class MiembrosAjaxTests(TestCase):
 
 @override_settings(**AJUSTES)
 class CredencialesTests(TestCase):
-    """Plataforma → Credenciales: la clave de Google Maps (solo superusuario; vacía conserva; cae al .env)."""
+    """Empresa → Credenciales: claves PROPIAS de cada empresa (solo superusuario; vacía conserva; cae al .env)."""
 
     @classmethod
     def setUpTestData(cls):
-        from cuentas.models import CredencialesPlataforma
-        cls.Cred = CredencialesPlataforma
+        from cuentas.models import CredencialesEmpresa
+        cls.Cred = CredencialesEmpresa
         cls.a = crear_empresa(nombre='Cred SA', slug='cred-sa')
+        cls.b = crear_empresa(nombre='Otra SA', slug='otra-sa')
         cls.su = User.objects.create_superuser(email='su@cred.cl', password='x')
         cls.coord = User.objects.create_user(email='c@cred.cl', password='x')
         agregar_miembro(cls.coord, cls.a, rol_por_base(cls.a, RolBase.COORDINADOR))
+        cls.adm = User.objects.create_user(email='adm@cred.cl', password='x')
+        agregar_miembro(cls.adm, cls.a, rol_por_base(cls.a, RolBase.COORDINADOR))
+        cls.adm.empresas_administradas.add(cls.a)
 
-    def test_solo_superusuario(self):
-        self.client.force_login(self.coord)
-        self.assertEqual(self.client.get('/cred-sa/panel/credenciales/').status_code, 403)
+    URL = '/cred-sa/config/credenciales/'
+
+    def test_solo_superusuario_ni_coordinador_ni_administrador(self):
+        for u in (self.coord, self.adm):
+            self.client.force_login(u)
+            self.assertEqual(self.client.get(self.URL).status_code, 403, u)
+            self.assertEqual(self.client.post(self.URL, {'google_maps_api_key': 'x'}).status_code, 403, u)
+        self.assertFalse(self.Cred.objects.exists())
+        self.client.logout()
+        self.assertEqual(self.client.get(self.URL).status_code, 302)
+
+    def test_la_ruta_vieja_de_plataforma_ya_no_existe(self):
+        self.client.force_login(self.su)
+        self.assertEqual(self.client.get('/cred-sa/panel/credenciales/').status_code, 404)
 
     def test_guarda_conserva_y_quita_la_clave(self):
         self.client.force_login(self.su)
-        url = '/cred-sa/panel/credenciales/'
+        url = self.URL
         self.client.post(url, {'google_maps_api_key': 'AIzaABCD'})
-        self.assertEqual(self.Cred.de().google_maps_api_key, 'AIzaABCD')
+        self.assertEqual(self.Cred.de(self.a).google_maps_api_key, 'AIzaABCD')
         self.client.post(url, {'google_maps_api_key': ''})            # vacía conserva
-        self.assertEqual(self.Cred.de().google_maps_api_key, 'AIzaABCD')
+        self.assertEqual(self.Cred.de(self.a).google_maps_api_key, 'AIzaABCD')
         self.assertNotContains(self.client.get(url), 'AIzaABCD')      # nunca se muestra entera
         self.client.post(url, {'google_maps_api_key': '', 'quitar_google_maps': 'on'})
-        self.assertEqual(self.Cred.de().google_maps_api_key, '')
+        self.assertEqual(self.Cred.de(self.a).google_maps_api_key, '')
 
     @override_settings(GOOGLE_MAPS_API_KEY='del-env')
     def test_clave_guardada_manda_sobre_el_env(self):
-        self.assertEqual(self.Cred.clave_google_maps(), 'del-env')
-        self.Cred(google_maps_api_key='de-plataforma').save()
-        self.assertEqual(self.Cred.clave_google_maps(), 'de-plataforma')
+        self.assertEqual(self.Cred.clave_google_maps(self.a), 'del-env')
+        self.Cred(empresa=self.a, google_maps_api_key='de-la-empresa').save()
+        self.assertEqual(self.Cred.clave_google_maps(self.a), 'de-la-empresa')
+
+    @override_settings(GOOGLE_MAPS_API_KEY='del-env', N8N_API_URL='http://env:5678', N8N_API_KEY='env-key')
+    def test_cada_empresa_tiene_las_suyas_y_no_se_mezclan(self):
+        self.Cred(empresa=self.a, google_maps_api_key='clave-A', n8n_api_url='http://a:5678/', n8n_api_key='n8n-A').save()
+        self.Cred(empresa=self.b, google_maps_api_key='clave-B', n8n_api_key='n8n-B').save()
+        self.assertEqual((self.Cred.clave_google_maps(self.a), self.Cred.clave_google_maps(self.b)), ('clave-A', 'clave-B'))
+        self.assertEqual(self.Cred.n8n_api(self.a), ('http://a:5678', 'n8n-A'))
+        self.assertEqual(self.Cred.n8n_api(self.b), ('http://env:5678', 'n8n-B'))     # lo que falta sale del .env, no de otra empresa
+        otra = crear_empresa(nombre='Sin claves', slug='sin-claves')
+        self.assertEqual(self.Cred.clave_google_maps(otra), 'del-env')                # sin credenciales propias: respaldo del servidor
+        self.assertEqual(self.Cred.n8n_api(otra), ('http://env:5678', 'env-key'))
+        self.assertEqual(self.Cred.clave_google_maps(), 'del-env')                    # sin empresa: solo el .env
+
+    def test_la_pantalla_edita_solo_las_de_la_empresa_activa(self):
+        self.Cred(empresa=self.b, google_maps_api_key='clave-B', n8n_api_key='n8n-B').save()
+        self.client.force_login(self.su)
+        self.client.post(self.URL, {'google_maps_api_key': 'clave-A', 'n8n_api_url': 'http://a:5678', 'n8n_api_key': 'n8n-A'})
+        self.assertEqual((self.Cred.de(self.a).google_maps_api_key, self.Cred.de(self.a).n8n_api_key), ('clave-A', 'n8n-A'))
+        self.assertEqual((self.Cred.de(self.b).google_maps_api_key, self.Cred.de(self.b).n8n_api_key), ('clave-B', 'n8n-B'))
+        self.assertContains(self.client.get(self.URL), '…8n-A')                            # muestra el final de la de ESTA empresa
+        self.assertNotContains(self.client.get(self.URL), 'clave-B')
+
+    def test_el_menu_de_la_empresa_ofrece_credenciales_solo_al_superusuario(self):
+        self.client.force_login(self.su)
+        items = {i['nombre']: i for i in self.client.get('/cred-sa/config/credenciales/').context['menu_lateral']}
+        self.assertEqual(items['Credenciales']['nivel'], 'superusuario')                  # contorno ámbar
+        self.assertEqual(items['Credenciales']['url'], '/cred-sa/config/credenciales/')
+        self.client.force_login(self.coord)
+        self.assertNotIn('Credenciales', {i['nombre'] for i in self.client.get('/cred-sa/config/marca/').context['menu_lateral']})
 
     def test_probar_clave_usa_google_sin_guardar(self):
         self.client.force_login(self.su)
         with mock.patch('reg_actividades.mapas.probar_clave', return_value=(True, 'ok')) as p:
-            self.client.post('/cred-sa/panel/credenciales/', {'google_maps_api_key': 'AIzaXYZ', 'accion': 'probar'})
+            self.client.post(self.URL, {'google_maps_api_key': 'AIzaXYZ', 'accion': 'probar'})
         p.assert_called_once_with('AIzaXYZ')
-        self.assertEqual(self.Cred.de().google_maps_api_key, '')
+        self.assertEqual(self.Cred.de(self.a).google_maps_api_key, '')
+
+    def test_probar_n8n_usa_lo_escrito_sin_guardar(self):
+        self.client.force_login(self.su)
+        with mock.patch('apu_generador.ia.probar_api_n8n', return_value=(False, 'rechazada')) as p:
+            r = self.client.post(self.URL, {
+                'n8n_api_url': 'http://n8n:5678', 'n8n_api_key': 'eyJabc', 'accion': 'probar_n8n'})
+        p.assert_called_once_with('http://n8n:5678', 'eyJabc')
+        self.assertContains(r, 'rechazada')
+        self.assertEqual((self.Cred.de(self.a).n8n_api_url, self.Cred.de(self.a).n8n_api_key), ('', ''))
+
+    def test_probar_api_n8n_distingue_clave_rechazada_y_sin_conexion(self):
+        import requests
+        from apu_generador import ia
+        resp = lambda code: mock.Mock(status_code=code, ok=code < 400)  # noqa: E731
+        with mock.patch('apu_generador.ia.requests.get', return_value=resp(200)):
+            self.assertTrue(ia.probar_api_n8n('http://n8n/', 'k')[0])
+        with mock.patch('apu_generador.ia.requests.get', return_value=resp(401)):
+            ok, msg = ia.probar_api_n8n('http://n8n', 'k')
+        self.assertFalse(ok)
+        self.assertIn('rechazó', msg)
+        with mock.patch('apu_generador.ia.requests.get', side_effect=requests.ConnectionError):
+            self.assertIn('No se pudo conectar', ia.probar_api_n8n('http://n8n', 'k')[1])
+        self.assertFalse(ia.probar_api_n8n('', 'k')[0])

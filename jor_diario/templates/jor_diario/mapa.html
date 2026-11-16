@@ -9,13 +9,13 @@
 {% block content_main %}
 <div class="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
   <p class="text-sm text-base-content/70">
-    <a class="link" href="{% url 'jor_diario:equipo' %}?fecha={{ dia|date:'Y-m-d' }}">← Equipo</a> ·
+    <a class="link" href="{% url 'jor_diario:equipo' %}?fecha={{ dia|date:'Y-m-d' }}">{% include "components/icon.html" with name="arrow-left" cls="size-4" %} Equipo</a> ·
     <span class="font-semibold tabular-nums">{{ puntos|length }}</span> punto{{ puntos|length|pluralize }} el {{ dia|date:"d/m/Y" }}
   </p>
   <div class="flex items-center gap-1">
-    <a href="?fecha={{ anterior|date:'Y-m-d' }}" class="btn btn-ghost btn-md btn-square sm:btn-sm" aria-label="Día anterior">{% include "components/icon.html" with name="chevron-left" cls="size-5" %}</a>
+    <a href="?fecha={{ anterior|date:'Y-m-d' }}" class="btn-icono" aria-label="Día anterior">{% include "components/icon.html" with name="chevron-left" cls="size-5" %}</a>
     <form method="get"><input type="date" name="fecha" value="{{ dia|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" class="input input-bordered input-md w-44 sm:input-sm sm:w-40" data-autoenviar-select aria-label="Fecha"></form>
-    {% if siguiente %}<a href="?fecha={{ siguiente|date:'Y-m-d' }}" class="btn btn-ghost btn-md btn-square sm:btn-sm" aria-label="Día siguiente"><span class="inline-block rotate-180">{% include "components/icon.html" with name="chevron-left" cls="size-5" %}</span></a>{% endif %}
+    {% if siguiente %}<a href="?fecha={{ siguiente|date:'Y-m-d' }}" class="btn-icono" aria-label="Día siguiente"><span class="inline-block rotate-180">{% include "components/icon.html" with name="chevron-left" cls="size-5" %}</span></a>{% endif %}
     {% if not es_hoy %}<a href="{% url 'jor_diario:mapa_equipo' %}" class="btn btn-ghost btn-md sm:btn-sm">Hoy</a>{% endif %}
   </div>
 </div>

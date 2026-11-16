@@ -1,7 +1,7 @@
 {% if b.filas %}
 <ul class="space-y-3">
   {% for f in b.filas %}
-  <li class="rounded-box border border-base-300 p-3">
+  <li class="superficie p-3">
     <div class="flex flex-wrap items-start justify-between gap-2">
       <div class="min-w-0">
         <p class="text-sm"><a class="link font-semibold tabular-nums" href="{% url 'reg_construccion_base:hallazgo_detalle' f.h.pk %}">{{ f.h.codigo }}</a> · {{ f.h.get_tipo_display }}</p>

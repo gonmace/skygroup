@@ -10,7 +10,7 @@
       <h2 class="font-semibold">Cambios propuestos por la IA</h2>
       <p class="mt-0.5 text-sm text-base-content/60">Tu instrucción: «{{ mod.instruccion }}». Marca los cambios que quieres aplicar y, si hace falta, corrige los valores en la columna «Detalle»; lo demás queda como está.</p>
     </div>
-    {% if mod.resumen_cambios %}<div role="alert" class="alert alert-info alert-soft text-sm">{{ mod.resumen_cambios }}</div>{% endif %}
+    {% if mod.resumen_cambios %}<div role="alert" class="alert alert-info alert-soft text-sm">{% include "components/icon.html" with name="info" cls="size-5 shrink-0" %}<span>{{ mod.resumen_cambios }}</span></div>{% endif %}
     <div class="table-card">
       <table class="table">
         <thead><tr><th class="w-8"></th><th>Cambio</th><th>Detalle</th></tr></thead>

@@ -1,8 +1,8 @@
 {# Selectores propios de Estadísticas (dentro del formulario de la barra de período). #}
-<select name="tipo" class="select select-bordered select-md sm:select-sm" data-autoenviar-select aria-label="Actividades">
-  <option value="hecho" {% if d.tipo == 'hecho' %}selected{% endif %}>Realizadas</option>
-  <option value="planificado" {% if d.tipo == 'planificado' %}selected{% endif %}>Planificadas</option>
-</select>
+<div class="segmentado" role="group" aria-label="Actividades">
+  <button type="submit" name="tipo" value="hecho" {% if d.tipo == 'hecho' %}aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>Realizadas</button>
+  <button type="submit" name="tipo" value="planificado" {% if d.tipo == 'planificado' %}aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>Planificadas</button>
+</div>
 <select name="cargo" class="select select-bordered select-md sm:select-sm" data-autoenviar-select aria-label="Cargo"><option value="">Todos los cargos</option>{% for c in cargos %}<option value="{{ c.pk }}" {% if get.cargo == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select>
 <select name="gran" class="select select-bordered select-md sm:select-sm" data-autoenviar-select aria-label="Evolución">
   <option value="auto" {% if get.gran|default:'auto' == 'auto' %}selected{% endif %}>Evolución automática</option>

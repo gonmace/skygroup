@@ -15,10 +15,10 @@
         {% if v.rev_comentario %}<p class="mt-1 text-sm">{{ v.rev_comentario }}</p>{% elif not v.rev_numero %}<p class="mt-1 text-sm text-base-content/50">Revisión inicial.</p>{% endif %}
       </div>
       <div class="flex shrink-0 items-center gap-0.5">
-        {% if v.pk != r.pk %}<a href="{% url tipo_rev.url_detalle v.pk %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Ver {{ v.rev_etiqueta }}" aria-label="Ver {{ v.rev_etiqueta }}">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>{% endif %}
+        {% if v.pk != r.pk %}<a href="{% url tipo_rev.url_detalle v.pk %}" class="btn-icono icono-ver" title="Ver {{ v.rev_etiqueta }}" aria-label="Ver {{ v.rev_etiqueta }}">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>{% endif %}
         {% if puede_elegir and not v.rev_vigente %}
         <form method="post" action="{% url 'reg_base:revision_vigente' tipo_rev.clave v.pk %}" data-confirmar="¿Marcar {{ v.rev_etiqueta }} como la revisión vigente?">{% csrf_token %}
-          <button class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Marcar {{ v.rev_etiqueta }} como vigente" aria-label="Marcar {{ v.rev_etiqueta }} como vigente">{% include "components/icon.html" with name="check" cls="size-5" %}</button>
+          <button class="btn-icono icono-ok" title="Marcar {{ v.rev_etiqueta }} como vigente" aria-label="Marcar {{ v.rev_etiqueta }} como vigente">{% include "components/icon.html" with name="check" cls="size-5" %}</button>
         </form>
         {% endif %}
       </div>

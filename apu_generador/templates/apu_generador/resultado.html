@@ -7,7 +7,7 @@
 
 <div data-apu-pagina="resultado" class="space-y-6">
   {% if ultima_modificacion %}
-  <div role="alert" class="alert alert-info alert-soft text-sm">La IA propuso cambios que aún no revisaste. <a class="link font-medium" href="{% url 'apu_generador:revision' borrador.pk %}">Revisar cambios</a></div>
+  <div role="alert" class="alert alert-info alert-soft text-sm">{% include "components/icon.html" with name="info" cls="size-5 shrink-0" %}<span>La IA propuso cambios que aún no revisaste. <a class="link font-medium" href="{% url 'apu_generador:revision' borrador.pk %}">Revisar cambios</a></span></div>
   {% endif %}
 
   <section class="card bg-base-100"><div class="card-body gap-2 p-5">
@@ -23,7 +23,7 @@
         <h2 class="font-semibold">Composición y precios</h2>
         <p class="mt-0.5 text-sm text-base-content/60">Por <strong>1 {{ borrador.unidad }}</strong> de «{{ borrador.actividad }}». El precio de cada insumo es el vigente{% if borrador.region %} en «{{ borrador.region }}» (con respaldo nacional){% else %} a nivel nacional{% endif %}.</p>
       </div>
-      <button type="button" class="btn btn-sm btn-outline gap-1" data-abrir-modal="apu-modificar">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Modificar con IA</button>
+      <button type="button" class="btn btn-sm btn-ghost gap-1" data-abrir-modal="apu-modificar">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Modificar con IA</button>
     </div>
 
     {% include "apu_generador/_progreso.html" %}
@@ -33,13 +33,13 @@
       {% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}
       <div class="flex-1 space-y-2">
         <p>{{ prev.sin_precio|length }} insumo{{ prev.sin_precio|length|pluralize }} sin precio. Cárgalo{{ prev.sin_precio|length|pluralize }} abajo: el precio unitario no será real hasta entonces, y quedan guardados para los próximos APU.</p>
-        <button type="button" class="btn btn-sm btn-outline gap-1" data-accion="sugerir-precios">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Sugerir precios con IA</button>
+        <button type="button" class="btn btn-sm btn-ghost gap-1" data-accion="sugerir-precios">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Sugerir precios con IA</button>
         <span class="block text-xs text-base-content/60">La IA busca precios de referencia en la web para tu zona. Son <strong>recomendaciones</strong>: tú decides si las usas, y las que guardes quedan marcadas como «estimado».</span>
       </div>
     </div>
     {% endif %}
     {% if prev.n_estimados %}
-    <div role="alert" class="alert alert-info alert-soft text-sm">{{ prev.n_estimados }} precio{{ prev.n_estimados|pluralize }} de este APU {{ prev.n_estimados|pluralize:"es,son" }} estimado{{ prev.n_estimados|pluralize }} por IA. Conviene confirmarlo{{ prev.n_estimados|pluralize }} con precios reales.</div>
+    <div role="alert" class="alert alert-info alert-soft text-sm">{% include "components/icon.html" with name="info" cls="size-5 shrink-0" %}<span>{{ prev.n_estimados }} precio{{ prev.n_estimados|pluralize }} de este APU {{ prev.n_estimados|pluralize:"es,son" }} estimado{{ prev.n_estimados|pluralize }} por IA. Conviene confirmarlo{{ prev.n_estimados|pluralize }} con precios reales.</span></div>
     {% endif %}
 
     <div class="table-card">

@@ -1,17 +1,18 @@
 {% extends "shell.html" %}
 {% block page_title %}Credenciales{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
 {% block content_main %}
 <div class="grid gap-6 lg:grid-cols-3">
   <form method="post" class="card bg-base-100 lg:col-span-2"><div class="card-body gap-4">
     {% csrf_token %}
     <h2 class="card-title text-base">Google Maps</h2>
-    <p class="text-sm text-base-content/70">Con esta clave la plataforma descarga la imagen del mapa (Google Static Maps) que los registros guardan y llevan al informe en PDF. Es una sola clave para todas las empresas.</p>
+    <p class="text-sm text-base-content/70">Con esta clave la plataforma descarga la imagen del mapa (Google Static Maps) que los registros guardan y llevan al informe en PDF. Es la clave de <strong>{{ request.empresa.nombre }}</strong>: cada empresa tiene la suya.</p>
     <div class="flex flex-wrap items-center gap-2 text-sm">
       {% if maps_guardada %}<span class="badge badge-success badge-outline">Configurada</span><span class="text-base-content/60">termina en <code>…{{ maps_final }}</code></span>
       {% elif maps_env %}<span class="badge badge-info badge-outline">Usando la del servidor (.env)</span>
       {% else %}<span class="badge badge-warning badge-outline">Sin clave: los mapas muestran los puntos pero no generan la imagen</span>{% endif %}
     </div>
-    {% if form.non_field_errors %}<div class="alert alert-error text-sm">{{ form.non_field_errors.0 }}</div>{% endif %}
+    {% if form.non_field_errors %}<div role="alert" class="alert alert-error text-sm">{% include "components/icon.html" with name="alert-triangle" cls="size-5" %}<span>{{ form.non_field_errors.0 }}</span></div>{% endif %}
     <label class="form-control w-full">
       <span class="label-text mb-1">{{ form.google_maps_api_key.label }}</span>
       {{ form.google_maps_api_key }}
@@ -19,8 +20,34 @@
       {% for e in form.google_maps_api_key.errors %}<span class="text-error text-sm">{{ e }}</span>{% endfor %}
     </label>
     {% if maps_guardada %}<label class="flex items-center gap-2 text-sm">{{ form.quitar_google_maps }} {{ form.quitar_google_maps.label }}</label>{% endif %}
+    <div class="card-actions justify-end">
+      <button type="submit" name="accion" value="probar" class="btn btn-ghost">Probar clave</button>
+    </div>
+
+    <div class="divider my-0"></div>
+    <h2 class="card-title text-base">n8n · consumo de IA (APU)</h2>
+    <p class="text-sm text-base-content/70">Con la API de n8n la plataforma lee los tokens de cada ejecución de APU y calcula el costo. El consumo se muestra por empresa en APU → Consumo IA. Es la conexión de <strong>{{ request.empresa.nombre }}</strong>: cada empresa tiene la suya y los consumos no se mezclan.</p>
+    <div class="flex flex-wrap items-center gap-2 text-sm">
+      {% if n8n_guardada %}<span class="badge badge-success badge-outline">Configurada</span><span class="text-base-content/60">termina en <code>…{{ n8n_final }}</code></span>
+      {% elif n8n_env %}<span class="badge badge-info badge-outline">Usando la del servidor (.env)</span>
+      {% else %}<span class="badge badge-warning badge-outline">Sin API key: no se mide el consumo</span>{% endif %}
+    </div>
+    <label class="form-control w-full">
+      <span class="label-text mb-1">{{ form.n8n_api_url.label }}</span>
+      {{ form.n8n_api_url }}
+      <span class="mt-1 text-xs text-base-content/60">{{ form.n8n_api_url.help_text }}</span>
+      {% for e in form.n8n_api_url.errors %}<span class="text-error text-sm">{{ e }}</span>{% endfor %}
+    </label>
+    <label class="form-control w-full">
+      <span class="label-text mb-1">{{ form.n8n_api_key.label }}</span>
+      {{ form.n8n_api_key }}
+      <span class="mt-1 text-xs text-base-content/60">{{ form.n8n_api_key.help_text }}</span>
+      {% for e in form.n8n_api_key.errors %}<span class="text-error text-sm">{{ e }}</span>{% endfor %}
+    </label>
+    {% if n8n_guardada %}<label class="flex items-center gap-2 text-sm">{{ form.quitar_n8n }} {{ form.quitar_n8n.label }}</label>{% endif %}
+    <p class="text-xs text-base-content/60">«Probar conexión» usa lo escrito en los campos (o lo guardado si los dejas vacíos) sin guardarlo.</p>
     <div class="card-actions justify-end gap-2">
-      <button type="submit" name="accion" value="probar" class="btn btn-outline">Probar clave</button>
+      <button type="submit" name="accion" value="probar_n8n" class="btn btn-ghost">Probar conexión</button>
       <button type="submit" class="btn btn-primary">Guardar</button>
     </div>
   </div></form>

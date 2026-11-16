@@ -15,11 +15,11 @@
     <input type="file" name="archivo" accept=".xlsx" required class="file-input file-input-bordered w-full" aria-label="Archivo Excel">
     {% if error_archivo %}<p class="text-sm text-error" role="alert">{{ error_archivo }}</p>{% endif %}
     {% if errores %}
-    <div class="rounded-box border border-error/30 bg-error/5 p-3" role="alert">
-      <p class="mb-1 text-sm font-medium text-error">No se importó nada. Corrige estas filas y vuelve a subir el archivo:</p>
+    <div class="alert alert-error items-start" role="alert">{% include "components/icon.html" with name="alert-triangle" cls="size-5" %}<div>
+      <p class="mb-1 text-sm font-medium">No se importó nada. Corrige estas filas y vuelve a subir el archivo:</p>
       <ul class="max-h-64 list-disc overflow-y-auto pl-5 text-sm">{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul>
       {% if mas_errores %}<p class="mt-1 text-xs text-base-content/60">…y {{ mas_errores }} errores más.</p>{% endif %}
-    </div>
+    </div></div>
     {% endif %}
     <div class="card-actions flex-col-reverse items-stretch sm:flex-row sm:items-center sm:justify-end">
       <a href="{% url 'proyectos:lista' %}" class="btn btn-ghost">Volver</a>

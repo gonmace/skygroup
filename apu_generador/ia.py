@@ -181,24 +181,42 @@ def normalizar_precios(datos, permitidos, moneda):
 
 # ── Tokens y costo ────────────────────────────────────────────────────────────
 
+def _modelo_de(nodo_params, item):
+    """Nombre del modelo: el que respondió (sin la fecha de versión: «gpt-5.1-2025-11-13» → «gpt-5.1», para casar con
+    las tarifas) o, si no viene, el configurado en el nodo."""
+    for gens in ((item.get('json') or {}).get('response') or {}).get('generations') or []:
+        for g in gens or []:
+            nombre = (g.get('generationInfo') or {}).get('model_name')
+            if nombre:
+                return re.sub(r'-\d{4}-\d{2}-\d{2}$', '', str(nombre))
+    modelo = nodo_params.get('model')
+    return modelo.get('value') if isinstance(modelo, dict) else modelo
+
+
 def uso_de_ejecucion(ejecucion):
-    """{modelo: {'entrada': n, 'salida': n}} a partir del JSON de una ejecución de n8n (`includeData=true`)."""
+    """{modelo: {'entrada': n, 'salida': n[, 'estimado': True]}} a partir del JSON de una ejecución de n8n
+    (`includeData=true`). Si OpenAI no reportó el uso real (`tokenUsage`), n8n solo guarda una estimación
+    (`tokenUsageEstimate`: la entrada se estima del texto enviado y la salida suele quedar en 0): se usa y se marca
+    `estimado`."""
     nodos = {n.get('name'): n for n in (ejecucion.get('workflowData') or {}).get('nodes', [])}
     corridas = ((ejecucion.get('data') or {}).get('resultData') or {}).get('runData') or {}
     uso = {}
     for nombre, runs in corridas.items():
         params = (nodos.get(nombre) or {}).get('parameters') or {}
-        modelo = params.get('model')
-        modelo = modelo.get('value') if isinstance(modelo, dict) else modelo
         for run in runs:
             for salidas in ((run.get('data') or {}).get('ai_languageModel') or []):
                 for item in salidas or []:
-                    tokens = (item.get('json') or {}).get('tokenUsage') or {}
+                    datos = item.get('json') or {}
+                    tokens, estimado = datos.get('tokenUsage') or {}, False
+                    if not tokens:
+                        tokens, estimado = datos.get('tokenUsageEstimate') or {}, True
                     if not tokens:
                         continue
-                    fila = uso.setdefault(modelo or nombre, {'entrada': 0, 'salida': 0})
+                    fila = uso.setdefault(_modelo_de(params, item) or nombre, {'entrada': 0, 'salida': 0})
                     fila['entrada'] += int(tokens.get('promptTokens') or 0)
                     fila['salida'] += int(tokens.get('completionTokens') or 0)
+                    if estimado:
+                        fila['estimado'] = True
     return uso
 
 
@@ -213,32 +231,61 @@ def costo_de_uso(uso):
     return total.quantize(Decimal('0.000001'))
 
 
+def probar_api_n8n(api_url, api_key):
+    """Comprueba la URL y la clave de la API de n8n sin guardar nada. Devuelve (ok, mensaje apto para mostrar)."""
+    api_url = (api_url or '').strip().rstrip('/')
+    if not api_url or not (api_key or '').strip():
+        return False, 'Falta la URL o la API key de n8n.'
+    try:
+        r = requests.get(f'{api_url}/api/v1/executions', params={'limit': 1},
+                         headers={'X-N8N-API-KEY': api_key.strip()}, timeout=10)
+    except requests.RequestException:
+        return False, f'No se pudo conectar con n8n en {api_url}. Revisa la URL y que n8n esté en marcha.'
+    if r.status_code in (401, 403):
+        return False, (f'n8n rechazó la API key (error {r.status_code}). Debe ser una clave creada en el n8n de {api_url} '
+                       '(Settings → n8n API), no de otra instancia.')
+    if r.status_code == 404:
+        return False, f'{api_url} respondió, pero no tiene la API pública de n8n (/api/v1). Revisa la URL.'
+    if not r.ok:
+        return False, f'n8n respondió con el error {r.status_code}.'
+    return True, f'Conexión correcta con n8n en {api_url}: la API key es válida.'
+
+
 ESTADO_MEDICION = {'motivo': ''}   # por qué la última sincronización no pudo medir (se muestra al superusuario)
 
 
 def sincronizar_uso(llamadas):
-    """Completa `uso` y `costo_usd` de las llamadas aún sin medir, consultando la API pública de n8n. Un fallo deja la
-    llamada pendiente (no rompe nada) y deja el motivo en `ESTADO_MEDICION`. Devuelve cuántas se sincronizaron."""
+    """Completa `uso` y `costo_usd` de las llamadas aún sin medir, consultando la API pública de n8n DE LA EMPRESA de
+    cada llamada (empresa → Credenciales; cada empresa tiene su propia clave). Un fallo deja la llamada pendiente (no
+    rompe nada) y deja el motivo en `ESTADO_MEDICION`. Devuelve cuántas se sincronizaron."""
+    from cuentas.models import CredencialesEmpresa
     ESTADO_MEDICION['motivo'] = ''
-    api_url, api_key = settings.N8N_API_URL.rstrip('/'), settings.N8N_API_KEY
-    if not (api_url and api_key):
-        ESTADO_MEDICION['motivo'] = 'La medición está desactivada: falta la URL o la clave de la API de n8n (Plataforma → Credenciales).'
-        return 0
+    motivos, credenciales, bloqueadas = {}, {}, set()
     hechas = no_disponibles = 0
     for ll in llamadas:
-        if ll.uso is not None or not ll.ejecucion_id:
+        if ll.uso is not None or not ll.ejecucion_id or ll.empresa_id in bloqueadas:
+            continue
+        if ll.empresa_id not in credenciales:
+            credenciales[ll.empresa_id] = CredencialesEmpresa.n8n_api(ll.empresa)
+        api_url, api_key = credenciales[ll.empresa_id]
+        nombre = ll.empresa.nombre
+        if not (api_url and api_key):
+            motivos[ll.empresa_id] = f'{nombre}: la medición está desactivada: falta la URL o la API key de n8n (empresa → Credenciales).'
+            bloqueadas.add(ll.empresa_id)
             continue
         try:
             r = requests.get(f"{api_url}/api/v1/executions/{ll.ejecucion_id}",
                              params={'includeData': 'true'}, headers={'X-N8N-API-KEY': api_key}, timeout=20)
         except requests.RequestException as e:
             logger.warning('No se pudo conectar con n8n (%s): %s', api_url, e)
-            ESTADO_MEDICION['motivo'] = f'No se pudo conectar con n8n en {api_url}.'
-            break          # sin conexión no tiene sentido seguir intentando con cada llamada
+            motivos[ll.empresa_id] = f'{nombre}: No se pudo conectar con n8n en {api_url}.'
+            bloqueadas.add(ll.empresa_id)    # sin conexión no tiene sentido seguir con las demás llamadas de esa empresa
+            continue
         if r.status_code in (401, 403):
-            ESTADO_MEDICION['motivo'] = (f'n8n rechazó la clave de la API (error {r.status_code}). Revisa la clave en Plataforma → '
-                                         f'Credenciales: debe ser una clave creada en el n8n de {api_url}.')
-            break
+            motivos[ll.empresa_id] = (f'{nombre}: n8n rechazó la clave de la API (error {r.status_code}). Revisa la clave en '
+                                      f'empresa → Credenciales: debe ser una clave creada en el n8n de {api_url}.')
+            bloqueadas.add(ll.empresa_id)
+            continue
         if r.status_code == 404:
             no_disponibles += 1      # n8n limpia las ejecuciones antiguas: esa ya no se puede medir
             continue
@@ -247,13 +294,15 @@ def sincronizar_uso(llamadas):
             uso = uso_de_ejecucion(r.json())
         except (requests.RequestException, ValueError) as e:
             logger.warning('No se pudo leer la ejecución %s de n8n: %s', ll.ejecucion_id, e)
-            ESTADO_MEDICION['motivo'] = f'n8n respondió con un error al leer la ejecución {ll.ejecucion_id}.'
+            motivos.setdefault(ll.empresa_id, f'{nombre}: n8n respondió con un error al leer la ejecución {ll.ejecucion_id}.')
             continue
         ll.uso, ll.costo_usd = uso, costo_de_uso(uso)
         ll.save(update_fields=['uso', 'costo_usd'])
         hechas += 1
-    if no_disponibles and not ESTADO_MEDICION['motivo']:
-        ESTADO_MEDICION['motivo'] = f'n8n ya no conserva {no_disponibles} ejecución(es): se limpian con el tiempo.'
+    lista = list(motivos.values())
+    if no_disponibles and not lista:
+        lista.append(f'n8n ya no conserva {no_disponibles} ejecución(es): se limpian con el tiempo.')
+    ESTADO_MEDICION['motivo'] = ' · '.join(lista)
     return hechas
 
 
@@ -276,6 +325,8 @@ def resumen_uso(llamadas):
             fila['llamadas'] += 1
             fila['entrada'] += v.get('entrada', 0)
             fila['salida'] += v.get('salida', 0)
+            if v.get('estimado'):
+                fila['estimado'] = True
     filas = sorted(por_modelo.values(), key=lambda f: f['modelo'])
     return {'modelos': filas, 'entrada': sum(f['entrada'] for f in filas), 'salida': sum(f['salida'] for f in filas),
             'costo': costo_total if completo else None, 'pendientes': pendientes, 'duracion_ms': duracion,

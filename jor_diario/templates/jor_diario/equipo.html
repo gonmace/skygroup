@@ -6,15 +6,15 @@
 {% block wrap_class %}flex min-h-0 w-full flex-1 flex-col{% endblock %}
 {% block content_main %}
 <div class="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
-  <p class="text-sm text-base-content/70">
-    <span class="font-semibold tabular-nums text-success">{{ en_curso }}</span> activo{{ en_curso|pluralize }} ·
-    <span class="font-semibold tabular-nums">{{ completadas }}</span> completado{{ completadas|pluralize }}{% if es_hoy %} hoy{% endif %} ·
-    <span class="font-semibold tabular-nums">{{ total_usuarios }}</span> usuario{{ total_usuarios|pluralize }} ·
-    <span class="font-semibold tabular-nums">{{ actividades }}</span> actividad{{ actividades|pluralize:",es" }}
-    <span class="hidden text-base-content/50 sm:inline">· {{ con_jornada }} con jornada el {{ dia|date:"d/m/Y" }}</span>
-  </p>
-  <div class="flex items-center gap-1">
-    {% if puede_mapa %}<a href="{% url 'jor_diario:mapa_equipo' %}?fecha={{ dia|date:'Y-m-d' }}" class="btn btn-md btn-square border-0 bg-info/15 hover:bg-info/25 sm:btn-sm" title="Ver en el mapa dónde marcó cada persona" aria-label="Ver mapa de ubicaciones">
+  <ul class="flex flex-wrap items-center gap-2" aria-label="Resumen del equipo">
+    <li class="dato-resumen"><span class="size-2 rounded-full bg-success" aria-hidden="true"></span><span class="font-semibold tabular-nums">{{ en_curso }}</span> activo{{ en_curso|pluralize }}</li>
+    <li class="dato-resumen"><span class="size-2 rounded-full bg-info" aria-hidden="true"></span><span class="font-semibold tabular-nums">{{ completadas }}</span> completado{{ completadas|pluralize }}{% if es_hoy %} hoy{% endif %}</li>
+    <li class="dato-resumen"><span class="font-semibold tabular-nums">{{ total_usuarios }}</span> usuario{{ total_usuarios|pluralize }}</li>
+    <li class="dato-resumen"><span class="font-semibold tabular-nums">{{ actividades }}</span> actividad{{ actividades|pluralize:",es" }}</li>
+    <li class="hidden text-xs text-base-content/50 lg:block">{{ con_jornada }} con jornada el {{ dia|date:"d/m/Y" }}</li>
+  </ul>
+  <div class="flex items-center gap-1 rounded-full bg-base-100 p-1 shadow-[0_0_0_1px_color-mix(in_oklab,var(--mod-line)_60%,transparent)]">
+    {% if puede_mapa %}<a href="{% url 'jor_diario:mapa_equipo' %}?fecha={{ dia|date:'Y-m-d' }}" class="btn btn-info btn-md btn-square sm:btn-sm" title="Ver en el mapa dónde marcó cada persona" aria-label="Ver mapa de ubicaciones">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-6" aria-hidden="true">
         <path d="M3 6.5 9 4v14l-6 2.5z" fill="#34d399"/><path d="M9 4l6 2.5v14L9 18z" fill="#60a5fa"/><path d="m15 6.5 6-2.5v14l-6 2.5z" fill="#fbbf24"/>
         <path d="M12 2.5a4.5 4.5 0 0 0-4.5 4.5c0 3.4 4.5 8 4.5 8s4.5-4.6 4.5-8A4.5 4.5 0 0 0 12 2.5z" fill="#ef4444" stroke="#fff" stroke-width="1.2"/><circle cx="12" cy="7" r="1.7" fill="#fff"/>
@@ -25,13 +25,13 @@
     {% if not es_hoy %}<a href="{% url 'jor_diario:equipo' %}" class="btn btn-ghost btn-md sm:btn-sm">Hoy</a>{% endif %}
   </div>
 </div>
-{% if ultimo_con_datos %}<div class="mb-3 shrink-0 rounded-box bg-base-100 p-3 text-sm shadow-sm">No hay jornadas el {{ dia|date:"d/m/Y" }}. <a class="link" href="?fecha={{ ultimo_con_datos|date:'Y-m-d' }}">Ver el último día con datos ({{ ultimo_con_datos|date:"d/m/Y" }})</a></div>{% endif %}
+{% if ultimo_con_datos %}<div class="superficie mb-3 shrink-0 p-3 text-sm">No hay jornadas el {{ dia|date:"d/m/Y" }}. <a class="link" href="?fecha={{ ultimo_con_datos|date:'Y-m-d' }}">Ver el último día con datos ({{ ultimo_con_datos|date:"d/m/Y" }})</a></div>{% endif %}
 
 {# Móvil: tarjetas; la tabla de 10 columnas obliga a desplazarse de lado #}
 <div class="flex min-h-0 flex-1 flex-col md:hidden">
   <ul class="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
     {% for f in filas %}
-    <li class="rounded-box bg-base-100 p-3 shadow-sm {% if f.perfil and not f.perfil.activo %}opacity-60{% endif %}">
+    <li class="superficie p-3 {% if f.perfil and not f.perfil.activo %}opacity-60{% endif %}">
       <div class="flex items-start justify-between gap-3">
         <div class="flex min-w-0 items-center gap-3">
           <span class="avatar-iniciales {{ f.m.clase_avatar }}" aria-hidden="true">{{ f.m.user.iniciales }}</span>
@@ -67,7 +67,7 @@
 
 <div class="table-card hidden min-h-0 overflow-auto md:block">
   <table class="table tabla-fija">
-    <thead><tr><th><div class="flex items-center gap-3">{% for c in cabeceras %}<a href="{{ c.url }}" class="inline-flex items-center gap-1 hover:text-base-content {% if c.activa %}text-base-content{% endif %}" title="Ordenar por {{ c.titulo|lower }}"{% if c.activa %} aria-sort="{% if c.desc %}descending{% else %}ascending{% endif %}"{% endif %}>{{ c.titulo }}<span aria-hidden="true" class="text-[0.7em] {% if not c.activa %}opacity-30{% endif %}">{% if c.desc %}▼{% elif c.activa %}▲{% else %}↕{% endif %}</span></a>{% endfor %}</div></th><th class="text-center">Jornada</th><th>Inicio</th><th>Fin</th><th>Duración</th>{% if puede_perfiles %}<th class="text-center">Reporte obligatorio</th><th class="text-center">Móvil</th>{% endif %}<th>Realizado</th><th>Planificado</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+    <thead><tr><th><div class="flex items-center gap-3">{% for c in cabeceras %}<a href="{{ c.url }}" class="inline-flex items-center gap-1 hover:text-base-content {% if c.activa %}text-base-content{% endif %}" title="Ordenar por {{ c.titulo|lower }}"{% if c.activa %} aria-sort="{% if c.desc %}descending{% else %}ascending{% endif %}"{% endif %}>{{ c.titulo }}<span aria-hidden="true" class="{% if not c.activa %}opacity-30{% endif %}">{% if c.desc %}{% include "components/icon.html" with name="arrow-down" cls="size-3.5" %}{% else %}{% include "components/icon.html" with name="arrow-up" cls="size-3.5" %}{% endif %}</span></a>{% endfor %}</div></th><th class="text-center">Jornada</th><th>Inicio</th><th>Fin</th><th>Duración</th>{% if puede_perfiles %}<th class="text-center">Reporte obligatorio</th><th class="text-center">Móvil</th>{% endif %}<th>Realizado</th><th>Planificado</th><th><span class="sr-only">Acciones</span></th></tr></thead>
     <tbody>
     {% for f in filas %}
       <tr class="hover {% if f.perfil and not f.perfil.activo %}opacity-60{% endif %}">

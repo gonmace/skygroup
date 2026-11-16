@@ -28,6 +28,7 @@ AJUSTES = dict(
 )
 
 
+@override_settings(APU_SOLO_ADMIN=False)
 class Base(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -434,3 +435,96 @@ class EditorVistasTests(Base):
         self.assertContains(r, f'/apu/perfiles/{self.perfil.pk}/eliminar/')
         self.assertNotContains(r, f'/apu/perfiles/{self.plantilla.pk}/editar/')
         self.assertNotContains(r, f'/apu/perfiles/{self.plantilla.pk}/eliminar/')
+
+
+@override_settings(**AJUSTES)
+class SoloAdministradoresTests(Base):
+    """APU está cerrado a quien no administra: ve «Próximamente» (página y respuestas AJAX)."""
+
+    @override_settings(APU_SOLO_ADMIN=True)
+    def test_un_miembro_comun_ve_proximamente_y_el_superusuario_entra(self):
+        self.client.force_login(self.coord)
+        r = self.client.get('/tekon/apu/insumos/')
+        self.assertContains(r, 'Próximamente', status_code=403)
+        r = self.client.get('/tekon/apu/insumos/', HTTP_ACCEPT='application/json')
+        self.assertEqual(r.status_code, 403)
+        su = User.objects.create_superuser('su@example.com', 'x')
+        self.client.force_login(su)
+        self.assertEqual(self.client.get('/tekon/apu/insumos/').status_code, 200)
+
+
+@override_settings(**AJUSTES)
+class CategoriasTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.coord)
+
+    def nombres(self, empresa=None):
+        from .models import CategoriaAPU
+        return list(CategoriaAPU.objects.filter(empresa=empresa or self.a).values_list('nombre', flat=True))
+
+    def test_crear_sin_duplicar_por_mayusculas_ni_tildes(self):
+        self.client.post('/tekon/apu/categorias/nueva/', {'nombre': 'Obra gruesa'})
+        r = self.client.post('/tekon/apu/categorias/nueva/', {'nombre': ' obra  GRUESA '}, follow=True)
+        self.assertEqual(self.nombres(), ['Obra gruesa'])
+        self.assertContains(r, 'Ya existe')
+        self.client.post('/tekon/apu/categorias/nueva/', {'nombre': 'Instalación'})
+        self.client.post('/tekon/apu/categorias/nueva/', {'nombre': 'instalacion'})
+        self.assertEqual(self.nombres(), ['Obra gruesa', 'Instalación'])
+
+    def test_reordenar_a_mano(self):
+        from . import categorias as cats
+        a, b, c = (cats.crear(self.a, n) for n in ('A', 'B', 'C'))
+        self.client.post(f'/tekon/apu/categorias/{c.pk}/mover/', {'sentido': 'subir'})
+        self.assertEqual(self.nombres(), ['A', 'C', 'B'])
+        self.client.post(f'/tekon/apu/categorias/{a.pk}/mover/', {'sentido': 'bajar'})
+        self.assertEqual(self.nombres(), ['C', 'A', 'B'])
+        self.client.post(f'/tekon/apu/categorias/{c.pk}/mover/', {'sentido': 'subir'})   # ya es la primera
+        self.assertEqual(self.nombres(), ['C', 'A', 'B'])
+
+    def test_renombrar_fusionar_y_eliminar(self):
+        from . import categorias as cats
+        a, b = cats.crear(self.a, 'Acabados'), cats.crear(self.a, 'Acabado')
+        item = ItemModelo.objects.create(empresa=self.a, codigo='X', descripcion='x', unidad='m2', categoria=b)
+        self.client.post(f'/tekon/apu/categorias/{b.pk}/renombrar/', {'nombre': 'Acabados Finos'})
+        self.assertEqual(self.nombres(), ['Acabados', 'Acabados Finos'])
+        r = self.client.post(f'/tekon/apu/categorias/{b.pk}/renombrar/', {'nombre': 'acabados'}, follow=True)
+        self.assertContains(r, 'Ya existe')
+        self.client.post(f'/tekon/apu/categorias/{b.pk}/fusionar/', {'destino': a.pk})
+        item.refresh_from_db()
+        self.assertEqual((self.nombres(), item.categoria), (['Acabados'], a))
+        self.client.post(f'/tekon/apu/categorias/{a.pk}/eliminar/')
+        item.refresh_from_db()
+        self.assertEqual((self.nombres(), item.categoria), ([], None))
+
+    def test_permisos_y_aislamiento_por_empresa(self):
+        from . import categorias as cats
+        ajena = cats.crear(self.b, 'Ajena')
+        self.assertEqual(self.client.post(f'/tekon/apu/categorias/{ajena.pk}/eliminar/').status_code, 404)
+        self.assertEqual(self.client.get('/tekon/apu/categorias/nueva/').status_code, 405)
+        self.client.force_login(self.obs)
+        self.assertEqual(self.client.post('/tekon/apu/categorias/nueva/', {'nombre': 'X'}).status_code, 403)
+        self.assertEqual(self.client.get('/tekon/apu/categorias/').status_code, 200)
+        self.assertEqual(self.nombres(), [])
+
+    def test_la_ia_reutiliza_o_crea_al_final(self):
+        from . import categorias as cats
+        a = cats.crear(self.a, 'Obra gruesa')
+        self.assertEqual(cats.obtener_o_crear(self.a, 'obra GRUESA'), a)
+        n = cats.obtener_o_crear(self.a, 'Estructuras')
+        self.assertEqual((n.orden, cats.para_ia(self.a)), (2, ['Obra gruesa', 'Estructuras']))
+        self.assertIsNone(cats.obtener_o_crear(self.a, '  '))
+
+
+class UnidadesTests(SimpleTestCase):
+    def test_abrevia_nombres_sinonimos_y_errores_de_tipeo(self):
+        from .unidades import normalizar
+        for escrito, esperado in [('hectárea', 'ha'), ('hactarea', 'ha'), ('Hectareas', 'ha'), ('metro', 'm'),
+                                  ('Metros Cuadrados', 'm²'), ('m2', 'm²'), ('M3', 'm³'), ('kilos', 'kg'),
+                                  ('Pza.', 'pza'), ('tonelada', 't'), ('m²', 'm²'), ('  ml ', 'ml')]:
+            self.assertEqual(normalizar(escrito), esperado, escrito)
+
+    def test_lo_desconocido_se_respeta(self):
+        from .unidades import normalizar
+        self.assertEqual(normalizar('  Quintal   grande '), 'Quintal grande')
+        self.assertEqual(normalizar(''), '')

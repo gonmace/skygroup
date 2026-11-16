@@ -1,0 +1,437 @@
+<title>Estándar de interfaz SkyGroup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+:root {
+  --bg: #f5f5f8; --surf: #ffffff; --surf2: #f0f0f4; --fg: #1c1b22; --mut: #6b6a75; --line: #e2e1e8;
+  --edit: #0a8a92; --info: #1f6fd6; --ok: #1b8a4a; --err: #e0212e; --warn: #a96a00;
+  --info-s: #e8f1fd; --ok-s: #e6f5ec; --err-s: #fdeaec; --warn-s: #fcf1de;
+  --mod-soft: oklch(.955 .028 355); --mod-ink: oklch(.44 .12 355); --mod-line: oklch(.86 .06 355);
+  --font: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121218; --surf: #1b1b23; --surf2: #23232d; --fg: #ececf2; --mut: #a2a1ad; --line: #2e2d38;
+  --edit: #4cc9d1; --info: #6fa8f5; --ok: #55c485; --err: #ff5a64; --warn: #e8b259;
+  --info-s: #1c2a40; --ok-s: #17301f; --err-s: #3a1c20; --warn-s: #3a2d14;
+  --mod-soft: oklch(.30 .06 355); --mod-ink: oklch(.86 .10 355); --mod-line: oklch(.55 .10 355); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #121218; --surf: #1b1b23; --surf2: #23232d; --fg: #ececf2; --mut: #a2a1ad; --line: #2e2d38;
+  --edit: #4cc9d1; --info: #6fa8f5; --ok: #55c485; --err: #ff5a64; --warn: #e8b259;
+  --info-s: #1c2a40; --ok-s: #17301f; --err-s: #3a1c20; --warn-s: #3a2d14;
+  --mod-soft: oklch(.30 .06 355); --mod-ink: oklch(.86 .10 355); --mod-line: oklch(.55 .10 355); color-scheme: dark; }
+/* módulos (claro) — se cambian con el selector de arriba */
+[data-m="reg"] { --mod-soft: oklch(.93 .045 235); --mod-ink: oklch(.42 .11 235); --mod-line: oklch(.80 .08 235); }
+[data-m="tar"] { --mod-soft: oklch(.93 .045 295); --mod-ink: oklch(.42 .12 295); --mod-line: oklch(.80 .08 295); }
+[data-m="jor"] { --mod-soft: oklch(.95 .055 78); --mod-ink: oklch(.42 .10 62); --mod-line: oklch(.82 .10 78); }
+[data-m="msj"] { --mod-soft: oklch(.94 .06 152); --mod-ink: oklch(.40 .11 152); --mod-line: oklch(.80 .10 152); }
+[data-m="apu"] { --mod-soft: oklch(.955 .028 355); --mod-ink: oklch(.44 .12 355); --mod-line: oklch(.86 .06 355); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  [data-m="reg"] { --mod-soft: oklch(.30 .05 235); --mod-ink: oklch(.86 .09 235); --mod-line: oklch(.55 .09 235); } } }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); margin: 0; font-size: 14px;
+  padding-block: 24px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 1020px; margin: 0 auto; display: flex; flex-direction: column; gap: 36px; }
+h1 { font-size: 1.7rem; margin: 0 0 6px; letter-spacing: -.02em; text-wrap: balance; }
+h2 { font-size: 1.15rem; margin: 0; letter-spacing: -.01em; }
+h3 { font-size: .78rem; margin: 0 0 8px; color: var(--mut); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+p { margin: 0; color: var(--mut); line-height: 1.5; max-width: 70ch; }
+section { display: flex; flex-direction: column; gap: 14px; }
+code { font-size: .78rem; background: color-mix(in oklab, var(--mut) 15%, transparent); padding: 1px 6px; border-radius: 6px; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.lbl { font-size: .76rem; color: var(--mut); }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.v { color: var(--ok); font-weight: 600; } .x { color: var(--err); font-weight: 600; }
+svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; width: 16px; height: 16px; }
+svg.i.m { width: 20px; height: 20px; } svg.i.l { width: 24px; height: 24px; }
+
+/* ===== Estándar propuesto ===== */
+.superficie { background: var(--surf); border-radius: 16px; box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-line) 45%, transparent), 0 1px 2px rgb(0 0 0 / .06), 0 4px 12px -2px rgb(0 0 0 / .08); }
+.pad { padding: 16px; }
+.enlace { transition: transform .2s, box-shadow .2s; cursor: pointer; }
+.enlace:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px var(--mod-line), 0 2px 4px rgb(0 0 0 / .06), 0 12px 28px -6px rgb(0 0 0 / .16); }
+.tile { border-radius: 12px; padding: 12px 14px; background: color-mix(in oklab, var(--mod-soft) 30%, var(--surf2)); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mod-line) 45%, transparent); }
+.tile b { display: block; font-size: 1.5rem; line-height: 1.1; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.tile.fuerte { background: color-mix(in oklab, var(--mod-soft) 55%, var(--surf)); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mod-ink) 30%, transparent); }
+.kicker { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); }
+/* botones */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 999px; font: 600 .82rem var(--font); cursor: pointer; transition: background-color .2s, color .2s, border-color .2s;
+  --ink: var(--mod-ink); --soft: color-mix(in oklab, var(--mod-soft) 55%, var(--surf)); background: var(--soft); color: var(--ink); border: 1px solid color-mix(in oklab, var(--ink) 45%, transparent); }
+.btn:hover { background: var(--ink); color: var(--soft); border-color: var(--ink); }
+.btn.ok { --ink: var(--ok); --soft: var(--ok-s); } .btn.err { --ink: var(--err); --soft: var(--err-s); } .btn.warn { --ink: var(--warn); --soft: var(--warn-s); } .btn.info { --ink: var(--info); --soft: var(--info-s); }
+.btn.neutro { --ink: var(--fg); --soft: var(--surf); border-color: color-mix(in oklab, var(--mod-ink) 30%, transparent); }
+.btn.fant { background: transparent; border-color: color-mix(in oklab, currentColor 28%, transparent); color: var(--fg); font-weight: 500; }
+.btn.fant:hover { background: color-mix(in oklab, currentColor 8%, transparent); color: var(--fg); border-color: color-mix(in oklab, currentColor 45%, transparent); }
+.btn.sm { height: 28px; padding: 0 10px; font-size: .76rem; } .btn.lg { height: 42px; padding: 0 20px; font-size: .92rem; }
+.btn.off { opacity: .4; pointer-events: none; }
+.ib { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 12px; border: 0; background: transparent; color: var(--mut); cursor: pointer; }
+.ib:hover { background: color-mix(in oklab, currentColor 12%, transparent); }
+.ib.info { color: var(--info); } .ib.edit { color: var(--edit); } .ib.ok { color: var(--ok); } .ib.err { color: var(--err); } .ib.off { opacity: .35; pointer-events: none; }
+/* campos */
+.campo { display: flex; flex-direction: column; gap: 4px; }
+.campo span { font-size: .74rem; font-weight: 500; color: var(--mut); }
+.in { height: 34px; border-radius: 12px; padding: 0 12px; background: color-mix(in oklab, var(--fg) 5%, transparent); border: 1px solid color-mix(in oklab, var(--mod-line) 60%, transparent); color: var(--fg); font: inherit; min-width: 0; }
+.in:focus { outline: 3px solid color-mix(in oklab, var(--mod-ink) 25%, transparent); border-color: var(--mod-ink); background: var(--surf); }
+textarea.in { height: 70px; padding: 8px 12px; resize: none; }
+.seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; background: color-mix(in oklab, var(--fg) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mod-line) 60%, transparent); }
+.seg a { display: inline-flex; align-items: center; min-height: 30px; padding: 0 14px; border-radius: 999px; font-size: .8rem; font-weight: 500; color: var(--mut); cursor: pointer; }
+.seg a.on { background: var(--mod-soft); color: var(--mod-ink); font-weight: 600; box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-ink) 45%, transparent); }
+.sw2 { --w: 44px; --h: 24px; position: relative; flex: none; width: var(--w); height: var(--h); border-radius: 999px; border: 1px solid color-mix(in oklab, var(--fg) 25%, transparent); background: color-mix(in oklab, var(--fg) 8%, transparent); cursor: pointer; padding: 0; transition: background-color .18s, border-color .18s; }
+.sw2::after { content: ""; position: absolute; top: 2px; left: 2px; width: calc(var(--h) - 6px); height: calc(var(--h) - 6px); border-radius: 50%; background: color-mix(in oklab, var(--fg) 45%, var(--surf)); box-shadow: 0 1px 2px rgb(0 0 0 / .25); transition: transform .18s cubic-bezier(.2,.8,.2,1), background-color .18s; }
+.sw2 svg { position: absolute; top: 50%; left: 7px; width: 12px; height: 12px; stroke-width: 3; color: #fff; opacity: 0; transform: translateY(-50%); transition: opacity .15s; z-index: 1; pointer-events: none; }
+.sw2[aria-checked="true"] { background: var(--ok-s); border-color: color-mix(in oklab, var(--ok) 55%, transparent); }
+.sw2[aria-checked="true"]::after { transform: translateX(calc(var(--w) - var(--h))); background: var(--ok); }
+.sw2[aria-checked="true"] svg { opacity: 1; transform: translateY(-50%) translateX(calc(var(--w) - var(--h) - 2px)); }
+.sw2:hover { border-color: color-mix(in oklab, var(--fg) 40%, transparent); } .sw2[aria-checked="true"]:hover { border-color: var(--ok); }
+.sw2:focus-visible { outline: 3px solid color-mix(in oklab, var(--mod-ink) 30%, transparent); outline-offset: 2px; }
+.sw2.sm { --w: 36px; --h: 20px; }
+.sw2:disabled { opacity: .4; cursor: not-allowed; }
+.fila-sw { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-top: 1px solid color-mix(in oklab, var(--fg) 8%, transparent); }
+.fila-sw:first-of-type { border-top: 0; } .fila-sw b { font-size: .88rem; } .fila-sw p { font-size: .78rem; margin-top: 2px; }
+/* píldoras e insignias */
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px; border-radius: 999px; font-size: .78rem; background: var(--surf); box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-line) 60%, transparent); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.bd { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; font-size: .72rem; font-weight: 600; background: color-mix(in oklab, var(--c) 14%, transparent); color: var(--c); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--c) 35%, transparent); --c: var(--mut); }
+.bd.ok { --c: var(--ok); } .bd.err { --c: var(--err); } .bd.warn { --c: var(--warn); } .bd.info { --c: var(--info); } .bd.mod { --c: var(--mod-ink); }
+.av { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--mod-soft); color: var(--mod-ink); font-weight: 600; font-size: .72rem; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mod-ink) 35%, transparent); }
+.ficha { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--mod-soft); color: var(--mod-ink); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mod-ink) 30%, transparent); }
+.ficha.ok { background: var(--ok-s); color: var(--ok); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ok) 35%, transparent); }
+.ficha.err { background: var(--err-s); color: var(--err); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--err) 40%, transparent); }
+.ficha.warn { background: var(--warn-s); color: var(--warn); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--warn) 35%, transparent); }
+.ficha.info { background: var(--info-s); color: var(--info); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--info) 35%, transparent); }
+/* tablas */
+.tcard { border-radius: 16px; background: var(--surf); box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-line) 45%, transparent), 0 1px 2px rgb(0 0 0 / .06), 0 4px 12px -2px rgb(0 0 0 / .08); overflow-x: auto; }
+.tcard header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 18px; border-bottom: 1px solid color-mix(in oklab, var(--mod-line) 50%, transparent); }
+.tcard header h4 { margin: 0; font-size: .95rem; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-weight: 500; font-size: .72rem; color: var(--mut); padding: 9px 14px; background: color-mix(in oklab, var(--fg) 4%, transparent); white-space: nowrap; }
+td { padding: 10px 14px; border-top: 1px solid color-mix(in oklab, var(--fg) 8%, transparent); vertical-align: middle; }
+tbody tr:hover { background: color-mix(in oklab, var(--mod-soft) 35%, transparent); }
+tr.est td:first-child { box-shadow: inset 4px 0 0 var(--e); }
+tr.fe td { background: color-mix(in oklab, var(--e) 6%, var(--surf)); border-top-color: color-mix(in oklab, var(--e) 18%, transparent); }
+tr.fe td:first-child { box-shadow: inset 4px 0 0 var(--e); }
+tr.fe:hover td { background: color-mix(in oklab, var(--e) 12%, var(--surf)); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tfoot td { background: color-mix(in oklab, var(--fg) 5%, transparent); font-weight: 600; }
+/* mensajes */
+.toast { position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; width: min(360px, 100%); padding: 12px 12px 15px 12px; border-radius: 16px;
+  background: color-mix(in oklab, var(--c) 9%, var(--surf)); box-shadow: 0 0 0 1px color-mix(in oklab, var(--c) 45%, transparent), 0 10px 28px -10px rgb(0 0 0 / .3); --c: var(--ok); }
+.toast.ok2 { --c: var(--ok); } .toast.err { --c: var(--err); } .toast.warn { --c: var(--warn); } .toast.info { --c: var(--info); }
+.toast > div { min-width: 0; flex: 1; } .toast b { display: block; font-size: .88rem; line-height: 1.25; } .toast span { font-size: .8rem; color: var(--mut); line-height: 1.35; }
+.toast .ficha { width: 34px; height: 34px; border-radius: 12px; flex: none; }
+.toast .acc { flex: none; --ink: var(--c); --soft: transparent; color: var(--c); }
+.toast::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: color-mix(in oklab, var(--c) 60%, transparent); transform-origin: left; transform: scaleX(.6); border-radius: 0 3px 3px 0; }
+.toast.vivo::after { transform: none; animation: tbar var(--d, 6s) linear forwards; }
+.toast.vivo:hover::after { animation-play-state: paused; }
+@keyframes tbar { to { transform: scaleX(0); } }
+.alerta { display: flex; gap: 10px; align-items: flex-start; padding: 11px 14px; border-radius: 14px; background: color-mix(in oklab, var(--c) 10%, var(--surf)); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--c) 35%, transparent); --c: var(--warn); font-size: .85rem; }
+.alerta svg { color: var(--c); margin-top: 2px; } .alerta.info { --c: var(--info); } .alerta.err { --c: var(--err); }
+.vacio { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 26px 16px; text-align: center; }
+.cta { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: .8rem; font-weight: 600; background: var(--mod-soft); color: var(--mod-ink); border: 1px solid color-mix(in oklab, var(--mod-ink) 45%, transparent); }
+.enlace:hover .cta { background: var(--mod-ink); color: var(--mod-soft); border-color: var(--mod-ink); }
+.back { display: inline-flex; align-items: center; gap: 4px; color: var(--mut); font-size: .82rem; }
+.barra { height: 6px; border-radius: 999px; background: color-mix(in oklab, var(--fg) 10%, transparent); overflow: hidden; } .barra i { display: block; height: 100%; background: var(--mod-ink); }
+.nota { padding: 14px 16px; border-radius: 14px; background: var(--mod-soft); color: var(--mod-ink); font-weight: 600; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mod-ink) 35%, transparent); }
+#pila { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); z-index: 50; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+#pila .toast { pointer-events: auto; animation: ent .22s cubic-bezier(.2,.8,.2,1); } @keyframes ent { from { opacity: 0; transform: translateX(24px); } }
+@media (prefers-reduced-motion: reduce) { #pila .toast { animation: none; } }
+/* miniaturas */
+.foto { position: relative; display: block; overflow: hidden; background: var(--surf2); }
+.foto i.img { position: absolute; inset: 0; background: var(--g); transition: transform .25s cubic-bezier(.2,.8,.2,1); }
+.g1 { --g: linear-gradient(160deg, #8fa7bd 0%, #6c8aa6 45%, #4d6a85 100%); } .g2 { --g: linear-gradient(200deg, #d9c9a3 0%, #b8a074 55%, #8a7550 100%); }
+.g3 { --g: linear-gradient(135deg, #9db8a4 0%, #6f9179 50%, #4a6a55 100%); } .g4 { --g: linear-gradient(180deg, #c3c7cf 0%, #9aa0ab 60%, #747b88 100%); }
+.mi { width: 88px; height: 88px; border-radius: 12px; box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-line) 55%, transparent); cursor: pointer; }
+.mi:hover { box-shadow: 0 0 0 1px var(--mod-ink), 0 6px 14px -6px rgb(0 0 0 / .35); } .mi:hover i.img, .gal:hover i.img { transform: scale(1.05); }
+.mi .ver { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in oklab, #000 38%, transparent); color: #fff; opacity: 0; transition: opacity .18s; }
+.mi:hover .ver, .gal:hover .ver { opacity: 1; }
+.mi .acc2 { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; background: color-mix(in oklab, var(--surf) 92%, transparent); box-shadow: 0 0 0 1px color-mix(in oklab, var(--fg) 15%, transparent); opacity: 0; transition: opacity .18s; }
+.mi:hover .acc2 { opacity: 1; } .mi .acc2.err { color: var(--err); }
+.mi .sel { position: absolute; top: 4px; left: 4px; width: 22px; height: 22px; border-radius: 8px; display: grid; place-items: center; background: var(--mod-ink); color: var(--mod-soft); }
+.mi.elegida { box-shadow: 0 0 0 2px var(--mod-ink); }
+.mi.mas { display: grid; place-items: center; background: var(--mod-soft); color: var(--mod-ink); font-weight: 700; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mod-ink) 40%, transparent); }
+.mi.arch { display: grid; place-items: center; background: color-mix(in oklab, var(--mod-soft) 35%, var(--surf2)); color: var(--mod-ink); }
+.mi.arch small { position: absolute; bottom: 6px; font-size: .62rem; font-weight: 700; letter-spacing: .04em; }
+.mi.carga i.img { background: linear-gradient(100deg, color-mix(in oklab, var(--fg) 8%, transparent) 30%, color-mix(in oklab, var(--fg) 16%, transparent) 50%, color-mix(in oklab, var(--fg) 8%, transparent) 70%); background-size: 200% 100%; animation: brillo 1.2s linear infinite; }
+@keyframes brillo { to { background-position: -200% 0; } } @media (prefers-reduced-motion: reduce) { .mi.carga i.img { animation: none; } }
+.mi.rota { display: grid; place-items: center; color: var(--mut); background: color-mix(in oklab, var(--fg) 6%, transparent); }
+.gal { border-radius: 16px; overflow: hidden; background: var(--surf); box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-line) 45%, transparent), 0 1px 2px rgb(0 0 0 / .06), 0 4px 12px -2px rgb(0 0 0 / .08); cursor: pointer; transition: transform .2s, box-shadow .2s; }
+.gal:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px var(--mod-line), 0 12px 28px -6px rgb(0 0 0 / .18); }
+.gal .foto { aspect-ratio: 4 / 3; } .gal .ver { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in oklab, #000 34%, transparent); color: #fff; opacity: 0; transition: opacity .18s; }
+.gal figcaption { padding: 9px 12px; display: flex; flex-direction: column; gap: 4px; } .gal figcaption b { font-size: .8rem; font-weight: 600; } .gal figcaption .row { gap: 6px; }
+.gal { margin: 0; } .gal .etq { position: absolute; left: 8px; bottom: 8px; }
+.tira { display: flex; gap: 8px; flex-wrap: wrap; }
+.chatimg { max-width: 220px; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-ink) 35%, transparent); }
+.chatimg .foto { height: 130px; }
+.selector { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; padding: 10px 0; background: var(--bg); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 560px) { h1 { font-size: 1.4rem; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="pencil" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="m14.5 7.5 3 3"/></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></symbol>
+  <symbol id="eraser" viewBox="0 0 24 24"><path d="m7 21-4.3-4.3a2.4 2.4 0 0 1 0-3.4l9.6-9.6a2.4 2.4 0 0 1 3.4 0l5.6 5.6a2.4 2.4 0 0 1 0 3.4L13 21"/><path d="M22 21H7M5 11l9 9"/></symbol>
+  <symbol id="up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></symbol>
+  <symbol id="copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></symbol>
+  <symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="pdf" viewBox="0 0 24 24"><g stroke="#d93025"><path d="M6 11V3a1 1 0 0 1 1-1h7l5 5v4"/><path d="M14 2v5h5M6 20v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1"/></g><rect x="2.5" y="10.5" width="19" height="9" rx="1.5" fill="#d93025" stroke="none"/><g stroke="#fff" stroke-width="1.3"><path d="M5.5 17.5v-5h1.5a1.3 1.3 0 0 1 0 2.6H5.5M10 12.5h.6a2.5 2.5 0 0 1 0 5H10zM14.5 17.5v-5h2.8M14.5 15h2"/></g></symbol>
+  <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="folder" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="alert" viewBox="0 0 24 24"><path d="M12 4 2.5 20h19z"/><path d="M12 10v4M12 17.5v.01"/></symbol>
+  <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></symbol>
+  <symbol id="sparkles" viewBox="0 0 24 24"><path d="M10 3.5 12 9l5.5 2-5.5 2-2 5.5L8 13l-5.5-2L8 9z"/><path d="M18.5 3v4M16.5 5h4"/></symbol>
+  <symbol id="left" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+  <symbol id="right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+  <symbol id="calc" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/></symbol>
+</defs></svg>
+
+<main data-m="apu" id="raiz">
+  <header>
+    <h1>Estándar de interfaz</h1>
+    <p>Un único estilo para todo SkyGroup: botones, tarjetas, tablas, campos, insignias, mensajes e iconos. Es una propuesta para revisar: nada se aplica hasta que la apruebes. Cambia de módulo para ver que el mismo estándar toma el color de cada uno.</p>
+  </header>
+
+  <div class="selector" role="group" aria-label="Módulo de ejemplo">
+    <span class="lbl">Ver con el color de:</span>
+    <div class="seg" id="mods">
+      <a data-set="reg">Registros</a><a data-set="tar">Tareas</a><a data-set="jor">Jornadas</a><a data-set="msj">Mensajería</a><a data-set="apu" class="on">APU</a>
+    </div>
+  </div>
+
+  <section>
+    <div><h2>0. Los cuatro principios</h2></div>
+    <div class="grid">
+      <div class="superficie pad"><h3>1 · Contorno fino</h3><p>Todo lo que se toca o agrupa lleva un contorno de 1 px. Nada de bordes gruesos ni de superficies solo con sombra.</p></div>
+      <div class="superficie pad"><h3>2 · Pastel + tinta</h3><p>El color se usa como fondo pastel suave con texto del color pleno. El relleno pleno solo aparece al pasar el cursor.</p></div>
+      <div class="superficie pad"><h3>3 · El color dice algo</h3><p>El del módulo identifica dónde estás. Verde, rojo, ámbar y azul son solo de estado. Violeta, rosa y ámbar de plataforma son de nivel de acceso y no se reutilizan.</p></div>
+      <div class="superficie pad"><h3>4 · Un solo lenguaje</h3><p>Formas: píldora (botones, insignias, segmentado), 12 px (campos, fichas, iconos), 16 px (tarjetas y tablas). Nada más.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div><h2>1. Fundamentos</h2></div>
+    <div class="grid">
+      <div class="superficie pad"><h3>Radios</h3>
+        <div class="row" style="gap:14px"><div style="text-align:center"><div style="width:54px;height:28px;border-radius:999px;box-shadow:inset 0 0 0 1px var(--mod-ink)"></div><div class="lbl">Píldora</div></div>
+        <div style="text-align:center"><div style="width:54px;height:36px;border-radius:12px;box-shadow:inset 0 0 0 1px var(--mod-ink)"></div><div class="lbl">12 px</div></div>
+        <div style="text-align:center"><div style="width:54px;height:44px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--mod-ink)"></div><div class="lbl">16 px</div></div></div></div>
+      <div class="superficie pad"><h3>Espaciado</h3><p>Escala de 4: 4 · 8 · 12 · 16 · 24 · 32. Tarjetas con 16–20 px de relleno; separación entre bloques de 16–24 px.</p></div>
+      <div class="superficie pad"><h3>Elevación</h3><p>Reposo: filete + sombra corta. Al pasar el cursor sobre una tarjeta-enlace: sube 2 px y el filete toma el color pleno del módulo. Sin sombras de color en otros sitios.</p></div>
+      <div class="superficie pad"><h3>Tipografía</h3><p>Inter. Título de página 24 px, de sección 16–18 px, texto 14 px, rótulos 11–12 px en mayúsculas con espaciado. Cifras con ancho tabular.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div><h2>2. Iconos</h2><p>Trazo único de 1,8 px, redondeado, sin relleno. Tamaños: 16 junto a texto, 20 en botones de icono, 24 en encabezados, 32 en tarjetas de módulo. El color depende de lo que hace el icono.</p></div>
+    <div class="superficie pad" style="overflow-x:auto"><table>
+      <thead><tr><th>Significado</th><th>Iconos</th><th>Color</th><th>Muestra</th></tr></thead><tbody>
+      <tr><td>Neutro / mover / fusionar</td><td>flechas, capas, ajustes</td><td><span class="sw" style="background:var(--mut)"></span>gris</td><td><span class="ib"><svg class="i m"><use href="#up"/></svg></span><span class="ib"><svg class="i m"><use href="#layers"/></svg></span></td></tr>
+      <tr><td>Copiar</td><td>dos hojas; al copiar pasa a check verde 1,5 s</td><td><span class="sw" style="background:var(--mut)"></span>gris</td><td><span class="ib"><svg class="i m"><use href="#copy"/></svg></span><span class="ib ok"><svg class="i m"><use href="#check"/></svg></span></td></tr>
+      <tr><td>Editar / renombrar</td><td>lápiz</td><td><span class="sw" style="background:var(--edit)"></span>turquesa (propio de editar; ningún módulo ni nivel de acceso lo usa)</td><td><span class="ib edit"><svg class="i m"><use href="#pencil"/></svg></span></td></tr>
+      <tr><td>Ver / abrir / información</td><td>ojo, flecha →, info</td><td><span class="sw" style="background:var(--info)"></span>azul (como ya se usa en Equipo)</td><td><span class="ib info"><svg class="i m"><use href="#eye"/></svg></span></td></tr>
+      <tr><td>Guardar / confirmar / agregar</td><td>check, +</td><td><span class="sw" style="background:var(--ok)"></span>verde</td><td><span class="ib ok"><svg class="i m"><use href="#check"/></svg></span><span class="ib ok"><svg class="i m"><use href="#plus"/></svg></span></td></tr>
+      <tr><td>Eliminar / borrar / error</td><td>papelera, borrador, ✕</td><td><span class="sw" style="background:var(--err)"></span>rojo intenso; en botón de fila, solo el icono</td><td><span class="ib err"><svg class="i m"><use href="#trash"/></svg></span><span class="ib err"><svg class="i m"><use href="#eraser"/></svg></span></td></tr>
+      <tr><td>Archivo PDF</td><td>icono de PDF (hoja con etiqueta)</td><td><span class="sw" style="background:#d93025"></span>rojo de PDF, fijo (no es el de error)</td><td><span class="ib"><svg class="i m" style="color:#d93025"><use href="#pdf"/></svg></span></td></tr>
+      <tr><td>Encabezados, vacíos, IA</td><td>carpeta, destellos…</td><td><span class="sw" style="background:var(--mod-ink)"></span>color del módulo, en ficha</td><td><span class="ficha"><svg class="i m"><use href="#folder"/></svg></span></td></tr>
+      </tbody></table></div>
+    <div class="superficie pad"><h3>Ficha de icono (avisos, estados, tarjetas): pastel + contorno de 1 px</h3>
+      <div class="row"><span class="ficha info"><svg class="i m"><use href="#info"/></svg></span><span class="ficha ok"><svg class="i m"><use href="#check"/></svg></span><span class="ficha warn"><svg class="i m"><use href="#alert"/></svg></span><span class="ficha err"><svg class="i m"><use href="#trash"/></svg></span><span class="ficha"><svg class="i m"><use href="#folder"/></svg></span>
+      <p style="flex:1;min-width:220px">Un icono suelto en botón de fila no lleva ficha. Persona: siempre círculo con iniciales (<span class="av" style="width:26px;height:26px;font-size:.62rem">MG</span>).</p></div></div>
+  </section>
+
+  <section>
+    <div><h2>3. Botones</h2><p>Todo botón de color es pastel con texto del color y contorno de 1 px; al pasar el cursor se rellena. El principal toma el color del módulo; los de estado, el suyo. Siempre en píldora, nunca con relleno sólido en reposo.</p></div>
+    <div class="superficie pad"><div class="row" style="gap:12px">
+      <span class="btn"><svg class="i"><use href="#plus"/></svg> Principal</span>
+      <span class="btn ok"><svg class="i"><use href="#check"/></svg> Guardar</span>
+      <span class="btn err"><svg class="i"><use href="#trash"/></svg> Eliminar</span>
+      <span class="btn warn">Aviso</span><span class="btn info">Información</span>
+      <span class="btn neutro">Neutro</span><span class="btn fant">Fantasma</span><span class="btn off">Deshabilitado</span></div>
+      <div class="row" style="margin-top:12px"><span class="btn sm">Pequeño</span><span class="btn">Normal</span><span class="btn lg">Grande</span>
+      <span class="ib"><svg class="i m"><use href="#copy"/></svg></span><span class="ib edit"><svg class="i m"><use href="#pencil"/></svg></span><span class="ib err"><svg class="i m"><use href="#trash"/></svg></span><span class="lbl">Botones de icono: cuadrados de 34 px, sin fondo, con tooltip.</span></div></div>
+    <div class="grid"><div class="superficie pad"><p><span class="v">Cuándo cada uno.</span> Principal: la acción que se espera de la pantalla (una por zona). Neutro/fantasma: acciones secundarias y «Cancelar». Verde: guardar/confirmar. Rojo: destructivas, siempre con confirmación en toast.</p></div>
+    <div class="superficie pad"><p><span class="x">Nunca</span> relleno sólido en reposo, <code>border: 0</code>, botones de texto suelto sin contorno, ni dos principales juntos.</p></div></div>
+  </section>
+
+  <section>
+    <div><h2>4. Campos y selectores</h2><p>Relleno gris muy suave y borde de 1 px del color del módulo; al enfocar, borde pleno y halo. Una opción entre pocas se elige con el control segmentado, no con un desplegable.</p></div>
+    <div class="superficie pad"><div class="row" style="align-items:flex-end;gap:16px">
+      <label class="campo"><span>Nombre</span><input class="in" value="Obra gruesa" style="width:190px"></label>
+      <label class="campo"><span>Cargo</span><select class="in" style="width:170px"><option>Coordinador</option></select></label>
+      <label class="campo"><span>Fecha</span><input class="in" value="15/11/2026" style="width:130px"></label>
+      <label class="campo"><span>Con error</span><input class="in" value="—" style="width:120px;border-color:var(--err)"></label>
+      <div class="campo"><span>Período</span><div class="seg"><a>Mes</a><a class="on">Rango</a><a>Todo</a><a>Último día</a></div></div>
+      <div class="campo"><span>Activo</span><button class="sw2" role="switch" aria-checked="true" aria-label="Activo"><svg class="i"><use href="#check"/></svg></button></div></div>
+      <label class="campo" style="margin-top:12px"><span>Descripción</span><textarea class="in">Texto largo con el micrófono de dictado a la derecha.</textarea></label>
+      <p style="margin-top:8px">El error de un campo se muestra junto a él, en rojo; el resumen del resultado va en toast.</p></div>
+  </section>
+
+  <section>
+    <div><h2>4b. Interruptor (toggle)</h2><p>Interruptor con contorno fino: apagado es gris con perilla gris; encendido es el pastel verde con contorno verde, perilla verde y un check dentro, para que no dependa solo del color. Se mueve con una curva suave y se opera con clic, Espacio o Enter.</p></div>
+    <div class="superficie pad">
+      <div class="row" style="gap:22px;margin-bottom:6px">
+        <div class="row"><button class="sw2" role="switch" aria-checked="false" aria-label="Apagado"><svg class="i"><use href="#check"/></svg></button><span class="lbl">Apagado</span></div>
+        <div class="row"><button class="sw2" role="switch" aria-checked="true" aria-label="Encendido"><svg class="i"><use href="#check"/></svg></button><span class="lbl">Encendido</span></div>
+        <div class="row"><button class="sw2 sm" role="switch" aria-checked="true" aria-label="Pequeño"><svg class="i"><use href="#check"/></svg></button><span class="lbl">Pequeño (tablas)</span></div>
+        <div class="row"><button class="sw2" role="switch" aria-checked="true" disabled aria-label="Deshabilitado"><svg class="i"><use href="#check"/></svg></button><span class="lbl">Deshabilitado</span></div></div>
+      <div class="fila-sw"><div><b>Puede marcar desde el celular</b><p>Podrá iniciar y finalizar su jornada también desde el móvil.</p></div><button class="sw2" role="switch" aria-checked="true" aria-label="Móvil"><svg class="i"><use href="#check"/></svg></button></div>
+      <div class="fila-sw"><div><b>Reporte diario obligatorio</b><p>Exige Realizado y Planificado al finalizar.</p></div><button class="sw2" role="switch" aria-checked="false" aria-label="Reporte"><svg class="i"><use href="#check"/></svg></button></div>
+      <p style="margin-top:8px">Dentro de una tabla va el pequeño, centrado, sin texto. Un cambio que afecta a otra persona pide confirmación con un toast antes de aplicarse.</p></div>
+  </section>
+
+  <section>
+    <div><h2>5. Tarjetas y superficies</h2><p>Un solo radio de 16 px, filete fino del módulo y sombra corta. Las tarjetas que son enlace suben al pasar el cursor y su «Abrir» se rellena.</p></div>
+    <div class="grid">
+      <div class="superficie pad"><h3>Tarjeta</h3><p>Contenedor normal: formularios, listas, bloques de información.</p></div>
+      <div class="superficie pad enlace"><div class="row" style="justify-content:space-between"><b>Escuela Tarija</b><span class="bd mod">Bolivia</span></div><p style="margin:6px 0 10px">Tarjeta-enlace: toda ella es clicable.</p><span class="cta">Ver detalle <svg class="i"><use href="#right"/></svg></span></div>
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px"><div class="tile"><span class="kicker">APU</span><b>4</b></div><div class="tile fuerte"><span class="kicker">Presupuesto</span><b>1.240,00</b></div></div>
+    </div>
+    <div class="alerta info"><svg class="i m"><use href="#info"/></svg><span>Recuadros de dato: cifra grande con rótulo; el principal es el de la cifra clave (pastel del módulo), el resto, casi grises.</span></div>
+  </section>
+
+  <section>
+    <div><h2>6. Tablas</h2><p>Tarjeta de 16 px con cabecera propia, títulos de columna en gris pequeño, filas separadas por una línea muy tenue y fondo suave al pasar el cursor. El estado de una fila se marca con una franja izquierda de 4 px. Acciones en la última columna, solo iconos.</p></div>
+    <div class="tcard"><header><h4>APU del proyecto <span class="lbl">4</span></h4><span class="row"><span class="btn sm">Guardar cantidades</span><span class="lbl">Ver en la base de APU</span></span></header>
+      <table><thead><tr><th>Descripción</th><th>Categoría</th><th class="num">Cantidad</th><th class="num">P. unitario</th><th class="num">Subtotal</th><th></th></tr></thead><tbody>
+        <tr class="est" style="--e:var(--ok)"><td><b>Excavación manual</b><div class="lbl">ESC-1</div></td><td><span class="pill">Obra gruesa</span></td><td class="num">12,5 m³</td><td class="num">58,40</td><td class="num">730,00</td><td class="num"><span class="ib"><svg class="i m"><use href="#up"/></svg></span><span class="ib edit"><svg class="i m"><use href="#pencil"/></svg></span><span class="ib err"><svg class="i m"><use href="#trash"/></svg></span></td></tr>
+        <tr class="est" style="--e:var(--warn)"><td><b>Muro de ladrillo</b><div class="lbl">ESC-2 · 1 insumo sin precio</div></td><td><span class="pill">Obra gruesa</span></td><td class="num">40 m²</td><td class="num">112,00</td><td class="num">4.480,00</td><td class="num"><span class="ib"><svg class="i m"><use href="#up"/></svg></span><span class="ib edit"><svg class="i m"><use href="#pencil"/></svg></span><span class="ib err"><svg class="i m"><use href="#trash"/></svg></span></td></tr>
+        <tr class="est" style="--e:var(--err)"><td><b>Pintura interior</b><div class="lbl">ESC-3 · sin precios</div></td><td><span class="pill">Acabados</span></td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num"><span class="ib"><svg class="i m"><use href="#up"/></svg></span><span class="ib edit"><svg class="i m"><use href="#pencil"/></svg></span><span class="ib err"><svg class="i m"><use href="#trash"/></svg></span></td></tr>
+      </tbody><tfoot><tr><td colspan="4">Presupuesto estimado <span class="lbl">· 2 de 3 con cantidad</span></td><td class="num">5.210,00 BOB</td><td></td></tr></tfoot></table></div>
+    <div class="tcard"><header><h4>Registros de campo <span class="lbl">estado por fila</span></h4><span class="row"><span class="seg"><a class="on">Todos</a><a>Concluidos</a><a>Parciales</a><a>Vacíos</a></span></span></header>
+      <table><thead><tr><th>Registro</th><th>Responsable</th><th>Fecha</th><th>Estado</th><th></th></tr></thead><tbody>
+        <tr class="fe" style="--e:var(--ok)"><td><b>Inspección losa N2</b><div class="lbl">REG-0142</div></td><td><span class="row" style="gap:8px"><span class="av" style="width:26px;height:26px;font-size:.62rem">MG</span>M. Gómez</span></td><td>14/11/2026</td><td><span class="bd ok"><svg class="i"><use href="#check"/></svg> Concluido</span></td><td class="num"><span class="ib"><svg class="i m"><use href="#eye"/></svg></span></td></tr>
+        <tr class="fe" style="--e:var(--warn)"><td><b>Avance muro perimetral</b><div class="lbl">REG-0141 · faltan 3 fotos</div></td><td><span class="row" style="gap:8px"><span class="av" style="width:26px;height:26px;font-size:.62rem">LR</span>L. Ríos</span></td><td>14/11/2026</td><td><span class="bd warn"><svg class="i"><use href="#alert"/></svg> Parcial</span></td><td class="num"><span class="ib"><svg class="i m"><use href="#eye"/></svg></span></td></tr>
+        <tr class="fe" style="--e:var(--err)"><td><b>Revisión de encofrado</b><div class="lbl">REG-0140 · sin datos</div></td><td><span class="row" style="gap:8px"><span class="av" style="width:26px;height:26px;font-size:.62rem">PA</span>P. Acuña</span></td><td>13/11/2026</td><td><span class="bd err"><svg class="i"><use href="#x"/></svg> Vacío</span></td><td class="num"><span class="ib"><svg class="i m"><use href="#eye"/></svg></span></td></tr>
+        <tr><td><b>Control de acopio</b><div class="lbl">REG-0139</div></td><td><span class="row" style="gap:8px"><span class="av" style="width:26px;height:26px;font-size:.62rem">JT</span>J. Torres</span></td><td>13/11/2026</td><td><span class="bd">Sin iniciar</span></td><td class="num"><span class="ib"><svg class="i m"><use href="#eye"/></svg></span></td></tr>
+      </tbody></table></div>
+    <div class="grid">
+      <div class="superficie pad"><h3>Cómo se marca el estado</h3><p>Cuatro señales a la vez, para que ninguna dependa solo del color: franja izquierda de 4 px, fondo con un 6 % del color, línea divisoria teñida y una insignia con icono y texto en la columna de estado.</p></div>
+      <div class="superficie pad"><h3>Colores y significado</h3><div class="row" style="gap:8px"><span class="bd ok">Concluido / completo</span><span class="bd warn">Parcial</span><span class="bd err">Vacío / sin precio</span><span class="bd">Sin estado</span></div><p style="margin-top:8px">Siempre los de estado del tema; nunca los del módulo ni los de nivel de acceso. Al pasar el cursor, el fondo sube al 12 %.</p></div>
+      <div class="superficie pad"><h3>En el celular</h3><p>La fila pasa a tarjeta con la misma franja y el mismo fondo teñido; la insignia de estado va arriba a la derecha y las acciones abajo.</p></div>
+    </div>
+    <div class="row"><span class="lbl">Variante sobria (listas con muchas filas, como APU):</span><span class="bd ok">Completo</span><span class="bd warn">Parcial</span><span class="bd err">Sin precio</span><span class="lbl">Siempre acompañada de texto, no solo de color.</span></div>
+  </section>
+
+  <section>
+    <div><h2>7. Insignias, píldoras y estados</h2></div>
+    <div class="superficie pad"><div class="row" style="gap:14px">
+      <span class="bd ok">Activo</span><span class="bd warn">Pendiente</span><span class="bd err">Bloqueado</span><span class="bd info">Nuevo</span><span class="bd">Neutro</span><span class="bd mod">Beta</span>
+      <span class="pill"><i class="dot" style="background:var(--ok)"></i><b>12</b> completos</span><span class="pill"><i class="dot" style="background:var(--warn)"></i><b>3</b> parciales</span>
+      <span class="av">MG</span></div>
+      <p style="margin-top:10px">Insignia: pastel del color con contorno fino y texto en negrita. Píldora de dato: fondo de superficie, contorno del módulo y punto de color de estado. Los cargos y roles conservan sus colores propios (<code>badge-rol-*</code>).</p></div>
+  </section>
+
+  <section>
+    <div><h2>8. Mensajes al usuario (toasts)</h2><p>Se mantiene la regla: todo mensaje sale como toast arriba a la derecha. Cambia su aspecto: hoy son alertas de color sólido con solo texto y una «✕» de carácter; con el estándar llevan superficie con un toque del color, contorno fino, icono en ficha, título, acción opcional («Deshacer», «Reintentar», «Ver»), cierre con icono y una barra fina abajo que muestra cuánto falta para que se cierre (se detiene al pasar el cursor).</p></div>
+    <div class="grid">
+      <div class="superficie pad"><h3>Hoy</h3>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:#1b8a4a;color:#fff;font-size:.82rem"><span>Cantidades guardadas.</span><span>✕</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:#e0212e;color:#fff;font-size:.82rem"><span>No se pudo guardar el cambio.</span><span>✕</span></div>
+        </div></div>
+      <div class="superficie pad"><h3>Con el estándar</h3>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="toast ok2"><span class="ficha ok"><svg class="i"><use href="#check"/></svg></span><div><b>Cantidades guardadas</b><span>3 APU actualizados.</span></div><span class="btn sm acc">Deshacer</span><button class="ib" aria-label="Cerrar" style="width:26px;height:26px"><svg class="i"><use href="#x"/></svg></button></div>
+          <div class="toast err"><span class="ficha err"><svg class="i"><use href="#alert"/></svg></span><div><b>No se pudo guardar</b><span>La cantidad de ESC-2 debe ser un número.</span></div><button class="ib" aria-label="Cerrar" style="margin-left:auto;width:26px;height:26px"><svg class="i"><use href="#x"/></svg></button></div>
+        </div></div>
+    </div>
+    <div class="superficie pad"><h3>Los cuatro tipos y la confirmación</h3>
+      <div class="row" style="align-items:flex-start;gap:14px">
+        <div class="toast ok2"><span class="ficha ok"><svg class="i"><use href="#check"/></svg></span><div><b>Éxito</b><span>Se cierra solo a los 6 s.</span></div></div>
+        <div class="toast err"><span class="ficha err"><svg class="i"><use href="#alert"/></svg></span><div><b>Error</b><span>Se cierra a los 12 s y dice qué pasó y por qué.</span></div></div>
+        <div class="toast warn"><span class="ficha warn"><svg class="i"><use href="#alert"/></svg></span><div><b>Advertencia</b><span>Faltan precios en 2 APU.</span></div></div>
+        <div class="toast info"><span class="ficha info"><svg class="i"><use href="#info"/></svg></span><div><b>Información</b><span>Calculando…</span></div></div></div>
+      <div class="row" style="align-items:flex-start;gap:14px;margin-top:14px">
+        <div class="toast warn" style="max-width:340px;flex-direction:column;gap:10px;align-items:stretch"><div class="row" style="gap:10px;align-items:flex-start;flex-wrap:nowrap"><span class="ficha err"><svg class="i"><use href="#trash"/></svg></span><div><b>Eliminar la categoría «Obra gruesa»</b><span>Sus 12 APU quedarán sin categoría.</span></div></div><div class="row" style="justify-content:flex-end"><span class="btn sm fant">Cancelar</span><span class="btn sm err">Eliminar</span></div></div>
+        <div class="toast info" style="max-width:340px;flex-direction:column;gap:8px;align-items:stretch"><div class="row" style="gap:10px;flex-wrap:nowrap"><span class="ficha info"><svg class="i"><use href="#sparkles"/></svg></span><div><b>Generando APU con IA</b><span>Paso 2 de 4 · fijo hasta terminar</span></div></div><div class="barra"><i style="width:50%"></i></div></div>
+        <p style="flex:1;min-width:200px">Confirmación (destructiva en rojo, el resto en ámbar): mismo toast con ficha, título, mensaje y botones «Cancelar» + acción. Progreso: toast fijo con barra fina; lo cierra quien lo creó.</p></div></div>
+    <div class="superficie pad"><h3>Pruébalos</h3>
+      <div class="row"><span class="btn ok" data-t="ok">Éxito</span><span class="btn err" data-t="err">Error</span><span class="btn warn" data-t="warn">Advertencia</span><span class="btn info" data-t="info">Información</span><span class="lbl">Aparecen arriba a la derecha de la pantalla y se apilan.</span></div></div>
+    <div class="grid"><div class="alerta"><svg class="i m"><use href="#alert"/></svg><span><b>Alerta en línea.</b> Solo para lo que se corrige en esa misma pantalla (por ejemplo, un campo inválido). Pastel con contorno fino.</span></div>
+    <div class="superficie vacio"><span class="ficha"><svg class="i l"><use href="#calc"/></svg></span><b>Todavía no hay APU</b><p>Genera el primero y aparecerá aquí con su precio unitario.</p><span class="btn sm"><svg class="i"><use href="#sparkles"/></svg> Nuevo APU</span></div></div>
+  </section>
+
+  <section>
+    <div><h2>9. Estructura de una pantalla</h2></div>
+    <div class="superficie pad">
+      <span class="back"><svg class="i"><use href="#left"/></svg> Proyectos con APU</span>
+      <div class="row" style="justify-content:space-between;align-items:flex-start;margin-top:8px"><div><b style="font-size:1.35rem">Escuela Tarija</b><p>Título de 24 px, descripción corta en gris debajo, sin más de dos líneas.</p></div><div class="row"><span class="btn neutro"><svg class="i"><use href="#pencil"/></svg> Incidencias</span><span class="btn"><svg class="i"><use href="#sparkles"/></svg> Nuevo APU</span></div></div>
+      <div class="barra" style="margin-top:14px"><i style="width:62%"></i></div><p style="margin-top:6px">Orden: enlace de vuelta, título + acciones (una principal), resumen en recuadros, y debajo tablas o tarjetas. Barras de progreso finas del color del módulo.</p></div>
+  </section>
+
+  <section>
+    <div><h2>9b. Miniaturas (fotos y adjuntos)</h2><p>Una miniatura es una imagen recortada (nunca estirada) con esquinas de 12 px y un contorno fino del módulo. Hay tres formatos según dónde van, y todos comparten estados: normal, al pasar el cursor, elegida, cargando y sin imagen.</p></div>
+    <div class="superficie pad"><h3>Formato 1 · Cuadrada (adjuntos, tickets, tiras de fotos)</h3>
+      <div class="tira">
+        <a class="foto mi"><i class="img g1"></i><span class="ver"><svg class="i m"><use href="#eye"/></svg></span><span class="acc2 err" title="Quitar"><svg class="i"><use href="#x"/></svg></span></a>
+        <a class="foto mi"><i class="img g2"></i><span class="ver"><svg class="i m"><use href="#eye"/></svg></span><span class="acc2 err" title="Quitar"><svg class="i"><use href="#x"/></svg></span></a>
+        <a class="foto mi elegida"><i class="img g3"></i><span class="sel"><svg class="i"><use href="#check"/></svg></span></a>
+        <a class="foto mi arch"><svg class="i l"><use href="#copy"/></svg><small>PDF</small></a>
+        <a class="foto mi carga"><i class="img"></i></a>
+        <a class="foto mi rota" title="No se pudo cargar"><svg class="i l"><use href="#alert"/></svg></a>
+        <a class="foto mi mas">+5</a>
+      </div>
+      <p style="margin-top:10px">88 px (72 en tablas). De izquierda a derecha: normal con acciones al pasar el cursor, elegida, archivo que no es imagen, cargando, con error y «+N» cuando hay más.</p></div>
+    <div class="superficie pad"><h3>Formato 2 · Tarjeta de galería (Registros → Imágenes)</h3>
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr))">
+        <figure class="gal"><span class="foto"><i class="img g1"></i><span class="ver"><svg class="i l"><use href="#eye"/></svg></span><span class="etq bd info">Cimentación</span></span><figcaption><b>Losa N2, eje B</b><span class="row lbl"><svg class="i"><use href="#pin"/></svg> Oruro · 14/11/2026</span></figcaption></figure>
+        <figure class="gal"><span class="foto"><i class="img g2"></i><span class="ver"><svg class="i l"><use href="#eye"/></svg></span><span class="etq bd warn">Observada</span></span><figcaption><b>Muro perimetral</b><span class="row lbl"><svg class="i"><use href="#pin"/></svg> Oruro · 13/11/2026</span></figcaption></figure>
+        <figure class="gal"><span class="foto"><i class="img g3"></i><span class="ver"><svg class="i l"><use href="#eye"/></svg></span><span class="etq bd ok">Aprobada</span></span><figcaption><b>Acopio de acero</b><span class="row lbl"><svg class="i"><use href="#pin"/></svg> Potosí · 12/11/2026</span></figcaption></figure>
+        <figure class="gal"><span class="foto"><i class="img g4"></i><span class="ver"><svg class="i l"><use href="#eye"/></svg></span></span><figcaption><b>Sin descripción</b><span class="row lbl"><svg class="i"><use href="#pin"/></svg> Sin ubicación</span></figcaption></figure>
+      </div>
+      <p style="margin-top:10px">Proporción 4:3 fija, tarjeta de 16 px, título corto y datos en gris. La etiqueta de estado va sobre la imagen, abajo a la izquierda. Al pasar el cursor la imagen se acerca un 5 % y aparece el ojo.</p></div>
+    <div class="grid">
+      <div class="superficie pad"><h3>Formato 3 · En el chat y los comentarios</h3>
+        <div class="chatimg"><span class="foto"><i class="img g1"></i></span></div>
+        <p style="margin-top:8px">Ancho máximo de 220 px, 12 px de radio y contorno del color del módulo de la burbuja. Una sola imagen conserva su proporción; varias van en cuadrícula de dos.</p></div>
+      <div class="superficie pad"><h3>Reglas de las miniaturas</h3>
+        <p><span class="v">Sí</span> · Recorte centrado (<code>object-fit: cover</code>), carga diferida y texto alternativo siempre.<br><span class="v">Sí</span> · Acciones sobre la imagen en cuadros de 24 px con fondo claro; el quitar es el único rojo y solo es el icono.<br><span class="x">No</span> · Bordes gruesos, sombras fuertes, imágenes estiradas ni mezclar radios distintos de 12 px y 16 px.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div><h2>10. Reglas para mantenerlo único</h2></div>
+    <div class="grid">
+      <div class="superficie pad"><p><span class="v">Sí</span> · Usar las clases del sistema (<code>.btn</code>, <code>.card</code>, <code>.table-card</code>, <code>.superficie</code>, <code>.dato-tile</code>, <code>.dato-resumen</code>, <code>.segmentado</code>) en vez de repetir utilidades sueltas.</p></div>
+      <div class="superficie pad"><p><span class="x">No</span> · Inventar un color, un radio o una sombra nuevos en una pantalla. Si falta algo, se agrega al estándar.</p></div>
+      <div class="superficie pad"><p><span class="v">Sí</span> · El color de estado siempre con texto o icono que lo explique, para quien no distingue colores.</p></div>
+      <div class="superficie pad"><p><span class="x">No</span> · Reutilizar los colores de nivel de acceso (violeta, rosa y ámbar de plataforma) para otra cosa. El azul de marca no identifica a nadie.</p></div>
+    </div>
+  </section>
+
+  <div class="nota">Si te parece bien, lo dejo escrito en CLAUDE.md como la regla única de interfaz (reemplaza a la sección actual de contorno fino) y reviso pantalla por pantalla lo que no la cumple. Dime qué cambiarías antes.</div>
+</main>
+<script>
+(function () {
+  var raiz = document.getElementById('raiz'), bar = document.getElementById('mods');
+  if (!bar) return;
+  bar.addEventListener('click', function (e) {
+    var a = e.target.closest('a[data-set]'); if (!a) return;
+    raiz.setAttribute('data-m', a.getAttribute('data-set'));
+    bar.querySelectorAll('a').forEach(function (x) { x.classList.toggle('on', x === a); });
+  });
+})();
+
+(function () {
+  var pila = document.createElement('div'); pila.id = 'pila'; pila.setAttribute('role', 'region'); pila.setAttribute('aria-label', 'Avisos'); document.body.appendChild(pila);
+  var T = { ok: ['ok2', 'ok', 'check', 'Cantidades guardadas', '3 APU actualizados.', 6, 'Deshacer'], err: ['err', 'err', 'alert', 'No se pudo guardar', 'La cantidad de ESC-2 debe ser un número.', 12, 'Reintentar'],
+            warn: ['warn', 'warn', 'alert', 'Faltan precios', '2 APU tienen insumos sin precio.', 6, 'Ver'], info: ['info', 'info', 'info', 'Calculando', 'Esto puede tardar unos segundos.', 6, ''] };
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-t]'); if (!b) return;
+    var t = T[b.getAttribute('data-t')], el = document.createElement('div');
+    el.className = 'toast vivo ' + t[0]; el.style.setProperty('--d', t[5] + 's'); el.setAttribute('role', t[0] === 'err' ? 'alert' : 'status');
+    el.innerHTML = '<span class="ficha ' + t[1] + '"><svg class="i"><use href="#' + t[2] + '"/></svg></span><div><b>' + t[3] + '</b><span>' + t[4] + '</span></div>' + (t[6] ? '<span class="btn sm acc">' + t[6] + '</span>' : '') + '<button class="ib" aria-label="Cerrar" style="width:26px;height:26px"><svg class="i"><use href="#x"/></svg></button>';
+    el.querySelector('button').addEventListener('click', function () { el.remove(); });
+    el.addEventListener('animationend', function (ev) { if (ev.animationName === 'tbar') el.remove(); });
+    pila.appendChild(el);
+  });
+})();
+
+document.addEventListener('click', function (e) {
+  var s = e.target.closest('.sw2'); if (!s || s.disabled) return;
+  s.setAttribute('aria-checked', s.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+});
+</script>

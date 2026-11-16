@@ -7,7 +7,7 @@
     {% include "components/campos.html" %}
     <div class="card-actions justify-end">
       <a href="{% url 'panel:roles' %}" class="btn btn-ghost">Cancelar</a>
-      {% if obj %}<a href="{% url 'panel:rol_matriz' obj.pk %}" class="btn btn-outline">{% include "components/icon.html" with name="shield" cls="size-4" %} Permisos</a>{% endif %}
+      {% if obj %}<a href="{% url 'panel:rol_matriz' obj.pk %}" class="btn btn-ghost">{% include "components/icon.html" with name="shield" cls="size-4" %} Permisos</a>{% endif %}
       <button type="submit" class="btn btn-primary">Guardar</button>
     </div>
   </div>

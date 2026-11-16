@@ -38,7 +38,7 @@
     <span class="ml-auto text-sm text-base-content/60"><strong class="tabular-nums">{{ total }}</strong> imagen{{ total|pluralize:"es" }}</span>
   </form>
 
-  <div id="imagenes-acciones" class="sticky top-0 z-20 mb-3 hidden flex-wrap items-center gap-2 rounded-box border border-base-300 bg-base-200 px-3 py-2">
+  <div id="imagenes-acciones" class="sticky top-0 z-20 mb-3 hidden flex-wrap items-center gap-2 superficie bg-base-200 px-3 py-2">
     <span class="text-sm font-medium"><span id="imagenes-contador">0</span> seleccionada(s)</span>
     <button type="button" class="btn btn-ghost btn-xs" data-accion="todas">Seleccionar todas</button>
     <button type="button" class="btn btn-ghost btn-xs" data-accion="ninguna">Deseleccionar</button>
@@ -63,15 +63,15 @@
   </label>
   <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
     {% for f in pagina %}
-    <div class="imagen-ficha group relative overflow-hidden rounded-lg border border-base-300 bg-base-200" data-id="{{ f.pk }}">
+    <div class="imagen-ficha foto-galeria group relative" data-id="{{ f.pk }}">
       <label class="absolute right-1.5 top-1.5 z-10 grid size-7 cursor-pointer place-items-center rounded-full bg-black/40" title="Seleccionar">
         <input type="checkbox" class="imagen-check checkbox checkbox-sm border-white" value="{{ f.pk }}" aria-label="Seleccionar la foto {{ f.pk }}">
       </label>
-      <button type="button" class="imagen-abrir block w-full" data-src="{% url 'reg_fotos:imagenes_archivo' f.pk %}"
+      <button type="button" class="imagen-abrir foto-marco block w-full" data-src="{% url 'reg_fotos:imagenes_archivo' f.pk %}"
               data-info="{{ f.reg.proyecto.codigo|default:'' }} · {{ f.tipo.nombre }} · {{ f.etapa }}{% if f.descripcion %} · {{ f.descripcion }}{% endif %}{% if f.exif_fecha %} · EXIF {{ f.exif_fecha|date:'d/m/Y H:i' }}{% endif %}">
-        <img src="{% url 'reg_fotos:imagenes_miniatura' f.pk %}" alt="{{ f.descripcion|default:f.etapa }}" loading="lazy" class="h-32 w-full object-cover transition hover:brightness-90">
+        <img src="{% url 'reg_fotos:imagenes_miniatura' f.pk %}" alt="{{ f.descripcion|default:f.etapa }}" loading="lazy">
       </button>
-      <div class="space-y-0.5 border-t border-base-300 px-1.5 py-1 text-[0.7rem] leading-tight">
+      <div class="space-y-0.5 border-t border-base-content/10 px-1.5 py-1 text-[0.7rem] leading-tight">
         <div class="flex items-center justify-between gap-1">
           <span class="truncate font-semibold">{{ f.reg.proyecto.codigo|default:"Sin proyecto" }}</span>
           <span class="shrink-0 tabular-nums text-base-content/70">{% if f.tamano %}{{ f.tamano|filesizeformat }}{% else %}—{% endif %}</span>

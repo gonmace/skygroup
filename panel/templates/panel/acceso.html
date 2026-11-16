@@ -13,21 +13,21 @@
         <button class="btn btn-primary btn-md px-3" title="Agregar dominio" aria-label="Agregar dominio">{% include "components/icon.html" with name="plus" cls="size-5" %}</button>
         {% for e in form_dominio.non_field_errors %}<div class="w-full text-sm text-error">{{ e }}</div>{% endfor %}
       </form>
-      <table class="table">
+      <div class="table-card"><table class="table">
         <thead><tr><th>Dominio</th><th>Cargo</th><th class="text-center">Activo</th><th><span class="sr-only">Acciones</span></th></tr></thead>
         <tbody>
         {% for d in dominios %}
           <tr class="{% if not d.activo %}opacity-60{% endif %}">
             <td class="font-medium">@{{ d.dominio }}</td>
             <td>{{ d.rol.nombre }}</td>
-            <td class="text-center"><form method="post" action="{% url 'panel:acceso_dominio_alternar' d.pk %}">{% csrf_token %}<input type="checkbox" class="toggle toggle-success toggle-sm" {% if d.activo %}checked{% endif %} aria-label="Activar o desactivar @{{ d.dominio }}" data-autoenviar=""></form></td>
-            <td class="text-right"><form method="post" action="{% url 'panel:acceso_dominio_eliminar' d.pk %}" class="inline" onsubmit="return confirm('¿Quitar @{{ d.dominio|escapejs }}?')">{% csrf_token %}<button class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Quitar" aria-label="Quitar @{{ d.dominio }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</button></form></td>
+            <td class="text-center"><form method="post" action="{% url 'panel:acceso_dominio_alternar' d.pk %}">{% csrf_token %}<input type="checkbox" role="switch" class="toggle toggle-success toggle-sm" {% if d.activo %}checked{% endif %} aria-label="Activar o desactivar @{{ d.dominio }}" data-autoenviar=""></form></td>
+            <td class="text-right"><form method="post" action="{% url 'panel:acceso_dominio_eliminar' d.pk %}" class="inline" data-confirmar="¿Quitar @{{ d.dominio }}?">{% csrf_token %}<button class="btn-icono icono-peligro" title="Quitar" aria-label="Quitar @{{ d.dominio }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</button></form></td>
           </tr>
         {% empty %}
           <tr><td colspan="4" class="text-center text-sm text-base-content/60">Sin dominios: el alta automática está desactivada.</td></tr>
         {% endfor %}
         </tbody>
-      </table>
+      </table></div>
     </div>
   </section>
 
@@ -39,20 +39,20 @@
         <div class="min-w-40 flex-1">{{ form_correo.motivo }}</div>
         <button class="btn btn-primary btn-md px-3" title="Bloquear correo" aria-label="Bloquear correo">{% include "components/icon.html" with name="plus" cls="size-5" %}</button>
       </form>
-      <table class="table">
+      <div class="table-card"><table class="table">
         <thead><tr><th>Correo</th><th>Motivo</th><th><span class="sr-only">Acciones</span></th></tr></thead>
         <tbody>
         {% for b in bloqueados %}
           <tr>
             <td class="font-medium">{{ b.email }}</td>
             <td class="text-sm text-base-content/70">{{ b.motivo|default:"—" }}</td>
-            <td class="text-right"><form method="post" action="{% url 'panel:acceso_correo_eliminar' b.pk %}" class="inline">{% csrf_token %}<button class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Desbloquear" aria-label="Desbloquear {{ b.email }}">{% include "components/icon.html" with name="restore" cls="size-5" %}</button></form></td>
+            <td class="text-right"><form method="post" action="{% url 'panel:acceso_correo_eliminar' b.pk %}" class="inline">{% csrf_token %}<button class="btn-icono icono-ok" title="Desbloquear" aria-label="Desbloquear {{ b.email }}">{% include "components/icon.html" with name="restore" cls="size-5" %}</button></form></td>
           </tr>
         {% empty %}
           <tr><td colspan="3" class="text-center text-sm text-base-content/60">Ningún correo bloqueado.</td></tr>
         {% endfor %}
         </tbody>
-      </table>
+      </table></div>
     </div>
   </section>
 </div>

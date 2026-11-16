@@ -1,6 +1,7 @@
 from django import forms
 
-from .models import PerfilCalculo
+from . import unidades
+from .models import Insumo, PerfilCalculo
 
 INPUT = 'input input-bordered input-sm w-full'
 MODOS = [('HALF_UP', 'Hacia arriba desde la mitad (0,5 → 1)'), ('HALF_EVEN', 'Al par más cercano (0,5 → 0)')]
@@ -43,3 +44,33 @@ class PerfilDatosForm(forms.Form):
     def redondeo(self):
         d = self.cleaned_data
         return {'linea': d['dec_linea'], 'total': d['dec_total'], 'modo': d['modo']}
+
+
+class InsumoForm(forms.ModelForm):
+    """Edición de un insumo del vocabulario de la empresa."""
+    class Meta:
+        model = Insumo
+        fields = ['codigo', 'descripcion', 'unidad', 'tipo', 'activo']
+        widgets = {
+            'codigo': forms.TextInput(attrs={'class': INPUT}),
+            'descripcion': forms.TextInput(attrs={'class': INPUT}),
+            'unidad': forms.TextInput(attrs={'class': INPUT, 'list': 'apu-unidades', 'autocomplete': 'off'}),
+            'tipo': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
+            'activo': forms.CheckboxInput(attrs={'class': 'checkbox checkbox-sm'}),
+        }
+
+    def __init__(self, empresa, *args, **kwargs):
+        self.empresa = empresa
+        super().__init__(*args, **kwargs)
+
+    def clean_codigo(self):
+        codigo = self.cleaned_data['codigo'].strip()
+        if Insumo.objects.filter(empresa=self.empresa, codigo=codigo).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError('Ya existe un insumo con ese código.')
+        return codigo
+
+    def clean_descripcion(self):
+        return self.cleaned_data['descripcion'].strip()
+
+    def clean_unidad(self):
+        return unidades.normalizar(self.cleaned_data['unidad'])[:20]

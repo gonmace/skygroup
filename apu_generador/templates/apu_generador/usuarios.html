@@ -10,13 +10,24 @@
 
 <section class="card bg-base-100"><div class="card-body gap-3 p-5">
   <div class="flex flex-wrap items-start justify-between gap-2">
-    <h2 class="font-semibold">Límite de la empresa</h2>
-    <span class="text-sm text-base-content/60">Usado: hoy {{ empresa_limite.dia }} · este mes {{ empresa_limite.mes }}</span>
+    <h2 class="flex items-center gap-2 font-semibold">Límite de la empresa {% if sin_tope %}<span class="badge badge-ghost badge-sm">Sin tope</span>{% elif not empresa_limite.activo %}<span class="badge badge-warning badge-soft badge-sm">No se aplica</span>{% endif %}</h2>
+  </div>
+  <div class="grid gap-3 sm:grid-cols-2">
+    <div class="dato-tile">
+      <p class="text-xs font-medium uppercase tracking-wide text-base-content/50">Hoy</p>
+      <p class="mt-1 text-2xl font-semibold leading-none tabular-nums">{{ empresa_limite.dia }} <span class="text-sm font-normal text-base-content/60">de {{ empresa_limite.max_dia }} créditos</span></p>
+      {% if empresa_limite.max_dia %}<progress class="progress progress-primary mt-2 h-1.5 w-full" value="{{ empresa_limite.dia }}" max="{{ empresa_limite.max_dia }}" aria-hidden="true"></progress>{% endif %}
+    </div>
+    <div class="dato-tile">
+      <p class="text-xs font-medium uppercase tracking-wide text-base-content/50">Este mes</p>
+      <p class="mt-1 text-2xl font-semibold leading-none tabular-nums">{{ empresa_limite.mes }} <span class="text-sm font-normal text-base-content/60">de {{ empresa_limite.max_mes }} créditos</span></p>
+      {% if empresa_limite.max_mes %}<progress class="progress progress-primary mt-2 h-1.5 w-full" value="{{ empresa_limite.mes }}" max="{{ empresa_limite.max_mes }}" aria-hidden="true"></progress>{% endif %}
+    </div>
   </div>
   <form class="flex flex-wrap items-end gap-3" data-limite data-url="{% url 'apu_generador:limite_empresa' %}">
-    <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Por día</span>
+    <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Nuevo límite por día</span>
       <input class="input input-bordered input-sm w-28 tabular-nums" name="max_dia" type="number" min="0" value="{{ empresa_limite.max_dia }}" {% if not puede_empresa %}disabled{% endif %}></label>
-    <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Por mes</span>
+    <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Nuevo límite por mes</span>
       <input class="input input-bordered input-sm w-28 tabular-nums" name="max_mes" type="number" min="0" value="{{ empresa_limite.max_mes }}" {% if not puede_empresa %}disabled{% endif %}></label>
     <label class="flex items-center gap-2 pb-1.5 text-sm"><input class="checkbox checkbox-sm" type="checkbox" name="activo" {% if empresa_limite.activo %}checked{% endif %} {% if not puede_empresa %}disabled{% endif %}> Aplicar límite</label>
     {% if puede_empresa %}<button class="btn btn-primary btn-sm">Guardar</button>{% else %}<span class="pb-1.5 text-xs text-base-content/50">Solo el superusuario cambia el límite de la empresa.</span>{% endif %}
@@ -24,17 +35,21 @@
 </div></section>
 
 <section class="table-card">
+  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[color-mix(in_oklab,var(--mod-line)_50%,transparent)] px-5 py-3.5">
+    <h2 class="text-base font-semibold">Créditos por persona <span class="text-sm font-normal text-base-content/50">{{ miembros|length }}</span></h2>
+    <span class="text-xs text-base-content/50">El límite personal se cambia en la fila y se guarda con su botón.</span>
+  </div>
   <table class="table">
     <thead><tr><th>Persona</th><th>Cargo</th><th class="text-right">Usado hoy</th><th class="text-right">Usado este mes</th><th>Límite por día</th><th>Límite por mes</th><th class="w-px"></th></tr></thead>
     <tbody>
     {% for f in miembros %}
       <tr>
-        <td class="font-medium">{{ f.m.user }}</td>
+        <td><div class="flex items-center gap-3"><span class="avatar-iniciales {{ f.m.clase_avatar }}" aria-hidden="true">{{ f.m.user.iniciales }}</span><div class="min-w-0"><span class="block truncate font-medium">{{ f.m.user }}</span><span class="block truncate text-xs text-base-content/60">{{ f.m.user.email }}</span></div></div></td>
         <td><span class="badge badge-outline badge-sm {{ f.m.clase_color }}">{{ f.m.cargo_visible }}</span></td>
-        <td class="text-right tabular-nums">{{ f.dia }}</td>
-        <td class="text-right tabular-nums">{{ f.mes }}</td>
+        <td class="text-right tabular-nums">{{ f.dia }}{% if not f.exento and f.max_dia %}<span class="text-base-content/40"> / {{ f.max_dia }}</span>{% endif %}{% if not f.exento and f.max_dia and f.dia >= f.max_dia %} <span class="badge badge-error badge-soft badge-xs">Al límite</span>{% endif %}</td>
+        <td class="text-right tabular-nums">{{ f.mes }}{% if not f.exento and f.max_mes %}<span class="text-base-content/40"> / {{ f.max_mes }}</span>{% endif %}{% if not f.exento and f.max_mes and f.mes >= f.max_mes %} <span class="badge badge-error badge-soft badge-xs">Al límite</span>{% endif %}</td>
         {% if f.exento %}
-          <td colspan="3" class="text-sm text-base-content/60">Sin límite personal (consume el de la empresa)</td>
+          <td colspan="3"><span class="dato-resumen text-xs">Sin límite personal · consume el de la empresa</span></td>
         {% else %}
           <td><input form="lim-{{ f.m.pk }}" class="input input-bordered input-sm w-24 tabular-nums" name="max_dia" type="number" min="0" value="{{ f.max_dia }}" aria-label="Límite por día de {{ f.m.user }}"></td>
           <td><input form="lim-{{ f.m.pk }}" class="input input-bordered input-sm w-24 tabular-nums" name="max_mes" type="number" min="0" value="{{ f.max_mes }}" aria-label="Límite por mes de {{ f.m.user }}"></td>
@@ -49,11 +64,11 @@
 </section>
 
 <section class="table-card">
-  <div class="border-b border-base-300 px-5 py-4"><h2 class="text-base font-semibold">Últimos consumos</h2></div>
+  <div class="border-b border-[color-mix(in_oklab,var(--mod-line)_50%,transparent)] px-5 py-3.5"><h2 class="text-base font-semibold">Últimos consumos</h2></div>
   <table class="table">
     <thead><tr><th>Fecha</th><th>Persona</th><th>Acción</th><th>Referencia</th></tr></thead>
     <tbody>
-    {% for c in consumos %}<tr><td class="text-sm">{{ c.fecha|date:"d/m/Y H:i" }}</td><td>{{ c.usuario|default:"—" }}</td><td>{{ c.get_tipo_display }}</td><td class="font-mono text-xs text-base-content/60">{{ c.referencia }}</td></tr>
+    {% for c in consumos %}<tr><td class="text-sm">{{ c.fecha|date:"d/m/Y H:i" }}</td><td>{{ c.usuario|default:"—" }}</td><td><span class="badge badge-outline badge-sm">{{ c.get_tipo_display }}</span></td><td class="font-mono text-xs text-base-content/60">{{ c.referencia }}</td></tr>
     {% empty %}<tr><td colspan="4" class="py-6 text-center text-base-content/60">Todavía no hay consumos.</td></tr>{% endfor %}
     </tbody>
   </table>

@@ -1,0 +1,4 @@
+{# Insignia de estado de una fila (icono + texto, nunca solo color). Contexto: c = 'verde' | 'amarillo' | otro (vacío). Opcional: txt_ok. #}
+{% if c == 'verde' %}<span class="badge badge-success gap-1 whitespace-nowrap">{% include "components/icon.html" with name="check" cls="size-3.5" %}{{ txt_ok|default:"Concluido" }}</span>
+{% elif c == 'amarillo' %}<span class="badge badge-warning gap-1 whitespace-nowrap">{% include "components/icon.html" with name="alert-triangle" cls="size-3.5" %}En proceso</span>
+{% else %}<span class="badge badge-error gap-1 whitespace-nowrap">{% include "components/icon.html" with name="x" cls="size-3.5" %}Vacío</span>{% endif %}

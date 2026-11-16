@@ -1,5 +1,5 @@
 {% extends "shell.html" %}
-{% load static %}
+{% load static apu_tags %}
 {% block page_title %}{{ nombre_paso }} · APU{% endblock %}
 {% block wrap_class %}space-y-6{% endblock %}
 {% block content_main %}
@@ -44,12 +44,13 @@
         <tbody data-tabla></tbody>
       </table>
     </div>
+    {% lista_unidades %}
     <datalist id="apu-catalogo-lista">{% for c in catalogo %}<option value="{{ c.descripcion }}">{{ c.codigo }} · {{ c.unidad }}</option>{% endfor %}</datalist>
 
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-wrap items-center gap-2">
         <button type="button" class="btn btn-sm gap-1" data-accion="agregar">{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar fila</button>
-        <button type="button" class="btn btn-sm btn-outline gap-1" data-accion="repetir">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Proponer de nuevo</button>
+        <button type="button" class="btn btn-sm btn-ghost gap-1" data-accion="repetir">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Proponer de nuevo</button>
         <span class="text-xs text-base-content/60" data-contador></span>
       </div>
       <button type="button" class="btn btn-primary btn-sm gap-1" data-accion="guardar">Guardar y continuar {% include "components/icon.html" with name="arrow-right" cls="size-4" %}</button>

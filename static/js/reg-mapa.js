@@ -30,19 +30,17 @@
     var Control = L.Control.extend({
       options: { position: 'topleft' },
       onAdd: function () {
-        var caja = L.DomUtil.create('div', 'leaflet-control join');
+        var caja = L.DomUtil.create('div', 'leaflet-control segmentado');
         var botones = {};
         [['sat', 'Satélite'], ['calles', 'Calles']].forEach(function (par) {
-          var b = L.DomUtil.create('button', 'btn btn-xs join-item', caja);
+          var b = L.DomUtil.create('button', '', caja);
           b.type = 'button'; b.textContent = par[1]; botones[par[0]] = b;
         });
         function usar(cual) {
           if (cual === 'calles') { mapa.removeLayer(satelite); calles.addTo(mapa); }
           else { mapa.removeLayer(calles); satelite.addTo(mapa); }
-          botones.sat.classList.toggle('btn-neutral', cual === 'sat');
-          botones.calles.classList.toggle('btn-neutral', cual === 'calles');
-          botones.sat.setAttribute('aria-pressed', cual === 'sat');
-          botones.calles.setAttribute('aria-pressed', cual === 'calles');
+          botones.sat.setAttribute('aria-pressed', cual === 'sat' ? 'true' : 'false');
+          botones.calles.setAttribute('aria-pressed', cual === 'calles' ? 'true' : 'false');
         }
         botones.sat.addEventListener('click', function () { usar('sat'); });
         botones.calles.addEventListener('click', function () { usar('calles'); });

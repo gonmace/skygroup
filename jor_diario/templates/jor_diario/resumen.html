@@ -35,8 +35,8 @@
     <p class="text-3xl font-semibold tabular-nums">{{ kpis.horas_30 }}</p>
     <p class="text-xs">
       {% if kpis.delta_horas is None %}<span class="text-base-content/60">Sin horas en los 30 días previos</span>
-      {% elif kpis.delta_horas > 0 %}<span class="text-success">▲ +{{ kpis.delta_horas }}%</span> <span class="text-base-content/60">vs. 30 días previos</span>
-      {% elif kpis.delta_horas < 0 %}<span class="text-error">▼ {{ kpis.delta_horas }}%</span> <span class="text-base-content/60">vs. 30 días previos</span>
+      {% elif kpis.delta_horas > 0 %}<span class="inline-flex items-center gap-1 text-success">{% include "components/icon.html" with name="arrow-up" cls="size-3.5" %}+{{ kpis.delta_horas }}%</span> <span class="text-base-content/60">vs. 30 días previos</span>
+      {% elif kpis.delta_horas < 0 %}<span class="inline-flex items-center gap-1 text-error">{% include "components/icon.html" with name="arrow-down" cls="size-3.5" %}{{ kpis.delta_horas }}%</span> <span class="text-base-content/60">vs. 30 días previos</span>
       {% else %}<span class="text-base-content/60">Igual que los 30 días previos</span>{% endif %}
     </p>
   </div></div>

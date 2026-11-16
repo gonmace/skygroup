@@ -39,7 +39,7 @@
         <td>{% include "reg_construccion_base/_severidad.html" %}</td>
         <td>{% include "reg_construccion_base/_estado_hallazgo.html" %}</td>
         <td class="whitespace-nowrap text-sm">{{ h.plazo|date:"d/m/Y"|default:"—" }}</td>
-        <td class="whitespace-nowrap text-right"><a href="{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Ver" aria-label="Ver {{ h.codigo }}">{% include "components/icon.html" with name="eye" cls="size-5" %}</a></td>
+        <td class="whitespace-nowrap text-right"><a href="{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}" class="btn-icono icono-ver" title="Ver" aria-label="Ver {{ h.codigo }}">{% include "components/icon.html" with name="eye" cls="size-5" %}</a></td>
       </tr>
     {% empty %}<tr><td colspan="8" class="py-8 text-center text-base-content/60">No hay hallazgos con esos filtros.</td></tr>{% endfor %}
     </tbody>
@@ -49,7 +49,7 @@
 <ul class="space-y-2 sm:hidden">
   {% for h in pagina %}
   <li>
-    <a href="{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}" class="block rounded-box bg-base-100 p-3 shadow-sm {% if h.vencido %}ring-1 ring-error/50{% endif %}">
+    <a href="{% url 'reg_construccion_base:hallazgo_detalle' h.pk %}" class="block superficie p-3 {% if h.vencido %}ring-1 ring-error/50{% endif %}">
       <div class="flex items-center justify-between gap-2">
         <span class="font-semibold tabular-nums">{{ h.codigo }}</span>
         <span class="flex flex-wrap justify-end gap-1">{% include "reg_construccion_base/_severidad.html" %}{% include "reg_construccion_base/_estado_hallazgo.html" %}</span>

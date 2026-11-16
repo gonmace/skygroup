@@ -11,7 +11,7 @@
   <p class="text-sm font-medium sm:hidden">Paso {{ paso_actual }} de 5 · {% for n, nombre in pasos %}{% if n == paso_actual %}{{ nombre }}{% endif %}{% endfor %}</p>
   <ul class="steps hidden w-full sm:inline-grid">
     {% for n, nombre in pasos %}
-    <li class="step {% if n <= paso_actual %}step-primary{% endif %}" {% if n == paso_actual %}aria-current="step"{% endif %} {% if n < paso_actual %}data-content="✓"{% endif %}>{{ nombre }}</li>
+    <li class="step {% if n <= paso_actual %}step-primary{% endif %}" {% if n == paso_actual %}aria-current="step"{% endif %}>{% if n < paso_actual %}<span class="step-icon">{% include "components/icon.html" with name="check" cls="size-4" %}</span><span class="sr-only">Completado: </span>{% endif %}{{ nombre }}</li>
     {% endfor %}
   </ul>
 </div></nav>

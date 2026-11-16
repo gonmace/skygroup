@@ -50,7 +50,7 @@ class _MapaBase(WidgetBase):
         if len(puntos) < self.esperados:
             return 2
         # Sin clave de Google no se puede generar la imagen: lo capturado ya es todo lo que se puede pedir.
-        return 3 if (mapas.imagen_de(ctx.registro, ctx.paso.nombre) or not mapas.hay_clave()) else 2
+        return 3 if (mapas.imagen_de(ctx.registro, ctx.paso.nombre) or not mapas.hay_clave(ctx.registro.empresa)) else 2
 
     def faltantes(self, config, ctx):
         """Mensaje de qué falta para dibujar el mapa ('' si ya hay lo necesario)."""
@@ -65,7 +65,7 @@ class _MapaBase(WidgetBase):
             'etiqueta': self.titulo(config), 'puntos': puntos, 'puntos_json': json.dumps(puntos),
             'leyenda': [{'letra': p['label'], 'nombre': NOMBRES_LETRA.get(p['label'], ''), 'color': p['color']}
                         for p in puntos] if len(puntos) > 1 else [],
-            'hay_clave': mapas.hay_clave(), 'imagen': imagen,
+            'hay_clave': mapas.hay_clave(ctx.registro.empresa), 'imagen': imagen,
             'imagen_url': reverse('reg_actividades:mapa_imagen', kwargs=kw) if imagen else '',
             'save_url': reverse('reg_actividades:mapa_guardar', kwargs=kw) if ctx.puede_escribir else '',
             'distancia': formatear_distancia(total) if total is not None else '',

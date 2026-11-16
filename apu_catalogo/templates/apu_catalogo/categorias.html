@@ -1,0 +1,58 @@
+{% extends "shell.html" %}
+{% block page_title %}Categorías · APU{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div>
+  <h1 class="text-2xl font-semibold">Categorías de APU</h1>
+  <p class="mt-1 max-w-2xl text-sm text-base-content/60">Agrupan los APU de la empresa («Obra gruesa», «Acabados»…). El orden de esta lista es el que se usa en los filtros. La IA reutiliza estos nombres exactos al clasificar una actividad nueva.</p>
+</div>
+
+{% if puede_editar %}
+<form method="post" action="{% url 'apu_catalogo:categoria_nueva' %}" class="flex flex-wrap items-end gap-3">{% csrf_token %}
+  <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Nueva categoría</span><input class="input input-bordered input-sm w-64" name="nombre" maxlength="80" required placeholder="Ej.: Obra gruesa"></label>
+  <button class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar</button>
+</form>
+{% endif %}
+
+<section class="table-card">
+  <table class="table">
+    <thead><tr><th class="w-24">Orden</th><th>Nombre</th><th class="text-right">APU</th>{% if puede_editar %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for c in categorias %}
+      <tr>
+        <td class="whitespace-nowrap">
+          {% if puede_editar %}
+          <form method="post" action="{% url 'apu_catalogo:categoria_mover' c.pk %}" class="inline-flex gap-1">{% csrf_token %}
+            <button name="sentido" value="subir" class="btn btn-ghost btn-xs btn-square" {% if forloop.first %}disabled{% endif %} title="Subir" aria-label="Subir {{ c.nombre }}">{% include "components/icon.html" with name="arrow-up" cls="size-4" %}</button>
+            <button name="sentido" value="bajar" class="btn btn-ghost btn-xs btn-square" {% if forloop.last %}disabled{% endif %} title="Bajar" aria-label="Bajar {{ c.nombre }}">{% include "components/icon.html" with name="arrow-down" cls="size-4" %}</button>
+          </form>
+          {% else %}{{ forloop.counter }}{% endif %}
+        </td>
+        <td>
+          {% if puede_editar %}
+          <form method="post" action="{% url 'apu_catalogo:categoria_renombrar' c.pk %}" class="flex items-center gap-2">{% csrf_token %}
+            <input class="input input-bordered input-sm w-64" name="nombre" value="{{ c.nombre }}" maxlength="80" required aria-label="Nombre de la categoría">
+            <button class="btn btn-ghost btn-xs btn-square text-success" title="Guardar el nombre" aria-label="Renombrar {{ c.nombre }}">{% include "components/icon.html" with name="check" cls="size-4" %}</button>
+          </form>
+          {% else %}<span class="font-medium">{{ c.nombre }}</span>{% endif %}
+        </td>
+        <td class="text-right tabular-nums"><a class="link" href="{% url 'apu_catalogo:items' %}?categoria={{ c.pk }}">{{ c.n_apu }}</a></td>
+        {% if puede_editar %}<td class="whitespace-nowrap text-right">
+          {% if categorias|length > 1 %}
+          <form method="post" action="{% url 'apu_catalogo:categoria_fusionar' c.pk %}" class="inline-flex items-center gap-1" data-confirmar="¿Fusionar «{{ c.nombre }}» en la categoría elegida? Sus APU pasan a esa y «{{ c.nombre }}» se elimina.">{% csrf_token %}
+            <select name="destino" class="select select-bordered select-xs" required aria-label="Fusionar {{ c.nombre }} en">
+              <option value="">Fusionar en…</option>
+              {% for o in categorias %}{% if o.pk != c.pk %}<option value="{{ o.pk }}">{{ o.nombre }}</option>{% endif %}{% endfor %}
+            </select>
+            <button class="btn-icono" title="Fusionar en la categoría elegida" aria-label="Fusionar {{ c.nombre }}">{% include "components/icon.html" with name="layers" cls="size-4" %}</button>
+          </form>
+          {% endif %}
+          <form method="post" action="{% url 'apu_catalogo:categoria_eliminar' c.pk %}" class="inline" data-confirmar="¿Eliminar la categoría «{{ c.nombre }}»?{% if c.n_apu %} Sus {{ c.n_apu }} APU quedarán sin categoría.{% endif %}">{% csrf_token %}<button class="btn-icono icono-peligro" title="Eliminar" aria-label="Eliminar {{ c.nombre }}">{% include "components/icon.html" with name="trash" cls="size-4" %}</button></form>
+        </td>{% endif %}
+      </tr>
+    {% empty %}<tr><td colspan="4" class="py-10 text-center text-base-content/60">Todavía no hay categorías. Se crean al generar un APU con IA, o puedes agregarlas aquí.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+{% if sin_categoria %}<p class="text-sm text-base-content/60"><a class="link" href="{% url 'apu_catalogo:items' %}?categoria=sin">{{ sin_categoria }} APU sin categoría</a>.</p>{% endif %}
+{% endblock %}

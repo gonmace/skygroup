@@ -395,7 +395,7 @@ class ResultadoTests(Base):
         r = self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {}, self.coord)
         self.assertEqual(r.status_code, 200)
         item = ItemModelo.objects.get()
-        self.assertEqual((item.proyecto, item.codigo, item.categoria), (self.proyecto, 'APU-001', 'Obra gruesa'))
+        self.assertEqual((item.proyecto, item.codigo, item.categoria.nombre), (self.proyecto, 'APU-001', 'Obra gruesa'))
         self.assertEqual(item.lineas.count(), 3)
         self.assertEqual(item.lineas.get(insumo__tipo='MO').ayuda['personas'], '2')
         self.assertEqual(ConsumoAPU.objects.filter(tipo='generar').count(), 1)
@@ -1296,10 +1296,10 @@ class UnidadYMotivoAlReutilizarTests(Base):
     def test_la_propuesta_guarda_unidad_y_motivo_y_ambos_son_cambios_para_revisar(self):
         r, b = self.reutilizar()
         prop = b.instrucciones[0]['propuesta']
-        self.assertEqual((prop['unidad'], prop['motivo_titulo']), ('m2', 'Se eliminó la provisión del equipo.'))
+        self.assertEqual((prop['unidad'], prop['motivo_titulo']), ('m²', 'Se eliminó la provisión del equipo.'))
         cambios = asistente.diferencias(b, prop)
         self.assertEqual([c['id'] for c in cambios][:2], ['actividad', 'unidad'])
-        self.assertEqual((cambios[1]['anterior'], cambios[1]['nuevo']), ('pza', 'm2'))
+        self.assertEqual((cambios[1]['anterior'], cambios[1]['nuevo']), ('pza', 'm²'))
         self.client.force_login(self.su)
         html = self.client.get(r.json()['continuar_url']).content.decode()
         self.assertIn('Se eliminó la provisión del equipo.', html)                              # el porqué del título, a la vista
@@ -1578,14 +1578,61 @@ class ProyectosResumenTests(Base):
         self.client.force_login(usuario or self.su)
         return self.client.get(self.URL + params)
 
-    def test_sin_elegir_se_muestra_el_primero_y_solo_sus_apu(self):
+    def det(self, proyecto, usuario=None):
+        """Detalle de un proyecto: su resumen y el listado de todos sus APU."""
+        self.client.force_login(usuario or self.su)
+        return self.client.get(f'{self.URL}{proyecto.pk}/')
+
+    def test_las_cantidades_dan_el_presupuesto_y_se_guardan_por_proyecto(self):
+        url = f'{self.URL}{self.proyecto.pk}/cantidades/'
+        self.client.force_login(self.su)
+        antes = self.det(self.proyecto).context['resumen']
+        self.assertEqual((antes['presupuesto'], antes['n_con_metrado']), (None, 0))
+        r = self.client.post(url, {f'metrado_{self.verde.pk}': '12,5', f'metrado_{self.amarillo.pk}': ''}, follow=True)
+        self.assertContains(r, 'Cantidades guardadas')
+        self.assertContains(r, 'aviso aviso-success')        # el mensaje de Django sale como toast estándar (ficha, título y detalle)
+        self.assertContains(r, 'aviso__titulo')
+        self.assertNotContains(r, 'alert-success')
+        self.verde.refresh_from_db()
+        self.assertEqual(self.verde.metrado, D('12.5'))
+        resumen = self.det(self.proyecto).context['resumen']
+        self.assertEqual(resumen['presupuesto'], D('12.5') * calculo.analizar(self.verde).total)
+        self.assertEqual((resumen['n_con_metrado'], resumen['filas'][0]['subtotal']), (1, resumen['presupuesto']))
+        self.assertAlmostEqual(float(resumen['filas'][0]['pct_presupuesto']), 100.0, places=6)
+
+    def test_cantidad_invalida_no_guarda_nada_y_otro_proyecto_no_se_toca(self):
+        url = f'{self.URL}{self.proyecto.pk}/cantidades/'
+        self.client.force_login(self.su)
+        r = self.client.post(url, {f'metrado_{self.verde.pk}': '5', f'metrado_{self.amarillo.pk}': 'abc'}, follow=True)
+        self.assertContains(r, 'no es una cantidad válida')
+        self.verde.refresh_from_db()
+        self.assertIsNone(self.verde.metrado)                                               # ni siquiera la válida
+        alfa_item = ItemModelo.objects.get(codigo='ALF-1')
+        self.client.post(url, {f'metrado_{alfa_item.pk}': '9'})                             # APU de otro proyecto: se ignora
+        alfa_item.refresh_from_db()
+        self.assertIsNone(alfa_item.metrado)
+        self.assertEqual(self.client.post(url, {f'metrado_{self.verde.pk}': '-3'}, follow=True).status_code, 200)
+        self.verde.refresh_from_db()
+        self.assertIsNone(self.verde.metrado)
+
+    def test_solo_quien_gestiona_el_catalogo_puede_guardar_cantidades(self):
+        self.client.force_login(self.obs)
+        r = self.client.post(f'{self.URL}{self.proyecto.pk}/cantidades/', {f'metrado_{self.verde.pk}': '5'})
+        self.assertEqual(r.status_code, 403)
+
+    def test_la_lista_solo_muestra_el_resumen_de_cada_proyecto_sin_listar_los_apu(self):
         r = self.get()
-        self.assertEqual(r.context['elegido'], self.alfa)                                   # orden alfabético
-        self.assertEqual([f['item'].codigo for f in r.context['resumen']['filas']], ['ALF-1'])
-        self.assertNotContains(r, 'ESC-1')
+        self.assertEqual([t['proyecto'].nombre for t in r.context['tarjetas']], ['Alfa', 'Escuela Tarija'])   # orden alfabético
+        for t in r.context['tarjetas']:
+            self.assertNotIn('filas', t['resumen'])
+        self.assertNotContains(r, 'ESC-1')                                                  # ningún APU suelto en la lista
+        self.assertNotContains(r, 'ALF-1')
+        self.assertNotContains(r, 'Descripción ESC-1')
+        tarjeta = {t['proyecto'].nombre: t['resumen'] for t in r.context['tarjetas']}['Escuela Tarija']
+        self.assertEqual((tarjeta['n'], tarjeta['estados']), (4, {'completo': 1, 'parcial': 1, 'ninguno': 1, 'vacio': 1}))
 
     def test_elegir_un_proyecto_lista_sus_apu_y_el_resumen(self):
-        r = self.get(f'?proyecto={self.proyecto.pk}')
+        r = self.det(self.proyecto)
         resumen = r.context['resumen']
         self.assertEqual(r.context['elegido'], self.proyecto)
         self.assertEqual([f['item'].codigo for f in resumen['filas']], ['ESC-1', 'ESC-2', 'ESC-3', 'ESC-4'])
@@ -1596,67 +1643,69 @@ class ProyectosResumenTests(Base):
         self.assertEqual(resumen['estados'], {'completo': 1, 'parcial': 1, 'ninguno': 1, 'vacio': 1})
         self.assertEqual(resumen['n_incompletos'], 2)
         for texto in ('Suma de precios unitarios', 'Precios de los insumos', 'completos', 'con algunos sin precio', 'sin ningún precio',
-                      'Descripción ESC-1', 'Ver en la base de APU', 'Referencia del conjunto, sin cantidades'):
+                      'Descripción ESC-1', 'Ver en la base de APU', 'Presupuesto estimado', 'Carga las cantidades en la tabla'):
             self.assertContains(r, texto)
         self.assertContains(r, '2 APU tienen insumos sin precio')                           # aviso de que la suma no es real
 
     def test_la_suma_y_los_pesos_son_coherentes(self):
-        resumen = self.get(f'?proyecto={self.proyecto.pk}').context['resumen']
+        resumen = self.det(self.proyecto).context['resumen']
         self.assertEqual(sum((f['total'] for f in resumen['filas'] if f['total'] is not None), D(0)), resumen['suma'])
         self.assertAlmostEqual(float(sum(f['pct'] for f in resumen['filas'])), 100.0, places=6)
         self.assertEqual(resumen['filas'][3]['pct'], D(0) if resumen['filas'][3]['total'] == 0 else resumen['filas'][3]['pct'])
 
     def test_desglose_por_categoria(self):
-        resumen = self.get(f'?proyecto={self.proyecto.pk}').context['resumen']
+        resumen = self.det(self.proyecto).context['resumen']
         por = {c['nombre']: c for c in resumen['categorias']}
         self.assertEqual(set(por), {'Obra gruesa', ''})                                     # ESC-3 y ESC-4 no tienen categoría
         self.assertEqual(por['Obra gruesa']['n'], 2)
         self.assertEqual(por['Obra gruesa']['suma'], calculo.analizar(self.verde).total + calculo.analizar(self.amarillo).total)
         self.assertEqual(resumen['categorias'][-1]['nombre'], '')                           # «Sin categoría» al final
-        self.assertContains(self.get(f'?proyecto={self.proyecto.pk}'), 'Por categoría')
+        self.assertContains(self.det(self.proyecto), 'Por categoría')
 
     def test_las_incidencias_del_proyecto_cambian_la_suma(self):
-        antes = self.get(f'?proyecto={self.alfa.pk}').context['resumen']['suma']
+        antes = self.det(self.alfa).context['resumen']['suma']
         ProyectoAPU.objects.filter(proyecto=self.alfa).update(ajustes={'GG': '0.30'})
-        despues = self.get(f'?proyecto={self.alfa.pk}').context['resumen']['suma']
+        despues = self.det(self.alfa).context['resumen']['suma']
         self.assertGreater(despues, antes)
-        self.assertEqual(self.get(f'?proyecto={self.proyecto.pk}').context['resumen']['suma'],
-                         self.get(f'?proyecto={self.proyecto.pk}').context['resumen']['suma'])   # y no afecta a los demás proyectos
+        self.assertEqual(self.det(self.proyecto).context['resumen']['suma'],
+                         self.det(self.proyecto).context['resumen']['suma'])   # y no afecta a los demás proyectos
 
     def test_un_proyecto_ajeno_o_inexistente_no_se_muestra(self):
-        for clave in (str(self.proyecto_b.pk), '999999', 'abc', ''):
-            r = self.get(f'?proyecto={clave}')
-            self.assertEqual(r.context['elegido'], self.alfa, clave)
-        Proyecto.objects.create(empresa=self.a, nombre='Sin habilitar', descripcion=DESCRIPCION)
+        self.client.force_login(self.su)
+        for pk in (self.proyecto_b.pk, 999999):
+            self.assertEqual(self.client.get(f'{self.URL}{pk}/').status_code, 404, pk)
+        sin = Proyecto.objects.create(empresa=self.a, nombre='Sin habilitar', descripcion=DESCRIPCION)
         r = self.get()
-        self.assertNotIn('Sin habilitar', [p.nombre for p in r.context['proyectos']])
+        self.assertNotIn('Sin habilitar', [t['proyecto'].nombre for t in r.context['tarjetas']])
+        self.assertEqual(self.client.get(f'{self.URL}{sin.pk}/').status_code, 404)
 
     def test_enlaces_y_permisos_de_las_acciones(self):
-        r = self.get(f'?proyecto={self.proyecto.pk}', self.coord)
+        r = self.det(self.proyecto, self.coord)
         self.assertContains(r, f'/tekon/apu/generar/?proyecto={self.proyecto.pk}')
         self.assertContains(r, f'/tekon/apu/proyectos/{self.proyecto.pk}/incidencias/')
         self.assertContains(r, f'/tekon/apu/lista/{self.verde.pk}/')
         self.assertContains(r, f'/tekon/apu/lista/?proyecto={self.proyecto.pk}')
-        r = self.get(f'?proyecto={self.proyecto.pk}', self.obs)                              # el observador solo mira
+        r = self.det(self.proyecto, self.obs)                              # el observador solo mira
         self.assertNotContains(r, '/tekon/apu/generar/')
         self.assertNotContains(r, '/incidencias/')
         self.assertContains(r, 'Descripción ESC-1')
 
-    def test_la_lista_marca_el_proyecto_elegido_y_muestra_cuantos_apu_tiene(self):
-        r = self.get(f'?proyecto={self.proyecto.pk}')
+    def test_cada_tarjeta_lleva_al_detalle_y_muestra_cuantos_apu_tiene(self):
+        r = self.get()
         html = r.content.decode()
-        self.assertEqual(html.count(f'href="?proyecto={self.proyecto.pk}"'), 1)
-        tarjeta = html[html.index(f'href="?proyecto={self.proyecto.pk}"'):][:400]
-        self.assertIn('aria-current="page"', tarjeta)                                       # (el menú lateral tiene el suyo)
-        otra = html[html.index(f'href="?proyecto={self.alfa.pk}"'):][:400]
-        self.assertNotIn('aria-current="page"', otra)
-        self.assertEqual({p.nombre: p.n_apu for p in r.context['proyectos']}, {'Alfa': 1, 'Escuela Tarija': 4})
+        for p in (self.proyecto, self.alfa):
+            self.assertEqual(html.count(f'href="{self.URL}{p.pk}/"'), 1)                    # el nombre enlaza al detalle
+        self.assertEqual({t['proyecto'].nombre: t['proyecto'].n_apu for t in r.context['tarjetas']}, {'Alfa': 1, 'Escuela Tarija': 4})
         self.assertIn('Oruro', html)                                                        # la región de cada proyecto
+        self.assertIn('Ver detalle y APU', html)
+
+    def test_el_detalle_enlaza_de_vuelta_a_la_lista(self):
+        self.assertContains(self.det(self.proyecto), f'href="{self.URL}"')
 
     def test_proyecto_sin_apu_invita_a_crear_el_primero(self):
         vacio = Proyecto.objects.create(empresa=self.a, nombre='Zeta', descripcion=DESCRIPCION)
         ProyectoAPU.objects.create(proyecto=vacio, perfil=self.perfil)
-        r = self.get(f'?proyecto={vacio.pk}', self.coord)
+        r = self.det(vacio, self.coord)
         self.assertEqual((r.context['resumen']['n'], r.context['resumen']['suma']), (0, D(0)))
         self.assertContains(r, 'Este proyecto todavía no tiene APU')
         self.assertContains(r, f'/tekon/apu/generar/?proyecto={vacio.pk}')
@@ -1665,7 +1714,7 @@ class ProyectosResumenTests(Base):
         ProyectoAPU.objects.all().delete()
         ItemModelo.objects.all().delete()
         r = self.get(usuario=self.coord)
-        self.assertIsNone(r.context['elegido'])
+        self.assertEqual(r.context['tarjetas'], [])
         self.assertContains(r, 'Todavía no hay proyectos habilitados para APU')
         self.assertContains(r, '/tekon/apu/proyectos/habilitar/')
 
@@ -1945,6 +1994,13 @@ class TokensTests(Base):
             'Modelo mini': [{'data': {'ai_languageModel': [[{'json': {'tokenUsage': {'promptTokens': 400, 'completionTokens': 50}}}]]}}],
             'Webhook': [{'data': {'main': [[{'json': {}}]]}}]}}}}
 
+    def test_sin_uso_reportado_se_usa_la_estimacion_de_n8n_y_el_modelo_que_respondio(self):
+        item = {'json': {'response': {'generations': [[{'generationInfo': {'model_name': 'gpt-5.1-2025-11-13'}}]]},
+                         'tokenUsageEstimate': {'promptTokens': 3149, 'completionTokens': 0}}}
+        ejecucion = {'workflowData': {'nodes': [{'name': 'Modelo principal', 'parameters': {'model': {'value': 'otro'}}}]},
+                     'data': {'resultData': {'runData': {'Modelo principal': [{'data': {'ai_languageModel': [[item]]}}]}}}}
+        self.assertEqual(ia.uso_de_ejecucion(ejecucion), {'gpt-5.1': {'entrada': 3149, 'salida': 0, 'estimado': True}})
+
     def test_el_uso_se_suma_por_modelo_y_el_costo_sale_de_la_tarifa(self):
         uso = ia.uso_de_ejecucion(self.EJECUCION)
         self.assertEqual(uso, {'gpt-5.1': {'entrada': 1200, 'salida': 600}, 'gpt-4.1-mini': {'entrada': 400, 'salida': 50}})
@@ -2046,3 +2102,39 @@ class PaginasTests(Base):
         self.client.force_login(otro)
         self.assertNotContains(self.client.get('/tekon/apu/pendientes/'), 'Muro de ladrillo')
         self.assertEqual(self.client.get(f'/tekon/apu/borrador/{b.pk}/continuar/').status_code, 404)
+
+
+class CredencialN8nTests(Base):
+    @override_settings(N8N_API_URL='http://env:5678', N8N_API_KEY='env-key')
+    def test_la_de_la_empresa_manda_y_el_env_es_respaldo(self):
+        from cuentas.models import CredencialesEmpresa
+        self.assertEqual(CredencialesEmpresa.n8n_api(self.a), ('http://env:5678', 'env-key'))
+        CredencialesEmpresa.objects.create(empresa=self.a, n8n_api_url='http://db:5678/', n8n_api_key=' db-key ')
+        self.assertEqual(CredencialesEmpresa.n8n_api(self.a), ('http://db:5678', 'db-key'))
+        self.assertEqual(CredencialesEmpresa.n8n_api(self.b), ('http://env:5678', 'env-key'))   # la otra empresa no hereda la de Tekon
+
+    def test_cada_llamada_se_mide_con_la_clave_de_su_empresa(self):
+        from cuentas.models import CredencialesEmpresa
+        CredencialesEmpresa.objects.create(empresa=self.a, n8n_api_url='http://a:5678', n8n_api_key='clave-A')
+        CredencialesEmpresa.objects.create(empresa=self.b, n8n_api_url='http://b:5678', n8n_api_key='clave-B')
+        la = LlamadaIA.objects.create(empresa=self.a, webhook='apu-insumos', ejecucion_id='1')
+        lb = LlamadaIA.objects.create(empresa=self.b, webhook='apu-insumos', ejecucion_id='2')
+        ok = mock.Mock(status_code=200, **{'raise_for_status.return_value': None, 'json.return_value': TokensTests.EJECUCION})
+        with mock.patch('apu_generador.ia.requests.get', return_value=ok) as g:
+            self.assertEqual(ia.sincronizar_uso([la, lb]), 2)
+        usados = {c[0][0]: c[1]['headers']['X-N8N-API-KEY'] for c in g.call_args_list}
+        self.assertEqual(usados, {'http://a:5678/api/v1/executions/1': 'clave-A', 'http://b:5678/api/v1/executions/2': 'clave-B'})
+
+    def test_si_una_empresa_falla_las_demas_se_siguen_midiendo(self):
+        from cuentas.models import CredencialesEmpresa
+        CredencialesEmpresa.objects.create(empresa=self.a, n8n_api_url='http://a:5678', n8n_api_key='mala')
+        CredencialesEmpresa.objects.create(empresa=self.b, n8n_api_url='http://b:5678', n8n_api_key='buena')
+        llamadas = [LlamadaIA.objects.create(empresa=self.a, webhook='apu-insumos', ejecucion_id=str(i)) for i in (1, 2, 3)]
+        llamadas.append(LlamadaIA.objects.create(empresa=self.b, webhook='apu-insumos', ejecucion_id='9'))
+        ok = mock.Mock(status_code=200, **{'raise_for_status.return_value': None, 'json.return_value': TokensTests.EJECUCION})
+        rechazada = mock.Mock(status_code=401)
+        with mock.patch('apu_generador.ia.requests.get', side_effect=lambda url, **kw: rechazada if 'a:5678' in url else ok) as g:
+            self.assertEqual(ia.sincronizar_uso(llamadas), 1)
+        self.assertEqual(g.call_count, 2)                                                 # una prueba de A (rechazada) y la de B
+        self.assertIn('Tekon: n8n rechazó la clave de la API', ia.ESTADO_MEDICION['motivo'])
+        self.assertNotIn('Embol', ia.ESTADO_MEDICION['motivo'])

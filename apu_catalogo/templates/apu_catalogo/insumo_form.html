@@ -1,0 +1,17 @@
+{% extends "shell.html" %}
+{% load apu_tags %}
+{% block page_title %}Editar insumo · APU{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div>
+  <a href="{% url 'apu_catalogo:insumos' %}" class="inline-flex items-center gap-1 text-sm text-base-content/60 hover:text-base-content">{% include "components/icon.html" with name="chevron-left" cls="size-4" %} Insumos</a>
+  <h1 class="mt-1 text-2xl font-semibold">Editar insumo</h1>
+</div>
+<form method="post" class="card max-w-2xl bg-base-100">{% csrf_token %}
+  <div class="card-body gap-5 p-5">
+    {% include "components/campos.html" %}
+    {% lista_unidades %}
+    <div class="flex gap-2"><button class="btn btn-primary btn-sm">Guardar</button><a href="{% url 'apu_catalogo:insumos' %}" class="btn btn-ghost btn-sm">Cancelar</a></div>
+  </div>
+</form>
+{% endblock %}

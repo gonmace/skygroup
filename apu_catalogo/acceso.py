@@ -4,6 +4,7 @@ Si la empresa tiene Asistencia (`jor`), quien usa APU debe tener una jornada EN 
 administrador de sistema de la empresa; una empresa sin Asistencia no tiene la restricción."""
 from functools import wraps
 
+from django.conf import settings
 from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -11,12 +12,18 @@ from django.shortcuts import render
 from cuentas.capacidades import administra
 from empresas.acceso import acceso_modulo
 
+MENSAJE_PROXIMAMENTE = 'APU estará disponible próximamente.'
 MENSAJE_SIN_JORNADA = 'Inicia tu jornada para usar APU.'
 
 
 def es_admin_o_super(user, empresa):
     """Superusuario o administrador de sistema de la empresa (los exentos de jornada y de límite personal)."""
     return bool(user.is_superuser or (empresa is not None and administra(user, empresa.pk)))
+
+
+def apu_cerrado_para(user, empresa):
+    """True si APU todavía no está abierto para esta persona («Próximamente»): solo superusuario y administradores."""
+    return settings.APU_SOLO_ADMIN and not es_admin_o_super(user, empresa)
 
 
 def exige_jornada(user, empresa):
@@ -46,6 +53,10 @@ def acceso_apu(*capacidades):
         @acceso_modulo('apu', *capacidades)
         @wraps(vista)
         def envoltura(request, *args, **kwargs):
+            if apu_cerrado_para(request.user, request.empresa):
+                if _es_ajax(request):
+                    return JsonResponse({'success': False, 'message': MENSAJE_PROXIMAMENTE}, status=403)
+                return render(request, 'apu_catalogo/proximamente.html', status=403)
             if bloqueado_por_jornada(request.user, request.empresa):
                 if _es_ajax(request):
                     return JsonResponse({'success': False, 'message': MENSAJE_SIN_JORNADA}, status=403)

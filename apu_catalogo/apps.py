@@ -22,3 +22,4 @@ class ApuCatalogoConfig(AppConfig):
         registrar_item('apu', 'APU', 'apu_catalogo:items', 'list', capacidad='apu.ver', orden=30)
         registrar_item('apu', 'Proyectos', 'apu_catalogo:proyectos', 'folder', capacidad='apu.ver', orden=40)
         registrar_item('apu', 'Insumos', 'apu_catalogo:insumos', 'tag', capacidad='apu.ver', orden=50)
+        registrar_item('apu', 'Categorías', 'apu_catalogo:categorias', 'tag', capacidad='apu.ver', orden=45)

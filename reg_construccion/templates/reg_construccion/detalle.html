@@ -8,9 +8,9 @@
   <span class="badge badge-primary badge-outline" title="Avance total acumulado hasta esta visita">Avance {{ r.avance_pct|floatformat:"1u" }}%</span>
   {% if r.completo %}<span class="badge badge-success">Pasos completos</span>{% endif %}
   </div>
-  <a href="{% url 'reg_construccion:lista' %}" class="btn btn-ghost btn-sm ml-auto shrink-0">← Registros</a>
+  <a href="{% url 'reg_construccion:lista' %}" class="btn btn-ghost btn-sm ml-auto shrink-0 gap-1">{% include "components/icon.html" with name="arrow-left" cls="size-4" %} Registros</a>
 </div>
-{% if aviso_bloqueo %}<div class="alert alert-warning mb-4 text-sm" role="status"><span>{{ aviso_bloqueo }}</span></div>{% endif %}
+{% if aviso_bloqueo %}<div class="alert alert-warning mb-4 text-sm" role="status">{% include "components/icon.html" with name="alert-triangle" cls="size-5 shrink-0" %}<span>{{ aviso_bloqueo }}</span></div>{% endif %}
 <div class="mx-auto grid max-w-2xl gap-4">
   <section class="card bg-base-100"><div class="card-body gap-3">
     <h2 class="card-title text-base">{{ r.nombre_obra|default:r.proyecto.nombre }}</h2>

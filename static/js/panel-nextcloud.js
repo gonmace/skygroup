@@ -1,4 +1,4 @@
-// Panel → Nextcloud → «Probar conexión»: envía la URL del formulario (sin guardar) y pinta las comprobaciones.
+// Panel → Nextcloud → «Probar conexión»: envía la URL del formulario (sin guardar) y muestra cada comprobación como aviso.
 (function () {
   'use strict';
   var boton = document.getElementById('nc-probar-conexion');
@@ -6,19 +6,16 @@
   if (!boton || !lista) return;
   var meta = document.querySelector('meta[name="csrf-token"]');
   var csrf = meta ? meta.getAttribute('content') : '';
-  var ICONOS = { ok: '✔', error: '✘', info: 'ℹ' };
-  var CLASES = { ok: 'text-success', error: 'text-error', info: 'text-base-content/70' };
+  var TIPOS = { ok: 'success', error: 'error', info: 'info' };
+  var progreso = null;
+  function quitarProgreso() { if (progreso) { progreso.remove(); progreso = null; } }
 
   function pintar(resultados) {
+    quitarProgreso();
     lista.textContent = '';
+    if (!window.avisar) return;
     resultados.forEach(function (r) {
-      var li = document.createElement('li');
-      li.className = 'flex gap-2 ' + (CLASES[r.estado] || '');
-      var i = document.createElement('span'); i.setAttribute('aria-hidden', 'true'); i.textContent = ICONOS[r.estado] || '•';
-      var t = document.createElement('span');
-      var b = document.createElement('strong'); b.textContent = r.titulo; t.appendChild(b);
-      if (r.detalle) { var d = document.createElement('span'); d.className = 'ml-1 text-base-content/70'; d.textContent = '— ' + r.detalle; t.appendChild(d); }
-      li.appendChild(i); li.appendChild(t); lista.appendChild(li);
+      window.avisar(r.detalle || '', TIPOS[r.estado] || 'info', { titulo: r.titulo });
     });
   }
 
@@ -27,7 +24,9 @@
     var datos = new FormData();
     datos.append('servidor_url', campo ? campo.value : '');
     boton.disabled = true; boton.classList.add('loading');
-    lista.textContent = 'Comprobando…';
+    lista.textContent = '';
+    quitarProgreso();
+    if (window.avisar) progreso = window.avisar('Comprobando…', 'info', { fijo: true });
     fetch(boton.getAttribute('data-url'), {
       method: 'POST', body: datos, credentials: 'same-origin',
       headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },

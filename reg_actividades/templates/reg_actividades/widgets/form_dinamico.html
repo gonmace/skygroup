@@ -2,7 +2,7 @@
   {% for c in b.campos %}
     <div class="{% if c.tipo == 'textarea' %}sm:col-span-2{% endif %}">
       {% if c.tipo == 'toggle' %}
-        <label class="flex items-center gap-2"><input type="checkbox" name="{{ c.campo }}" class="toggle toggle-primary toggle-sm" {% if c.marcado %}checked{% endif %} {% if not puede_escribir %}disabled{% endif %}><span class="text-sm">{{ c.label }}{% if c.obligatorio %} *{% endif %}</span></label>
+        <label class="flex items-center gap-2"><input type="checkbox" name="{{ c.campo }}" class="toggle toggle-success toggle-sm" {% if c.marcado %}checked{% endif %} {% if not puede_escribir %}disabled{% endif %}><span class="text-sm">{{ c.label }}{% if c.obligatorio %} *{% endif %}</span></label>
       {% else %}
         <label class="mb-1 block text-sm font-medium" for="id_{{ c.campo }}">{{ c.label }}{% if c.obligatorio %} <span class="text-error">*</span>{% endif %}</label>
         {% if c.tipo == 'textarea' %}<textarea id="id_{{ c.campo }}" name="{{ c.campo }}" rows="3" placeholder="{{ c.placeholder }}" {% if not puede_escribir %}disabled{% endif %} class="textarea textarea-bordered w-full">{{ c.valor }}</textarea>

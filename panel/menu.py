@@ -50,6 +50,12 @@ SISTEMA = {
 }
 SEGMENTOS = {m['segmento']: codigo for codigo, m in MODULOS.items()}
 
+def _apu_cerrado(user, empresa):
+    # APU solo para superusuario y administradores (ver settings.APU_SOLO_ADMIN); el resto ve «Próximamente».
+    from apu_catalogo.acceso import apu_cerrado_para
+    return apu_cerrado_para(user, empresa)
+
+
 _ITEMS = []  # dicts: modulo, nombre, url_name, icono, capacidad, orden
 
 
@@ -165,6 +171,8 @@ def _items_config(request):
         candidatos.append(('Alta por dominio', 'panel:acceso', 'lock', False, 'general', 'Usuarios y accesos', (), n))
         if user.is_superuser:    # el servidor y el cliente OAuth deciden quién entra: solo el superusuario
             candidatos.append(('Nextcloud', 'panel:nextcloud', 'cloud', False, 'general', 'Usuarios y accesos', (), 'superusuario'))
+    if user.is_superuser:        # claves de servicios externos (Google Maps, n8n…): propias de cada empresa, solo el superusuario
+        candidatos.append(('Credenciales', 'panel:credenciales', 'lock', False, 'general', 'Empresa', (), 'superusuario'))
     if tiene_capacidad(user, 'cuentas.roles.manage', empresa):
         candidatos.append(('Cargos y permisos', 'panel:roles', 'shield', False, 'general', 'Usuarios y accesos', (), cap('cuentas.roles.manage')))
     if tiene_capacidad(user, 'empresas.marca.manage', empresa):
@@ -179,7 +187,7 @@ def _items_plataforma(request):
     if empresas and request.path.startswith(empresas['url'] + 'empresas/'):
         empresas['activo'] = True
     candidatos = [('Administradores', 'panel:administradores', 'shield'), ('Almacenamiento', 'panel:almacenamiento', 'database'),
-                  ('Correo', 'panel:correo', 'mail'), ('Credenciales', 'panel:credenciales', 'lock')]
+                  ('Correo', 'panel:correo', 'mail')]
     return [x for x in [empresas, *(_item(request, *c, nivel='superusuario') for c in candidatos)] if x]
 
 
@@ -219,6 +227,9 @@ def construir_menu(request):
                     agregar(codigo, meta, [], '#', accion=meta.get('accion', ''))
                 continue
             if not empresa.tiene_modulo(codigo):
+                continue
+            if codigo == 'apu' and _apu_cerrado(user, empresa):
+                agregar(codigo, meta, [], '#', disponible=False)  # «Próximamente» para quien no administra
                 continue
             items = _items_modulo(request, codigo)
             if not items and any(i['modulo'] == codigo for i in _ITEMS):

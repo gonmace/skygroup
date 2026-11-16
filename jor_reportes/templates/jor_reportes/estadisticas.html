@@ -12,7 +12,7 @@
   <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
     <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-base-content/60">
       <span>{{ d.periodo.etiqueta }} · <strong>{{ d.total }}</strong> actividades en <strong>{{ d.reportes }}</strong> reportes.</span>
-      {% if persona_nombre %}<a href="{{ url_sin_persona }}" class="badge badge-primary badge-outline gap-1 print:hidden" title="Quitar el filtro de persona">Persona: {{ persona_nombre }} <span aria-hidden="true">✕</span><span class="sr-only">Quitar filtro</span></a>{% endif %}
+      {% if persona_nombre %}<a href="{{ url_sin_persona }}" class="badge badge-ghost gap-1 print:hidden" title="Quitar el filtro de persona">Persona: {{ persona_nombre }} {% include "components/icon.html" with name="x" cls="size-3.5" %}<span class="sr-only">Quitar filtro</span></a>{% endif %}
     </p>
     <button type="button" data-imprimir class="btn btn-sm ml-auto print:hidden">{% include "components/icon.html" with name="pdf" cls="size-4" %} Imprimir / PDF</button>
   </div>
@@ -170,7 +170,7 @@
           {% if p.segundo_cat %}<span class="inline-flex items-center gap-1.5 text-xs text-base-content/60"><svg class="size-2" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="{{ p.segundo_cat.color }}"></circle></svg>{{ p.segundo_cat.etiqueta }}</span>{% endif %}
         </div></td>
         <td class="whitespace-nowrap tabular-nums text-base-content/70">{{ p.ultimo|date:"d/m/Y" }}</td>
-        <td class="text-right print:hidden"><a href="{{ p.url }}" class="btn btn-ghost btn-sm btn-square text-primary" title="Ver solo a {{ p.nombre }}" aria-label="Ver solo a {{ p.nombre }}">{% include "components/icon.html" with name="eye" cls="size-4" %}</a></td>
+        <td class="text-right print:hidden"><a href="{{ p.url }}" class="btn-icono icono-ver" title="Ver solo a {{ p.nombre }}" aria-label="Ver solo a {{ p.nombre }}">{% include "components/icon.html" with name="eye" cls="size-4" %}</a></td>
       </tr>{% endfor %}
       {% if persona %}{% for r in roles_res %}<tr class="bg-base-200/50 text-base-content/70">
         <td class="italic">Prom. {{ r.rol }}</td>

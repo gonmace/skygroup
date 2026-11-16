@@ -26,7 +26,7 @@
   </div>
   <div class="grid gap-x-4 gap-y-2 sm:col-span-2 sm:grid-cols-2">
     {% for t in b.toggles %}
-      <label class="flex items-center gap-2"><input type="checkbox" name="{{ t.campo }}" class="toggle toggle-primary toggle-sm" {% if t.marcado %}checked{% endif %} {% if not puede_escribir %}disabled{% endif %}><span class="text-sm">{{ t.label }}</span></label>
+      <label class="flex items-center gap-2"><input type="checkbox" name="{{ t.campo }}" class="toggle toggle-success toggle-sm" {% if t.marcado %}checked{% endif %} {% if not puede_escribir %}disabled{% endif %}><span class="text-sm">{{ t.label }}</span></label>
     {% endfor %}
   </div>
   <div class="sm:col-span-2">

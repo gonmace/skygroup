@@ -7,7 +7,7 @@ from decimal import Decimal
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 
-from apu_catalogo import calculo
+from apu_catalogo import calculo, categorias as cats, unidades
 from apu_catalogo.models import Insumo, ItemModelo, LineaComposicion, PerfilCalculo, PrecioInsumo, ProyectoAPU, Tipo
 
 from . import creditos, ia
@@ -131,7 +131,7 @@ def resolver_insumo(empresa, tipo, fila):
         try:
             with transaction.atomic():
                 return Insumo.objects.create(empresa=empresa, codigo=_siguiente_codigo(empresa, prefijo),
-                                             descripcion=fila['descripcion'], unidad=fila['unidad'], tipo=tipo_db)
+                                             descripcion=fila['descripcion'], unidad=unidades.normalizar(fila['unidad'])[:20], tipo=tipo_db)
         except IntegrityError:
             continue
     raise ErrorPaso('No se pudo crear el insumo. Inténtalo de nuevo.')
@@ -279,7 +279,7 @@ def _codigo_apu(empresa, proyecto):
 def _crear_o_actualizar_apu(borrador, user):
     empresa = borrador.empresa
     item = borrador.apu_guardado
-    categoria = (borrador.clasificacion or {}).get('categoria', '')[:80]
+    categoria = cats.obtener_o_crear(empresa, (borrador.clasificacion or {}).get('categoria', ''))
     if item is None:
         for _ in range(5):
             try:
@@ -390,7 +390,7 @@ def crear_borrador_reutilizado(item, proyecto, user, empresa, *, edita_el_mismo=
     return APUBorrador.objects.create(
         empresa=empresa, proyecto=proyecto, creado_por=user, actividad=item.descripcion, unidad=item.unidad,
         descripcion='', region=_region_del_proyecto(proyecto), modo=APUBorrador.Modo.REUTILIZAR, origen=item, paso=5, credito_consumido=True,
-        clasificacion={'categoria': item.categoria}, apu_guardado=item if edita_el_mismo else None, **pasos)
+        clasificacion={'categoria': item.categoria.nombre if item.categoria_id else ''}, apu_guardado=item if edita_el_mismo else None, **pasos)
 
 
 def limpiar_titulo(texto):

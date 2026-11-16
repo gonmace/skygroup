@@ -6,9 +6,9 @@
 <div class="flex flex-wrap items-start justify-between gap-4">
   <div>
     <h1 class="text-2xl font-semibold">Consumo de IA</h1>
-    <p class="mt-1 max-w-3xl text-sm text-base-content/60">Tokens y costo de cada llamada a la API de OpenAI que hacen los workflows de APU (últimas 1000 llamadas).{% if not medicion_activa %} <strong>La medición está desactivada</strong>: define <code>N8N_API_URL</code> y <code>N8N_API_KEY</code> para leer los tokens de n8n.{% endif %}</p>
+    <p class="mt-1 max-w-3xl text-sm text-base-content/60">Tokens y costo de cada llamada a la API de OpenAI que hacen los workflows de APU (últimas 1000 llamadas).{% if not medicion_activa %} <strong>La medición está desactivada</strong>: carga la URL y la API key de n8n en empresa → Credenciales para leer los tokens.{% endif %}</p>
   </div>
-  <button class="btn btn-outline btn-sm gap-1" data-verificar-tarifas data-url="{% url 'apu_generador:tarifas_verificar' %}">{% include "components/icon.html" with name="search" cls="size-4" %} Verificar tarifas</button>
+  <button class="btn btn-ghost btn-sm gap-1" data-verificar-tarifas data-url="{% url 'apu_generador:tarifas_verificar' %}">{% include "components/icon.html" with name="search" cls="size-4" %} Verificar tarifas</button>
 </div>
 
 <div class="grid grid-cols-1 gap-3 sm:grid-cols-4">
@@ -21,6 +21,26 @@
 {% if total.pendientes and total.motivo %}<div role="alert" class="alert alert-warning alert-soft items-start text-sm">{% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}<span><strong>{{ total.pendientes }} llamada{{ total.pendientes|pluralize }} sin medir.</strong> {{ total.motivo }}</span></div>{% endif %}
 
 <div id="apu-diferencias" class="hidden"></div>
+
+<section class="table-card">
+  <div class="border-b border-base-300 px-5 py-4"><h2 class="text-base font-semibold">Consumo y costo por modelo</h2>
+    <p class="mt-0.5 text-sm text-base-content/60">Tokens usados con cada modelo y su costo según la tarifa guardada (USD por millón de tokens).</p></div>
+  <table class="table">
+    <thead><tr><th>Modelo</th><th class="text-right">Llamadas</th><th class="text-right">Entrada</th><th class="text-right">Salida</th><th class="text-right">Tarifa (ent. / sal.)</th><th class="text-right">Costo (USD)</th></tr></thead>
+    <tbody>
+    {% for m in total.modelos %}
+      <tr>
+        <td class="font-mono text-sm">{{ m.modelo }}{% if m.estimado %} <span class="badge badge-info badge-soft badge-sm" title="OpenAI no reportó el uso real a n8n: son tokens estimados (la salida puede figurar en 0)">Estimado</span>{% endif %}</td>
+        <td class="text-right tabular-nums">{{ m.llamadas }}</td>
+        <td class="text-right tabular-nums">{{ m.entrada }}</td>
+        <td class="text-right tabular-nums">{{ m.salida }}</td>
+        <td class="text-right tabular-nums text-base-content/70">{% if m.tarifa %}{{ m.tarifa.entrada_usd_mtok|floatformat:'-4' }} / {{ m.tarifa.salida_usd_mtok|floatformat:'-4' }}{% else %}—{% endif %}</td>
+        <td class="text-right tabular-nums">{% if m.costo is None %}<span class="badge badge-warning badge-soft badge-sm">Sin tarifa</span>{% else %}${{ m.costo|floatformat:4 }}{% endif %}</td>
+      </tr>
+    {% empty %}<tr><td colspan="6" class="py-6 text-center text-base-content/60">Aún no hay consumo medido.{% if not medicion_activa %} Configura la API de n8n en empresa → Credenciales.{% endif %}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
 
 <section class="table-card">
   <div class="border-b border-base-300 px-5 py-4"><h2 class="text-base font-semibold">Tarifas por modelo</h2>

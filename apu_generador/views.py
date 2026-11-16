@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from apu_catalogo import calculo
+from apu_catalogo import calculo, categorias as cats, unidades
 from apu_catalogo.acceso import acceso_apu, es_admin_o_super
 from apu_catalogo.models import ItemModelo, PerfilCalculo, ProyectoAPU
 from core.n8n import N8NError
@@ -98,7 +98,8 @@ def _info_proyectos(empresa):
 def _correr_coherencia(request, borrador):
     """Llama a `apu-coherencia` y deja el borrador en el paso 2 si todo está claro y es coherente."""
     payload = {'actividad': borrador.actividad, 'unidad': borrador.unidad, 'descripcion': borrador.descripcion,
-               'region': borrador.region, 'proyecto': ia.contexto_proyecto(borrador.proyecto)}
+               'region': borrador.region, 'proyecto': ia.contexto_proyecto(borrador.proyecto),
+               'categorias': cats.para_ia(request.empresa)}
     base = {'borrador_id': borrador.pk, 'continuar_url': _url_paso(borrador)}
     try:
         datos = ia.llamar('coherencia', payload, empresa=request.empresa, usuario=request.user, borrador=borrador,
@@ -128,7 +129,7 @@ def _validar_actividad(datos):
         raise ErrorPaso('Indica la actividad y su unidad.')
     if len(actividad) > 200:
         raise ErrorPaso('La actividad no puede superar los 200 caracteres.')
-    return {'actividad': actividad, 'unidad': unidad[:20], 'descripcion': str(datos.get('descripcion') or '').strip()}
+    return {'actividad': actividad, 'unidad': unidades.normalizar(unidad)[:20], 'descripcion': str(datos.get('descripcion') or '').strip()}
 
 
 def _completar_proyecto(request, proyecto, datos):
@@ -460,7 +461,7 @@ def _proponer_modificacion(request, borrador, instruccion):
     for v in propuesta.values():
         v.pop('consultas', None)
     propuesta['actividad'] = asistente.limpiar_titulo(crudo.get('actividad'))      # el título también puede cambiar (se revisa)
-    propuesta['unidad'] = ' '.join(str(crudo.get('unidad') or '').split())[:20]     # y la unidad, si cambia lo que se mide
+    propuesta['unidad'] = unidades.normalizar(crudo.get('unidad'))[:20]     # y la unidad, si cambia lo que se mide
     propuesta['motivo_titulo'] = str(crudo.get('motivo_titulo') or '').strip()[:300]
     if not asistente.diferencias(borrador, propuesta):
         creditos.revertir(request.user, request.empresa, ConsumoAPU.Tipo.MODIFICAR, referencia)

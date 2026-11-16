@@ -7,12 +7,12 @@
     <p>Vas a eliminar <strong>definitivamente</strong> el contratista <strong>{{ obj.nombre }}</strong> ({{ obj.codigo }}). No se puede deshacer ni restaurar.</p>
     {% if n_registros %}
     <div role="alert" class="alert alert-warning">
-      <span><strong>Atención:</strong> está ligado a {{ n_registros }} registro{{ n_registros|pluralize }} de Construcción. Se conservan, pero quedarán <strong>sin contratista</strong> (campo vacío).</span>
+      {% include "components/icon.html" with name="alert-triangle" cls="size-5" %}<span><strong>Atención:</strong> está ligado a {{ n_registros }} registro{{ n_registros|pluralize }} de Construcción. Se conservan, pero quedarán <strong>sin contratista</strong> (campo vacío).</span>
     </div>
     {% endif %}
     {% if n_membresias %}
     <div role="alert" class="alert alert-error">
-      <span>Tiene {{ n_membresias }} miembro{{ n_membresias|pluralize }} ligado{{ n_membresias|pluralize }}. Muévelos a otro contratista antes de eliminarlo: no se puede continuar.</span>
+      {% include "components/icon.html" with name="alert-triangle" cls="size-5" %}<span>Tiene {{ n_membresias }} miembro{{ n_membresias|pluralize }} ligado{{ n_membresias|pluralize }}. Muévelos a otro contratista antes de eliminarlo: no se puede continuar.</span>
     </div>
     {% endif %}
     <div class="card-actions justify-end">

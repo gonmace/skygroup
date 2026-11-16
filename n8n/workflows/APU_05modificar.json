@@ -53,7 +53,8 @@
           "value": "gpt-5.1"
         },
         "builtInTools": {},
-        "options": {}
+        "options": {},
+        "responsesApiEnabled": false
       },
       "id": "a03600e3-3b15-45a1-bee5-635fb02a5f97",
       "name": "Modelo principal",
@@ -136,7 +137,8 @@
           "value": "gpt-5-mini"
         },
         "builtInTools": {},
-        "options": {}
+        "options": {},
+        "responsesApiEnabled": false
       },
       "id": "8c4c3903-7368-4bb3-b803-1b28ed0c283b",
       "name": "Modelo mini verificación",

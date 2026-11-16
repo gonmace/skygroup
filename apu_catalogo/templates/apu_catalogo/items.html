@@ -14,7 +14,7 @@
   <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Proyecto</span>
     <select name="proyecto" class="select select-bordered select-sm"><option value="">Todos</option>{% for p in proyectos %}<option value="{{ p.pk }}" {% if proyecto_sel == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nombre }}</option>{% endfor %}</select></label>
   <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Categoría</span>
-    <select name="categoria" class="select select-bordered select-sm"><option value="">Todas</option>{% for c in categorias %}<option value="{{ c }}" {% if categoria_sel == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+    <select name="categoria" class="select select-bordered select-sm"><option value="">Todas</option>{% for c in categorias %}<option value="{{ c.pk }}" {% if categoria_sel == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}<option value="sin" {% if categoria_sel == "sin" %}selected{% endif %}>Sin categoría</option></select></label>
   <button class="btn btn-sm">Filtrar</button>
 </form>
 <ul class="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-base-content/70" aria-label="Estado de los precios de cada APU">
@@ -36,11 +36,11 @@
         </td>
         <td class="font-medium">{{ it.descripcion }} <span class="text-xs font-normal text-base-content/50">[{{ it.unidad }}]</span>{% if it.origen_id %} <span class="badge badge-ghost badge-sm">Reutilizado</span>{% endif %}</td>
         <td>{{ it.proyecto.nombre|default:"—" }}</td>
-        <td>{% if it.categoria %}<span class="badge badge-outline badge-sm">{{ it.categoria }}</span>{% else %}<span class="text-base-content/40">—</span>{% endif %}</td>
+        <td>{% if it.categoria %}<span class="badge badge-outline badge-sm">{{ it.categoria.nombre }}</span>{% else %}<span class="text-base-content/40">—</span>{% endif %}</td>
         <td class="text-right tabular-nums">{% if it.precio_unitario is not None %}{{ it.precio_unitario }} <span class="text-xs text-base-content/50">{{ it.moneda }}</span>{% if it.n_sin_precio %}<span class="block text-xs text-base-content/50">{{ it.n_sin_precio }} sin precio</span>{% endif %}{% else %}<span class="text-base-content/40" title="El proyecto aún no tiene perfil de cálculo">—</span>{% endif %}</td>
         <td class="w-px">{% if request.user.is_superuser or it.creado_por_id == request.user.pk %}
           <form method="post" action="{% url 'apu_lineas:apu_eliminar' it.pk %}" data-confirmar="¿Eliminar el APU «{{ it.codigo }} · {{ it.descripcion }}»? Se elimina su composición; los insumos y sus precios no se borran.">{% csrf_token %}
-            <button class="btn btn-ghost btn-square btn-sm text-error" title="Eliminar" aria-label="Eliminar {{ it.codigo }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+            <button class="btn-icono icono-peligro" title="Eliminar" aria-label="Eliminar {{ it.codigo }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
           </form>{% endif %}</td>
       </tr>
     {% empty %}<tr><td colspan="6" class="py-10 text-center text-base-content/60">No hay APU con esos filtros.</td></tr>{% endfor %}

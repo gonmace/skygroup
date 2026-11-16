@@ -7,7 +7,7 @@
     {% csrf_token %}
     <h2 class="card-title text-base">Entrar con Nextcloud</h2>
     <p class="text-sm text-base-content/70">Permite iniciar sesión con el Nextcloud de {{ marca }}. Las personas que das de alta en Usuarios se vinculan solas la primera vez que entran con Nextcloud (su usuario de Nextcloud debe ser su correo). Opcionalmente, con «Crear cuentas al primer ingreso» (apagado por defecto), quien tenga un correo de un dominio permitido (Alta por dominio) se crea sola, con el cargo del dominio o como Coordinador si está en el grupo administrador.</p>
-    {% if form.non_field_errors %}<div class="alert alert-error text-sm">{{ form.non_field_errors.0 }}</div>{% endif %}
+    {% if form.non_field_errors %}<div role="alert" class="alert alert-error text-sm">{% include "components/icon.html" with name="alert-triangle" cls="size-5" %}<span>{{ form.non_field_errors.0 }}</span></div>{% endif %}
     <label class="flex items-center gap-2"><span class="label-text">{{ form.activo }} Activar inicio de sesión con Nextcloud</span></label>
     <label class="flex items-center gap-2"><span class="label-text">{{ form.crear_cuentas }} {{ form.crear_cuentas.label }}</span></label>
     <p class="-mt-2 text-xs text-base-content/60">{{ form.crear_cuentas.help_text }}</p>
@@ -26,38 +26,38 @@
     <h2 id="nc-probar" class="card-title text-base">Probar la configuración</h2>
 
     {% if prueba %}
-    <div class="rounded-box border p-4 text-sm {% if prueba.ok %}border-success/40 bg-success/10{% else %}border-error/40 bg-error/10{% endif %}" role="status">
+    <div class="alert {% if prueba.ok %}alert-success{% else %}alert-error{% endif %} items-start text-sm" role="status">{% if prueba.ok %}{% include "components/icon.html" with name="check-circle" cls="size-5" %}{% else %}{% include "components/icon.html" with name="x-circle" cls="size-5" %}{% endif %}<div class="min-w-0 flex-1">
       {% if prueba.ok %}
-        <p class="font-semibold">✔ Inicio de sesión correcto: el Client ID, el secret y la URI de redirección son válidos.</p>
+        <p class="font-semibold">Inicio de sesión correcto: el Client ID, el secret y la URI de redirección son válidos.</p>
         <dl class="mt-2 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
           <dt class="text-base-content/60">Usuario de Nextcloud</dt><dd class="break-all font-medium">{{ prueba.uid }}</dd>
           <dt class="text-base-content/60">Nombre</dt><dd>{{ prueba.nombre|default:"—" }}</dd>
           <dt class="text-base-content/60">Correo</dt><dd class="break-all">{{ prueba.email|default:"—" }}</dd>
           <dt class="text-base-content/60">Grupos</dt><dd>{% for g in prueba.grupos %}<span class="badge badge-ghost mr-1">{{ g }}</span>{% empty %}—{% endfor %}</dd>
         </dl>
-        {% if not prueba.perfil_leido %}<p class="mt-2 text-warning">No se pudo leer el perfil (nombre, correo y grupos). El acceso funciona, pero «Grupo de Nextcloud administrador» no se podrá aplicar.</p>{% endif %}
-        <p class="mt-3 rounded bg-base-100/70 p-2"><strong>En skygroup:</strong> {{ prueba.simulacion.texto }}</p>
+        {% if not prueba.perfil_leido %}<p class="mt-2 font-medium">No se pudo leer el perfil (nombre, correo y grupos). El acceso funciona, pero «Grupo de Nextcloud administrador» no se podrá aplicar.</p>{% endif %}
+        <p class="superficie mt-3 p-2"><strong>En skygroup:</strong> {{ prueba.simulacion.texto }}</p>
         <p class="mt-2 text-xs text-base-content/60">Es solo una prueba: no se inició sesión, no se vinculó ni se creó ninguna cuenta.</p>
       {% else %}
-        <p class="font-semibold">✘ {{ prueba.titulo }}</p>
+        <p class="font-semibold">{{ prueba.titulo }}</p>
         {% if prueba.detalle %}<p class="mt-1">{{ prueba.detalle }}</p>{% endif %}
       {% endif %}
-    </div>
+    </div></div>
     {% endif %}
 
     <div class="grid gap-4 sm:grid-cols-2">
       <div class="space-y-2">
         <h3 class="font-medium">1. Probar conexión</h3>
         <p class="text-xs text-base-content/60">Comprueba la URL del formulario (aunque no la hayas guardado): que sea un Nextcloud accesible y que su app «OAuth 2.0» esté activa. No usa el Client ID ni el secret.</p>
-        <button type="button" class="btn btn-outline btn-sm" id="nc-probar-conexion" data-url="{% url 'panel:nextcloud_probar' %}">Probar conexión</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="nc-probar-conexion" data-url="{% url 'panel:nextcloud_probar' %}">Probar conexión</button>
       </div>
       <div class="space-y-2">
         <h3 class="font-medium">2. Probar inicio de sesión</h3>
         <p class="text-xs text-base-content/60">Te lleva a Nextcloud para iniciar sesión de verdad y valida el Client ID, el secret y la URI de redirección. Usa lo <strong>guardado</strong>. No entras con esa cuenta ni se vincula nada.</p>
         <form method="post" action="{% url 'cuentas:nextcloud_probar_inicio' %}">{% csrf_token %}
-          <button type="submit" class="btn btn-outline btn-sm" {% if not config_completa %}disabled title="Guarda primero el servidor, el Client ID y el Client secret"{% endif %}>Probar inicio de sesión</button>
+          <button type="submit" class="btn btn-ghost btn-sm" {% if not config_completa %}disabled title="Guarda primero el servidor, el Client ID y el Client secret"{% endif %}>Probar inicio de sesión</button>
         </form>
-        {% if not config_completa %}<p class="text-xs text-warning">Guarda primero el servidor, el Client ID y el Client secret.</p>{% endif %}
+        {% if not config_completa %}<p class="text-xs text-base-content/70">Guarda primero el servidor, el Client ID y el Client secret.</p>{% endif %}
       </div>
     </div>
 

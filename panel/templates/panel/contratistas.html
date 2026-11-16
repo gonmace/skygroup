@@ -16,15 +16,15 @@
         <td class="text-center">{{ c.num_miembros }}</td>
         <td class="text-center">
           <form method="post" action="{% url 'panel:contratista_alternar' c.pk %}">{% csrf_token %}
-            <input type="checkbox" class="toggle toggle-success toggle-sm" {% if c.activo %}checked{% endif %}
+            <input type="checkbox" role="switch" class="toggle toggle-success toggle-sm" {% if c.activo %}checked{% endif %}
                    title="{% if c.activo %}Desactivar{% else %}Activar{% endif %}" aria-label="{% if c.activo %}Desactivar{% else %}Activar{% endif %} a {{ c.nombre }}"
                    data-autoenviar="{% if c.activo %}¿Desactivar el contratista «{{ c.nombre }}»?{% endif %}">
           </form>
         </td>
         <td class="whitespace-nowrap text-right">
-          <a class="btn btn-ghost btn-square btn-sm text-primary-text hover:bg-primary/10" title="Editar" aria-label="Editar" href="{% url 'panel:contratista_editar' c.pk %}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+          <a class="btn-icono icono-editar" title="Editar" aria-label="Editar" href="{% url 'panel:contratista_editar' c.pk %}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
           <form method="post" action="{% url 'panel:contratista_eliminar' c.pk %}" class="inline" data-confirmar="¿Eliminar el contratista «{{ c.nombre }}»?">{% csrf_token %}
-            <button type="submit" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+            <button type="submit" class="btn-icono icono-peligro" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
           </form>
         </td>
       </tr>
@@ -48,9 +48,9 @@
           <td class="text-center text-sm">{{ c.actualizado|date:"d/m/Y H:i" }}</td>
           <td class="whitespace-nowrap text-right">
             <form method="post" action="{% url 'panel:contratista_restaurar' c.pk %}" class="inline" data-confirmar="¿Restaurar el contratista «{{ c.nombre }}»?">{% csrf_token %}
-              <button type="submit" class="btn btn-ghost btn-square btn-sm text-success hover:bg-success/10" title="Restaurar" aria-label="Restaurar">{% include "components/icon.html" with name="restore" cls="size-5" %}</button>
+              <button type="submit" class="btn-icono icono-ok" title="Restaurar" aria-label="Restaurar">{% include "components/icon.html" with name="restore" cls="size-5" %}</button>
             </form>
-            <a href="{% url 'panel:contratista_eliminar_definitivo' c.pk %}" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar definitivamente" aria-label="Eliminar definitivamente a {{ c.nombre }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</a>
+            <a href="{% url 'panel:contratista_eliminar_definitivo' c.pk %}" class="btn-icono icono-peligro" title="Eliminar definitivamente" aria-label="Eliminar definitivamente a {{ c.nombre }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</a>
           </td>
         </tr>
       {% empty %}

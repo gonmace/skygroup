@@ -7,7 +7,7 @@
     <p>Vas a eliminar el cargo <strong>{{ obj.nombre }}</strong> ({{ obj.get_rol_base_display }}). No se puede deshacer.</p>
     {% if en_uso %}
     <div role="alert" class="alert alert-warning">
-      <span>Está en uso por <strong>{{ n_miembros }} miembro{{ n_miembros|pluralize }}</strong>{% if en_uso != n_miembros %} y otras asignaciones (dominios, excepciones por módulo){% endif %}. Elige el cargo al que pasarán; recibirán sus permisos.</span>
+      {% include "components/icon.html" with name="alert-triangle" cls="size-5" %}<span>Está en uso por <strong>{{ n_miembros }} miembro{{ n_miembros|pluralize }}</strong>{% if en_uso != n_miembros %} y otras asignaciones (dominios, excepciones por módulo){% endif %}. Elige el cargo al que pasarán; recibirán sus permisos.</span>
     </div>
     <label class="form-control">
       <span class="label-text mb-1">Pasar a</span>

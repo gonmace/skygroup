@@ -12,7 +12,8 @@
   </div>
 </div>
 {% if paso.descripcion and not solo %}<p class="mb-4 text-sm text-base-content/70">{{ paso.descripcion }}</p>{% endif %}
-{% if aviso_bloqueo %}<div class="alert alert-warning mb-4 text-sm" role="status"><span>{{ aviso_bloqueo }}</span></div>{% endif %}
+{% if aviso_bloqueo %}{# Bloqueo persistente (no es un resultado de acción): queda como alerta en línea con icono, no como toast. #}
+<div class="alert alert-warning mb-4 text-sm" role="status">{% include "components/icon.html" with name="alert-triangle" cls="size-5 shrink-0" %}<span>{{ aviso_bloqueo }}</span></div>{% endif %}
 {% if not puede_escribir and r.concluido %}<p class="mb-4 text-sm text-base-content/60">El registro está concluido: es de solo lectura.</p>{% endif %}
 
 <form method="post" action="{% url 'reg_actividades:guardar' tipo.clave r.pk paso.nombre %}" class="reg-paso space-y-4">
@@ -34,8 +35,8 @@
     {% if puede_escribir %}<button type="submit" class="btn btn-primary btn-lg w-full">{% if solo %}Guardar{% else %}Guardar paso{% endif %}</button>{% endif %}
     {% if not solo and anterior or not solo and siguiente %}
     <div class="grid grid-cols-2 gap-2">
-      {% if anterior %}<a class="btn btn-soft" href="{% url 'reg_actividades:paso' tipo.clave r.pk anterior.nombre %}">← {{ anterior.titulo|truncatechars:18 }}</a>{% else %}<span></span>{% endif %}
-      {% if siguiente %}<a class="btn btn-soft" href="{% url 'reg_actividades:paso' tipo.clave r.pk siguiente.nombre %}">{{ siguiente.titulo|truncatechars:18 }} →</a>{% endif %}
+      {% if anterior %}<a class="btn btn-ghost gap-1" href="{% url 'reg_actividades:paso' tipo.clave r.pk anterior.nombre %}">{% include "components/icon.html" with name="arrow-left" cls="size-4" %} {{ anterior.titulo|truncatechars:18 }}</a>{% else %}<span></span>{% endif %}
+      {% if siguiente %}<a class="btn btn-ghost gap-1" href="{% url 'reg_actividades:paso' tipo.clave r.pk siguiente.nombre %}">{{ siguiente.titulo|truncatechars:18 }} {% include "components/icon.html" with name="arrow-right" cls="size-4" %}</a>{% endif %}
     </div>
     {% endif %}
   </div>

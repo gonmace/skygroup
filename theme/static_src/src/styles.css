@@ -59,16 +59,16 @@
   --color-neutral: #1b1f27;
   --color-neutral-content: #f3f4f6;
   /* Semantica */
-  --color-info: #4F5D6E;    --color-info-content: #fff;           /* neutros: no compiten con la marca */
+  --color-info: #1f6fd6;    --color-info-content: #fff;           /* azul de estado: ver / abrir / información */
   --color-success: #248A3D; --color-success-content: #fff;
   --color-warning: #FF9500; --color-warning-content: #1c1c1e;   /* ambar */
   --color-error: #D70015;   --color-error-content: #fff;         /* < primary */
   /* Acciones */
   --color-edit: #5B5B66;   --color-edit-content: #fff;
   --color-delete: #8C0014; --color-delete-content: #fff;
-  --color-view: #4F5D6E;   --color-view-content: #fff;
+  --color-view: #1f6fd6;   --color-view-content: #fff;
   --radius-selector: 0.625rem; --radius-field: 0.75rem;
-  --radius-box: 1.25rem;         --radius-badge: 9999px;
+  --radius-box: 1rem;            --radius-badge: 9999px;
 }
 
 @plugin "daisyui/theme" {
@@ -85,13 +85,13 @@
   --color-secondary: #a3a9b7;--color-secondary-content: #1E1819;
   --color-accent: #E6BC5A;   --color-accent-content: #211A0C;
   --color-neutral: #2a2f3a;  --color-neutral-content: #eceef2;
-  --color-info: #9FB0C4;    --color-info-content: #000;
+  --color-info: #6fa8f5;    --color-info-content: #000;
   --color-success: #30D158; --color-success-content: #000;
   --color-warning: #FF9F0A; --color-warning-content: #000;
   --color-error: #FF453A;   --color-error-content: #000;
   --color-edit: #C4C4CF;    --color-edit-content: #000;
   --color-delete: #FF5247;  --color-delete-content: #fff;
-  --color-view: #9FB0C4;    --color-view-content: #000;
+  --color-view: #6fa8f5;    --color-view-content: #000;
   --radius-selector: 0.625rem; --radius-field: 0.75rem;
   --radius-box: 1rem;          --radius-badge: 9999px;
 }
@@ -100,9 +100,10 @@
    --p-text / --a-text: primario y acento aptos para TEXTO y foco (≥ 4.5:1). Los valores de
    aquí son los del tema por defecto; la hoja de cada empresa (empresas/paleta.py) los recalcula
    para su color. Nunca usar --color-primary crudo como color de texto: usar `text-primary-text`. */
-:root, [data-theme="light"] { --p-text: #005fcb; --a-text: #825e00; }
-[data-theme="dark"] { --p-text: #2d8eff; --a-text: #e6bc5a; }
+:root, [data-theme="light"] { --p-text: #005fcb; --a-text: #825e00; --edit: #0a8a92; --ver: #1f6fd6; }
+[data-theme="dark"] { --p-text: #2d8eff; --a-text: #e6bc5a; --edit: #4cc9d1; --ver: #6fa8f5; }
 @theme inline {
+  --color-edit: var(--edit);
   --color-primary-text: var(--p-text);
   --color-accent-text: var(--a-text);
 }
@@ -118,7 +119,7 @@
   --mod-tar-soft: oklch(.93 .045 295); --mod-tar-ink: oklch(.42 .12 295);  --mod-tar-line: oklch(.80 .08 295);
   --mod-jor-soft: oklch(.95 .055 78);  --mod-jor-ink: oklch(.42 .10 62);   --mod-jor-line: oklch(.82 .10 78);
   --mod-msj-soft: oklch(.94 .06 152);  --mod-msj-ink: oklch(.40 .11 152);  --mod-msj-line: oklch(.80 .10 152);
-  --mod-apu-soft: oklch(.94 .045 355); --mod-apu-ink: oklch(.42 .13 355);  --mod-apu-line: oklch(.82 .09 355);
+  --mod-apu-soft: oklch(.955 .028 355); --mod-apu-ink: oklch(.44 .12 355);  --mod-apu-line: oklch(.86 .06 355);
 }
 [data-theme="dark"] {
   --mod-reg-soft: oklch(.30 .05 235); --mod-reg-ink: oklch(.85 .09 235); --mod-reg-line: oklch(.55 .09 235);
@@ -145,13 +146,14 @@
 .mod-card-icon { position: relative; display: grid; place-items: center; width: 4rem; height: 4rem; border-radius: 1.25rem;
   box-shadow: 0 6px 16px -6px var(--mod-line), inset 0 0 0 1px rgb(255 255 255 / .35); transition: transform .3s cubic-bezier(.2,.8,.2,1); }
 .mod-card-cta { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .85rem; border-radius: 9999px; font-size: .875rem;
-  font-weight: 600; background: var(--mod-soft); color: var(--mod-ink); transition: background .2s, color .2s, gap .2s; }
+  font-weight: 600; background: var(--mod-soft); color: var(--mod-ink);
+  border: 1px solid color-mix(in oklab, var(--mod-ink) 45%, transparent); transition: background .2s, color .2s, gap .2s; }
 a.mod-card { cursor: pointer; }
 a.mod-card:hover, a.mod-card:focus-visible { transform: translateY(-4px);
   box-shadow: 0 0 0 1.5px var(--mod-line), 0 18px 36px -14px var(--mod-line); }
 a.mod-card:hover .mod-card-glow, a.mod-card:focus-visible .mod-card-glow { opacity: .75; transform: scale(1.15); }
 a.mod-card:hover .mod-card-icon { transform: scale(1.08) rotate(-4deg); }
-a.mod-card:hover .mod-card-cta, a.mod-card:focus-visible .mod-card-cta { gap: .75rem; background: var(--mod-ink); color: var(--mod-soft); }
+a.mod-card:hover .mod-card-cta, a.mod-card:focus-visible .mod-card-cta { gap: .75rem; background: var(--mod-ink); color: var(--mod-soft); border-color: var(--mod-ink); }
 a.mod-card:active { transform: translateY(-1px) scale(.985); }
 .mod-card-off { opacity: .6; filter: saturate(.5); }
 /* «Próximamente»: la tarjeta conserva su color y lleva una cinta diagonal en la esquina superior derecha. */
@@ -184,8 +186,13 @@ a.mod-card:active { transform: translateY(-1px) scale(.985); }
    que los utilitarios (ring-error, ring-warning, hover:ring-*) puedan componerse encima: el
    --tw-shadow que declaramos aquí forma parte de su box-shadow. */
 :root, [data-theme="light"] {
-  --elev-1: 0 1px 2px rgb(0 0 0 / .06), 0 4px 12px -2px rgb(0 0 0 / .09);
-  --elev-2: 0 2px 4px rgb(0 0 0 / .06), 0 12px 28px -6px rgb(0 0 0 / .16);
+  --elev-1: 0 0 0 1px rgb(0 0 0 / .08), 0 1px 2px rgb(0 0 0 / .06), 0 4px 12px -2px rgb(0 0 0 / .09);
+  --elev-2: 0 0 0 1px rgb(0 0 0 / .12), 0 2px 4px rgb(0 0 0 / .06), 0 12px 28px -6px rgb(0 0 0 / .16);
+}
+/* Dentro de un módulo, el contorno fino de tarjetas y tablas toma el color del módulo (como las tarjetas de «Inicio»). */
+[data-modulo] {
+  --elev-1: 0 0 0 1px color-mix(in oklab, var(--mod-line) 45%, transparent), 0 1px 2px rgb(0 0 0 / .06), 0 4px 12px -2px rgb(0 0 0 / .09);
+  --elev-2: 0 0 0 1px var(--mod-line), 0 2px 4px rgb(0 0 0 / .06), 0 12px 28px -6px rgb(0 0 0 / .16);
 }
 [data-theme="dark"] {
   /* sobre fondo casi negro la sombra no se ve: la superficie más clara + filete hacen la elevación */
@@ -203,6 +210,21 @@ a.mod-card:active { transform: translateY(-1px) scale(.985); }
   a.card { transition: box-shadow .2s ease, transform .2s ease; }
   a.card:hover { --tw-shadow: var(--elev-2); --tw-shadow-colored: var(--elev-2); transform: translateY(-1px); }
 }
+/* Superficie con el contorno fino de la regla general (filas en forma de tarjeta, avisos): como `.card` pero sin padding propio. */
+.superficie { border-radius: var(--radius-box); background: var(--color-base-100); box-shadow: var(--elev-1); }
+/* Dato resumen en píldora: contorno fino del módulo (o gris fuera de uno) y un punto de color de estado. */
+.dato-resumen { display: inline-flex; align-items: center; gap: .4rem; padding: .25rem .75rem; border-radius: 9999px; font-size: .8125rem;
+  background: var(--color-base-100); box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-line, var(--color-base-content)) 60%, transparent); }
+/* Tarjeta que es un enlace entero (resumen de proyecto…): al pasar el cursor sube y toma la elevación fuerte; su «Abrir» se rellena. */
+.card-enlace { transition: box-shadow .2s ease, transform .2s ease; }
+.card-enlace:is(:hover, :focus-within) { box-shadow: var(--elev-2); transform: translateY(-2px); }
+.card-enlace:is(:hover, :focus-within) .mod-card-cta { gap: .75rem; background: var(--mod-ink); color: var(--mod-soft); border-color: var(--mod-ink); }
+@media (prefers-reduced-motion: reduce) { .card-enlace, .card-enlace:hover { transition: none; transform: none; } }
+/* Recuadros de dato (cifra grande con rótulo): pastel del módulo y contorno fino. `-fuerte` para la cifra principal. */
+.dato-tile { border-radius: var(--radius-box); padding: .875rem 1rem; background: color-mix(in oklab, var(--mod-soft, var(--color-base-200)) 30%, var(--color-base-200));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mod-line, var(--color-base-content)) 45%, transparent); }
+.dato-tile-fuerte { background: color-mix(in oklab, var(--mod-soft, var(--color-primary)) 55%, var(--color-base-100));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mod-ink, var(--p-text)) 30%, transparent); }
 /* Tablas: una superficie propia (como las tarjetas), no filas sueltas sobre el fondo de la página */
 @layer components {
   .table-card { overflow-x: auto; border-radius: var(--radius-box); background: var(--color-base-100); box-shadow: var(--elev-1); }
@@ -228,6 +250,37 @@ a.mod-card:active { transform: translateY(-1px) scale(.985); }
 .btn { border-radius: 9999px; font-weight: 500; letter-spacing: -0.011em; box-shadow: none; transition: transform .12s ease, background-color .15s, opacity .15s; }
 .btn:active { transform: scale(.97); }
 .btn-square { border-radius: 0.75rem; }
+/* Botón de color = el estilo de «Abrir» en Inicio: fondo pastel, texto del color, contorno fino y, al pasar el cursor, se rellena.
+   El principal (.btn-primary) toma los colores del módulo en que está (--mod-soft / --mod-ink); fuera de un módulo, la marca.
+   Los demás (éxito, error, aviso…) siguen el mismo patrón con su color. Excluidos: outline, ghost, link, soft, dash, tactil y
+   deshabilitados (llevan el suyo). No volver a poner `border: 0` ni un relleno sólido a un botón nuevo: usar esta regla. */
+.btn-primary { --c-soft: color-mix(in oklab, var(--mod-soft, color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100))) 55%, var(--color-base-100));
+               --c-ink: var(--mod-ink, var(--p-text, var(--color-primary))); }
+.btn-secondary { --c-soft: color-mix(in oklab, var(--color-secondary) 12%, var(--color-base-100)); --c-ink: color-mix(in oklab, var(--color-secondary) 80%, black); }
+.btn-accent    { --c-soft: color-mix(in oklab, var(--color-accent) 12%, var(--color-base-100));    --c-ink: color-mix(in oklab, var(--color-accent) 80%, black); }
+.btn-neutral   { --c-soft: color-mix(in oklab, var(--color-neutral) 10%, var(--color-base-100));   --c-ink: var(--color-neutral); }
+.btn-info      { --c-soft: color-mix(in oklab, var(--color-info) 14%, var(--color-base-100));      --c-ink: color-mix(in oklab, var(--color-info) 75%, black); }
+.btn-success   { --c-soft: color-mix(in oklab, var(--color-success) 14%, var(--color-base-100));   --c-ink: color-mix(in oklab, var(--color-success) 70%, black); }
+.btn-warning   { --c-soft: color-mix(in oklab, var(--color-warning) 18%, var(--color-base-100));   --c-ink: color-mix(in oklab, var(--color-warning) 55%, black); }
+.btn-error     { --c-soft: color-mix(in oklab, var(--color-error) 12%, var(--color-base-100));     --c-ink: color-mix(in oklab, var(--color-error) 80%, black); }
+[data-theme="dark"] .btn-secondary { --c-ink: var(--color-secondary); }
+[data-theme="dark"] .btn-accent { --c-ink: var(--color-accent); }
+[data-theme="dark"] .btn-info { --c-ink: var(--color-info); }
+[data-theme="dark"] .btn-success { --c-ink: var(--color-success); }
+[data-theme="dark"] .btn-warning { --c-ink: var(--color-warning); }
+[data-theme="dark"] .btn-error { --c-ink: var(--color-error); }
+.btn:is(.btn-primary, .btn-secondary, .btn-accent, .btn-neutral, .btn-info, .btn-success, .btn-warning, .btn-error):not(.btn-outline):not(.btn-ghost):not(.btn-link):not(.btn-soft):not(.btn-dash):not(:disabled):not(.btn-disabled) {
+  background-color: var(--c-soft); background-image: none; color: var(--c-ink);
+  border: 1px solid color-mix(in oklab, var(--c-ink) 45%, transparent);
+  --btn-fg: var(--c-ink); --btn-bg: var(--c-soft); --btn-border: transparent;
+  box-shadow: none; font-weight: 600; transition: background-color .2s, color .2s, border-color .2s, gap .2s, transform .12s ease;
+}
+@media (hover: hover) {
+  .btn:is(.btn-primary, .btn-secondary, .btn-accent, .btn-neutral, .btn-info, .btn-success, .btn-warning, .btn-error):not(.btn-outline):not(.btn-ghost):not(.btn-link):not(.btn-soft):not(.btn-dash):not(:disabled):not(.btn-disabled):hover {
+    background-color: var(--c-ink); color: var(--c-soft); border-color: var(--c-ink);
+  }
+}
+.btn:is(.btn-primary, .btn-secondary, .btn-accent, .btn-neutral, .btn-info, .btn-success, .btn-warning, .btn-error):focus-visible { outline: 2px solid var(--c-ink); outline-offset: 2px; }
 /* Mapas de Registros (Leaflet): marcador circular con la letra del punto; el color llega por CSSOM (--pin) y el
    lienzo crea su propio contexto de apilamiento para no pasar por encima de la cabecera ni de los menús. */
 .reg-mapa-lienzo { isolation: isolate; }
@@ -317,8 +370,9 @@ a.mod-card:active { transform: translateY(-1px) scale(.985); }
 
 /* Iniciales de la persona en listas (usuarios): círculo tintado con el color de marca. */
 .avatar-iniciales { display: grid; place-items: center; flex: none; width: 2.25rem; height: 2.25rem; border-radius: 9999px;
-  font-size: .8125rem; font-weight: 600; background: color-mix(in oklab, var(--color-primary) 14%, transparent);
-  color: var(--p-text, var(--color-primary)); }
+  font-size: .8125rem; font-weight: 600; background: var(--mod-soft, color-mix(in oklab, var(--color-primary) 14%, transparent));
+  color: var(--mod-ink, var(--p-text, var(--color-primary)));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mod-ink, var(--p-text)) 35%, transparent); }
 /* Con un tono (misma paleta que las insignias de contorno): el avatar de una persona toma el color de su rol base. */
 .avatar-iniciales[class*="badge-tipo-"], .avatar-iniciales[class*="badge-rol-"] { background: color-mix(in oklab, var(--tipo-borde) var(--tipo-relleno, 40%), transparent); color: var(--tipo-texto);
   box-shadow: inset 0 0 0 var(--tipo-ancho, 2px) color-mix(in oklab, var(--tipo-borde) var(--tipo-contorno, 60%), transparent); }
@@ -338,7 +392,8 @@ a.mod-card:active { transform: translateY(-1px) scale(.985); }
 .segmentado {
   display: inline-flex; flex-shrink: 0; align-self: flex-start; gap: 2px; padding: 2px; max-width: 100%;
   overflow-x: auto; scrollbar-width: none; border-radius: 9999px;
-  background: color-mix(in oklab, var(--color-base-content) 8%, transparent);
+  background: color-mix(in oklab, var(--color-base-content) 6%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mod-line, var(--color-base-content)) 60%, transparent);   /* contorno fino */
 }
 .segmentado::-webkit-scrollbar { display: none; }
 .segmentado > * {
@@ -347,12 +402,13 @@ a.mod-card:active { transform: translateY(-1px) scale(.985); }
   color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
   transition: background-color .15s, color .15s, box-shadow .15s;
 }
-.segmentado > *:hover { color: var(--color-base-content); }
+.segmentado > *:hover { color: var(--mod-ink, var(--color-base-content)); }
 .segmentado > :is([aria-current], [aria-pressed="true"]) {
-  background: var(--color-base-100); color: var(--p-text); font-weight: 600;
-  box-shadow: 0 1px 3px rgb(0 0 0 / .12), 0 0 0 .5px rgb(0 0 0 / .04);
+  /* La opción activa, como el botón «Abrir»: pastel del módulo, texto de su color y contorno fino. */
+  background: var(--mod-soft, color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100))); color: var(--mod-ink, var(--p-text)); font-weight: 600;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-ink, var(--p-text)) 45%, transparent);
 }
-.segmentado > :focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.segmentado > :focus-visible { outline: 2px solid var(--mod-ink, var(--color-primary)); outline-offset: -2px; }
 /* Sobre el mapa de Leaflet: fondo semitransparente para que se lea. */
 .leaflet-control.segmentado {
   background: color-mix(in oklab, var(--color-base-100) 88%, transparent);
@@ -362,26 +418,28 @@ a.mod-card:active { transform: translateY(-1px) scale(.985); }
 /* Botón neutro (sin variante): relieve propio, o se pierde sobre el fondo gris de la página */
 .btn:not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-neutral):not(.btn-info):not(.btn-success):not(.btn-warning):not(.btn-error):not(.btn-ghost):not(.btn-outline):not(.btn-link):not(.btn-soft):not(.btn-dash):not(.tactil-fijo) {
   --btn-bg: var(--color-base-100);
-  box-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 0 0 1px color-mix(in oklab, var(--color-base-content) 10%, transparent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 0 0 1px color-mix(in oklab, var(--mod-ink, var(--color-base-content)) 30%, transparent);
 }
 /* Campos: relleno gris sin borde, anillo al enfocar */
 .input, .select, .textarea {
   background: color-mix(in oklab, var(--color-base-content) 6%, transparent);
-  border-color: transparent; box-shadow: none;
+  /* Contorno fino del módulo (o gris fuera de uno), como botones y tarjetas */
+  border-color: color-mix(in oklab, var(--mod-line, var(--color-base-content)) 60%, transparent); box-shadow: none;
 }
 /* La lista nativa de un <select> hereda el relleno translúcido: darle fondo sólido */
 .select option, .select optgroup { background-color: var(--color-base-100); color: var(--color-base-content); }
 .input:focus, .input:focus-within, .select:focus, .textarea:focus {
   background: var(--color-base-100);
-  border-color: var(--p-text);
-  outline: 3px solid color-mix(in oklab, var(--p-text) 25%, transparent); outline-offset: 0;
+  border-color: var(--mod-ink, var(--p-text));
+  outline: 3px solid color-mix(in oklab, var(--mod-ink, var(--p-text)) 25%, transparent); outline-offset: 0;
 }
 /* Insignias tintadas y suaves (estilo iOS) */
 .badge:not(.badge-ghost):not(.badge-outline) {
   --b: var(--badge-color, var(--color-base-content));
-  border: 0; font-weight: 500;
+  border: 0; font-weight: 600;
   background: color-mix(in oklab, var(--b) 14%, transparent);
   color: color-mix(in oklab, var(--b) 85%, var(--color-base-content));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--b) 35%, transparent);
 }
 /* Interruptores en el color de marca */
 /* @tailwindcss/forms pinta un tick nativo en los checkbox marcados: el toggle de daisyUI dibuja su propia perilla */
@@ -390,7 +448,7 @@ a.mod-card:active { transform: translateY(-1px) scale(.985); }
 /* Menús flotantes: fondo sólido (el vidrio dejaba ver las cards de atrás) */
 .dropdown-content, .menu.dropdown-content, .modal-box {
   background: var(--color-base-100);
-  box-shadow: 0 16px 40px -8px rgb(0 0 0 / .22), 0 0 0 .5px rgb(0 0 0 / .1);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-line, var(--color-base-content)) 50%, transparent), 0 16px 40px -8px rgb(0 0 0 / .22);
   border-radius: 1rem;
 }
 /* Táctil (obra, guantes): objetivos de al menos 44 px */
@@ -415,42 +473,9 @@ a.mod-card:active { transform: translateY(-1px) scale(.985); }
   .reg-paso .toggle { --size: 1.75rem; }
 }
 
-/* Botones con aspecto de tecla (lo que se aprieta): borde inferior más oscuro que se «hunde» al presionar.
-   En el celular el feedback es inmediato (sin retardo de doble toque ni resaltado del navegador). */
-.btn-tactil {
-  --tecla: color-mix(in oklab, var(--btn-bg, #64748b) 60%, black);
-  --canto: 4px;
-  touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
-  /* Volumen: degradado convexo (luz arriba, sombra abajo) sobre el color del botón */
-  background-image: linear-gradient(to bottom, rgb(255 255 255 / .30), rgb(255 255 255 / 0) 52%, rgb(0 0 0 / .10));
-  box-shadow:
-    inset 0 1.5px 0 rgb(255 255 255 / .45), inset 0 -2px 0 rgb(0 0 0 / .12),   /* biseles interiores */
-    0 var(--canto) 0 var(--tecla),                                               /* canto de la tecla */
-    0 10px 16px -6px color-mix(in oklab, var(--btn-bg, #64748b) 70%, transparent), /* sombra teñida */
-    0 3px 5px rgb(0 0 0 / .16), 0 0 0 1px rgb(0 0 0 / .06);                       /* contacto y contorno */
-  transition: transform .1s ease, box-shadow .1s ease;
-}
-@media (hover: hover) { .btn-tactil:hover { --canto: 5px; transform: translateY(-1px); } }
-.btn-tactil:active {
-  --canto: 1px; transform: translateY(3px);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / .25), inset 0 -1px 0 rgb(0 0 0 / .1),
-              0 var(--canto) 0 var(--tecla), 0 2px 4px rgb(0 0 0 / .25), 0 0 0 1px rgb(0 0 0 / .06);
-}
-.btn-tactil:focus-visible {
-  outline: none;
-  box-shadow: inset 0 1.5px 0 rgb(255 255 255 / .45), inset 0 -2px 0 rgb(0 0 0 / .12), 0 var(--canto) 0 var(--tecla),
-              0 0 0 4px color-mix(in oklab, var(--btn-bg, #64748b) 35%, transparent);
-}
-@media (prefers-reduced-motion: reduce) { .btn-tactil, .btn-tactil:hover, .btn-tactil:active { transform: none; transition: box-shadow .1s ease; } }
-.btn-tactil.btn-outline, .btn-tactil.btn-soft { --tecla: color-mix(in oklab, var(--color-base-content) 28%, transparent); background-image: none; }
-[data-theme="dark"] .btn-tactil:not(.tactil-fijo) {
-  --tecla: color-mix(in oklab, var(--btn-bg, #64748b) 45%, black);
-  background-image: linear-gradient(to bottom, rgb(255 255 255 / .18), rgb(255 255 255 / 0) 52%, rgb(0 0 0 / .18));
-  box-shadow: inset 0 1.5px 0 rgb(255 255 255 / .25), inset 0 -2px 0 rgb(0 0 0 / .25), 0 var(--canto) 0 var(--tecla),
-              0 10px 18px -6px rgb(0 0 0 / .7), 0 3px 6px rgb(0 0 0 / .45), 0 0 0 1px rgb(255 255 255 / .08);
-}
-[data-theme="dark"] .btn-tactil:not(.tactil-fijo):active { box-shadow: inset 0 1px 0 rgb(255 255 255 / .18), 0 var(--canto) 0 var(--tecla), 0 2px 4px rgb(0 0 0 / .5); }
-.btn-tactil.btn-soft.btn-error { --tecla: color-mix(in oklab, var(--color-error) 45%, transparent); }
+/* Antes «botón tecla» con relieve; ahora es un botón estándar. Se conserva solo el comportamiento táctil (sin retardo de doble toque
+   ni resaltado del navegador), útil en el celular. */
+.btn-tactil { touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; }
 /* Interruptor apagado en oscuro: pista transparente con borde y perilla gris (no una píldora blanca) */
 [data-theme="dark"] .toggle:not(:checked) { color: color-mix(in oklab, white 55%, transparent); background-color: transparent; }
 /* «Concluido» y similares: el interruptor encendido es verde (la regla general de .toggle:checked lo pinta de azul) */
@@ -485,7 +510,20 @@ li:is(.row-concluido, .row-parcial, .row-vacio) {
 #msj .msj-avatar-sm { width: 1.75rem; height: 1.75rem; font-size: .65rem; font-weight: 600; background: var(--color-base-300); }
 /* Burbujas: las ajenas blancas con sombra suave sobre el fondo gris del hilo; las propias en el color de marca. */
 #msj .msj-burbuja { border-radius: 1.15rem; box-shadow: 0 1px 2px rgb(0 0 0 / .08); line-height: 1.35; padding: .55rem .85rem; }
-#msj .chat-start .msj-burbuja { background: var(--color-base-100); color: var(--color-base-content); }
+#msj .chat-start .msj-burbuja { background: var(--color-base-100); color: var(--color-base-content);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-line) 70%, transparent), 0 1px 2px rgb(0 0 0 / .06); }
+/* La ventana lleva el color de Mensajería (data-modulo="msj" en el <aside>, aunque se abra sobre otro módulo). */
+#msj { --tw-ring-color: color-mix(in oklab, var(--mod-line) 75%, transparent); }
+#msj header { background: color-mix(in oklab, var(--mod-soft) 55%, var(--color-base-100)); border-color: color-mix(in oklab, var(--mod-line) 55%, transparent); }
+#msj form[data-msj-form] { border-color: color-mix(in oklab, var(--mod-line) 55%, transparent); }
+#msj #msj-hilo { background: color-mix(in oklab, var(--mod-soft) 40%, var(--color-base-200)); }
+#msj [data-msj-abrir]:is(:hover, :active, :focus-visible) { background: var(--mod-soft); }
+#msj [data-msj-abrir].bg-base-200\/60 { background: color-mix(in oklab, var(--mod-soft) 60%, transparent); }
+/* Burbuja propia: como el botón «Abrir» (pastel del módulo, texto de su color y contorno fino), no el azul de marca. */
+#msj .chat-end .msj-burbuja { background: var(--mod-soft); color: var(--mod-ink);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-ink) 45%, transparent); }
+#msj .msj-avatar { background: var(--mod-soft); color: var(--mod-ink); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mod-ink) 40%, transparent); }
+#msj .msj-avatar-sm { background: var(--mod-soft); }
 #msj .chat-start .msj-burbuja::before, #msj .chat-end .msj-burbuja::before { display: none; }   /* sin «colita»: más limpio */
 #msj .chat-footer { margin-top: .125rem; }
 /* Contador de no leídos de cada conversación: rojo sólido con número blanco (como el de la barra). */
@@ -502,3 +540,111 @@ li:is(.row-concluido, .row-parcial, .row-vacio) {
 .dictado-activo { opacity: 1; color: var(--color-primary); animation: dictado-pulso 1.2s ease-in-out infinite; }
 @keyframes dictado-pulso { 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { .dictado-activo { animation: none; } }
+
+/* ══ Estándar de interfaz (referencia: docs/estandar-interfaz.html) ═══════════════════════════════════════════════
+   Los cards de módulo de Inicio (.mod-card*) NO se tocan. */
+
+/* Interruptor: apagado gris con contorno; encendido pastel verde, perilla verde y un check dentro (no depende solo del color). */
+.toggle, .toggle:checked { background-image: none; }
+.toggle { --input-color: color-mix(in oklab, var(--color-base-content) 45%, transparent); box-shadow: none;
+  background-color: color-mix(in oklab, var(--color-base-content) 8%, transparent);
+  border-color: color-mix(in oklab, var(--color-base-content) 25%, transparent); }
+.toggle:before { box-shadow: 0 1px 2px rgb(0 0 0 / .25); border-radius: 9999px; }
+.toggle { border-radius: 9999px; }
+.toggle:is(:checked, [aria-checked="true"], :has(> input:checked)) {
+  --input-color: var(--color-success);
+  background-color: color-mix(in oklab, var(--color-success) 14%, var(--color-base-100));
+  border-color: color-mix(in oklab, var(--color-success) 55%, transparent); color: var(--color-success); }
+.toggle:after { content: ""; grid-row-start: 1; grid-column-start: 2; place-self: center; width: 52%; height: 52%; z-index: 2; pointer-events: none;
+  background: #fff; opacity: 0; transition: opacity .15s;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / contain no-repeat; }
+.toggle:is(:checked, [aria-checked="true"], :has(> input:checked)):after { opacity: 1; }
+.toggle:focus-visible, .toggle:has(:focus-visible) { outline: 2px solid var(--mod-ink, var(--p-text)); outline-offset: 2px; }
+
+/* Casillas y botones de opción: contorno fino del módulo; marcados, tinta del módulo. */
+.checkbox, .radio { --input-color: color-mix(in oklab, var(--mod-line, var(--color-base-content)) 80%, transparent); box-shadow: none; }
+.checkbox:checked, .checkbox[aria-checked="true"], .radio:checked { --input-color: var(--mod-ink, var(--p-text)); color: var(--mod-ink, var(--p-text)); }
+
+/* Alerta en línea (solo para lo que se corrige en esa pantalla): pastel del color con contorno fino; no sólida. */
+.alert { --a: var(--alert-color, var(--color-base-content)); background-image: none; box-shadow: none; color: var(--color-base-content);
+  background-color: color-mix(in oklab, var(--a) 9%, var(--color-base-100)); border: 1px solid color-mix(in oklab, var(--a) 38%, transparent);
+  border-radius: 1rem; }
+.alert:not(.alert-info, .alert-success, .alert-warning, .alert-error) { --a: var(--color-base-content); }
+.alert > svg:first-child { color: var(--a); }
+
+/* Barras de progreso: color del módulo. */
+.progress, .progress-primary { color: var(--mod-ink, var(--color-primary)); }
+
+/* Ficha de icono (avisos, estados, tarjetas): 38 px, 12 px de radio, pastel + contorno 1 px. */
+.ficha { --f: var(--mod-ink, var(--p-text)); display: inline-grid; place-items: center; flex: none; width: 2.375rem; height: 2.375rem; border-radius: .75rem;
+  color: var(--f); background: color-mix(in oklab, var(--f) 12%, var(--color-base-100)); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--f) 35%, transparent); }
+.ficha-ok { --f: var(--color-success); } .ficha-error { --f: var(--color-error); } .ficha-aviso { --f: var(--color-warning); } .ficha-info { --f: var(--color-info); }
+
+/* Botón de icono suelto (acciones de fila): cuadrado de 34 px, sin fondo ni contorno; con tinte al pasar el cursor.
+   Color por significado: .icono-ver (azul), .icono-editar (turquesa), .icono-ok (verde), .icono-peligro (rojo intenso). */
+.btn-icono { display: inline-grid; place-items: center; flex: none; width: 2.125rem; height: 2.125rem; padding: 0; border: 0; border-radius: .75rem; cursor: pointer;
+  background: transparent; color: color-mix(in oklab, var(--color-base-content) 62%, transparent); transition: background-color .15s, color .15s; }
+.btn-icono:hover { background: color-mix(in oklab, currentColor 12%, transparent); }
+.btn-icono:focus-visible { outline: 2px solid var(--mod-ink, var(--p-text)); outline-offset: 2px; }
+.btn-icono:disabled, .btn-icono.disabled { opacity: .35; pointer-events: none; }
+.icono-ver { color: var(--ver); } .icono-editar { color: var(--edit); } .icono-ok { color: var(--color-success); } .icono-peligro { color: var(--color-error); }
+@media (pointer: coarse) { .btn-icono { width: 2.75rem; height: 2.75rem; } }
+
+/* Aviso (toast): superficie con un 9 % del color del estado, contorno 1 px, icono en ficha, título + detalle, acción opcional,
+   cierre con icono y barra de tiempo que se detiene al pasar el cursor. La región es `.toast.toast-top.toast-end` (daisyUI). */
+.aviso { --c: var(--color-success); position: relative; overflow: hidden; display: flex; align-items: center; gap: .75rem; width: min(22.5rem, 92vw);
+  padding: .75rem .75rem .95rem; border-radius: 1rem; color: var(--color-base-content);
+  background: color-mix(in oklab, var(--c) 9%, var(--color-base-100));
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--c) 45%, transparent), 0 10px 28px -10px rgb(0 0 0 / .3);
+  animation: aviso-entra .22s cubic-bezier(.2,.8,.2,1); }
+.aviso-error { --c: var(--color-error); } .aviso-warning { --c: var(--color-warning); } .aviso-info { --c: var(--color-info); }
+.aviso .ficha { --f: var(--c); }
+.aviso__cuerpo { min-width: 0; flex: 1; }
+.aviso__titulo { display: block; font-size: .875rem; font-weight: 600; line-height: 1.25; }
+.aviso__detalle { display: block; margin-top: .125rem; font-size: .8125rem; line-height: 1.35; color: color-mix(in oklab, var(--color-base-content) 70%, transparent); overflow-wrap: anywhere; }
+.aviso__accion { flex: none; }
+.aviso::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; transform-origin: left; border-radius: 0 3px 3px 0;
+  background: color-mix(in oklab, var(--c) 60%, transparent); }
+.aviso[data-ms]::after { animation: aviso-barra var(--ms, 6000ms) linear forwards; }
+.aviso.en-pausa::after { animation-play-state: paused; }
+.aviso-fijo::after { display: none; }
+.aviso-confirmar { flex-direction: column; align-items: stretch; gap: .75rem; padding-bottom: .75rem; }
+.aviso-confirmar::after { display: none; }
+.aviso-confirmar .aviso__fila { display: flex; gap: .75rem; align-items: flex-start; }
+.aviso-confirmar .aviso__botones { display: flex; justify-content: flex-end; gap: .5rem; }
+@keyframes aviso-entra { from { opacity: 0; transform: translateX(24px); } }
+@keyframes aviso-barra { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .aviso { animation: none; } .aviso[data-ms]::after { animation: none; display: none; } }
+
+/* Miniaturas (fotos y adjuntos): recorte centrado, 12 px de radio y contorno del módulo. Formatos: .foto-mini (cuadrada 88 px),
+   .foto-galeria (4:3, dentro de una tarjeta) y .foto-chat (≤ 220 px). Estados: hover, .elegida, .cargando, .archivo, .rota, .mas. */
+.foto-mini { position: relative; display: block; width: 5.5rem; height: 5.5rem; flex: none; overflow: hidden; border-radius: .75rem; cursor: pointer;
+  background: color-mix(in oklab, var(--color-base-content) 8%, var(--color-base-100));
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-line, var(--color-base-content)) 55%, transparent); transition: box-shadow .18s; }
+.foto-mini > img, .foto-galeria img, .foto-chat img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .25s cubic-bezier(.2,.8,.2,1); }
+.foto-mini:hover, .foto-mini:focus-visible { box-shadow: 0 0 0 1px var(--mod-ink, var(--p-text)), 0 6px 14px -6px rgb(0 0 0 / .35); }
+.foto-mini:hover > img, .foto-galeria:hover img { transform: scale(1.05); }
+.foto-mini.elegida { box-shadow: 0 0 0 2px var(--mod-ink, var(--p-text)); }
+.foto-mini.archivo, .foto-mini.mas, .foto-mini.rota { display: grid; place-items: center; font-weight: 700; color: var(--mod-ink, var(--p-text));
+  background: var(--mod-soft, color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100))); }
+.foto-mini.rota { color: color-mix(in oklab, var(--color-base-content) 55%, transparent); background: color-mix(in oklab, var(--color-base-content) 6%, transparent); }
+.foto-mini.cargando { background: linear-gradient(100deg, color-mix(in oklab, var(--color-base-content) 8%, transparent) 30%, color-mix(in oklab, var(--color-base-content) 16%, transparent) 50%, color-mix(in oklab, var(--color-base-content) 8%, transparent) 70%) 0 0 / 200% 100%;
+  animation: foto-brillo 1.2s linear infinite; }
+@keyframes foto-brillo { to { background-position: -200% 0; } }
+.foto-mini .foto-acc { position: absolute; top: 4px; right: 4px; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: .5rem; opacity: 0; transition: opacity .18s;
+  background: color-mix(in oklab, var(--color-base-100) 92%, transparent); box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-base-content) 15%, transparent); }
+.foto-mini:hover .foto-acc, .foto-mini:focus-within .foto-acc { opacity: 1; }
+.foto-mini .foto-acc.peligro { color: var(--color-error); }
+.foto-galeria { overflow: hidden; border-radius: 1rem; background: var(--color-base-100); box-shadow: var(--elev-1); transition: transform .2s, box-shadow .2s; }
+.foto-galeria:hover { transform: translateY(-2px); box-shadow: var(--elev-2); }
+.foto-galeria .foto-marco { position: relative; aspect-ratio: 4 / 3; overflow: hidden; }
+.foto-chat { display: block; max-width: 13.75rem; overflow: hidden; border-radius: .75rem; box-shadow: 0 0 0 1px color-mix(in oklab, var(--mod-ink, var(--color-base-content)) 35%, transparent); }
+@media (prefers-reduced-motion: reduce) { .foto-mini.cargando { animation: none; } .foto-mini:hover > img, .foto-galeria:hover img, .foto-galeria:hover { transform: none; } }
+
+/* Fila de tabla con estado: franja izquierda de 4 px + fondo al 6 % + línea teñida (acompañar siempre con insignia de icono y texto). */
+.fila-estado { --e: var(--color-base-content); }
+.fila-estado-ok { --e: var(--color-success); } .fila-estado-parcial { --e: var(--color-warning); } .fila-estado-vacio { --e: var(--color-error); }
+.table tbody tr.fila-estado > td { background: color-mix(in oklab, var(--e) 6%, var(--color-base-100)); border-top-color: color-mix(in oklab, var(--e) 18%, transparent); }
+.table tbody tr.fila-estado > td:first-child { box-shadow: inset 4px 0 0 var(--e); }
+.table tbody tr.fila-estado:hover > td { background: color-mix(in oklab, var(--e) 12%, var(--color-base-100)); }

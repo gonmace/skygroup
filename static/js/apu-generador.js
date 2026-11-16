@@ -248,7 +248,7 @@
           hayDatos = true;
           (c.opciones || []).length && (html += '<div class="flex flex-wrap gap-2">' + c.opciones.map(function (o) {
             var rec = o.clave === c.recomendada;
-            return '<button type="button" class="btn btn-xs ' + (rec ? 'btn-primary btn-soft' : 'btn-outline') + '" data-sugerencia="' + esc(c.id) + '" data-valor="' + esc(o.etiqueta) + '">' +
+            return '<button type="button" class="btn btn-xs ' + (rec ? 'btn-primary' : 'btn-ghost') + '" data-sugerencia="' + esc(c.id) + '" data-valor="' + esc(o.etiqueta) + '">' +
               esc(o.etiqueta) + (rec ? ' <span class="opacity-70">· Recomendado</span>' : '') + '</button>';
           }).join('') + '</div>');
           html += '<textarea class="textarea textarea-bordered w-full text-sm" rows="2" data-respuesta="' + esc(c.id) + '" placeholder="Tu respuesta">' + esc(decisiones[c.id] || '') + '</textarea>';
@@ -287,12 +287,12 @@
         tr.innerHTML = '<td class="w-8"><input type="checkbox" class="checkbox checkbox-sm checkbox-primary" data-campo="check"' + (f.check ? ' checked' : '') + ' aria-label="Incluir"></td>' +
           '<td class="min-w-48"><input class="input input-bordered input-sm w-full" data-campo="descripcion" list="apu-catalogo-lista" value="' + esc(f.descripcion) + '" aria-label="Descripción">' +
           (f.justificacion ? '<p class="mt-1 text-xs text-base-content/60">' + esc(f.justificacion) + '</p>' : '') + '</td>' +
-          (esMO ? '' : '<td class="w-20"><input class="input input-bordered input-sm w-full" data-campo="unidad" value="' + esc(f.unidad) + '" aria-label="Unidad"' + (f.codigo_subitem ? ' disabled' : '') + '></td>') +
+          (esMO ? '' : '<td class="w-20"><input class="input input-bordered input-sm w-full" data-campo="unidad" list="apu-unidades" autocomplete="off" value="' + esc(f.unidad) + '" aria-label="Unidad"' + (f.codigo_subitem ? ' disabled' : '') + '></td>') +
           '<td class="text-right">' + cant + '</td>' +
           (esMat ? '<td class="text-right"><input class="input input-bordered input-sm w-20 text-right tabular-nums" data-campo="desperdicio_pct" value="' + esc(f.desperdicio_pct) + '" inputmode="decimal" aria-label="Desperdicio %"></td>' : '') +
           (esMO ? '<td class="text-right tabular-nums text-sm text-base-content/70" data-horas-unidad>' + horasPorUnidad(f).toFixed(4) + '</td>' : '') +
           '<td class="w-24">' + badge + '</td>' +
-          '<td class="w-px"><button type="button" class="btn btn-ghost btn-square btn-sm text-error" data-quitar title="Quitar" aria-label="Quitar">✕</button></td>';
+          '<td class="w-px"><button type="button" class="btn-icono icono-peligro" data-quitar title="Quitar" aria-label="Quitar">' + window.iconoSVG('x', 'size-5') + '</button></td>';
         cuerpo.appendChild(tr);
       });
       actualizarContador();

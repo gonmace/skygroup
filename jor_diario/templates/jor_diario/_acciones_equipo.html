@@ -1,8 +1,8 @@
 {# Acciones de una fila del equipo: solo iconos de color. `btn` = "btn-sm" en la tabla, vacío en las tarjetas. #}
-<a href="{% url 'jor_diario:persona' f.m.pk %}" class="btn btn-ghost btn-square {{ btn }} text-info hover:bg-info/10" title="Ver jornadas" aria-label="Ver jornadas de {{ f.m.user }}">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+<a href="{% url 'jor_diario:persona' f.m.pk %}" class="btn-icono icono-ver" title="Ver jornadas" aria-label="Ver jornadas de {{ f.m.user }}">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
 {% if request.user.is_superuser and not request.impersonador and f.m.user.is_active and not f.m.user.is_superuser %}
 <form method="post" action="{% url 'cuentas:impersonar' f.m.user.pk %}" class="inline">{% csrf_token %}
-  <button type="submit" class="btn btn-ghost btn-square {{ btn }} text-accent hover:bg-accent/10" title="Ver como {{ f.m.user.email }}" aria-label="Ver la aplicación como {{ f.m.user.email }}">{% include "components/icon.html" with name="user-switch" cls="size-5" %}</button>
+  <button type="submit" class="btn-icono icono-ver" title="Ver como {{ f.m.user.email }}" aria-label="Ver la aplicación como {{ f.m.user.email }}">{% include "components/icon.html" with name="user-switch" cls="size-5" %}</button>
 </form>
 {% endif %}
 {# Equipo habitual de marcación (computador y celular): verde si hay uno registrado; quien administra perfiles lo libera con un clic. #}
@@ -12,13 +12,13 @@
     {% if puede_perfiles %}
     <form method="post" action="{% url 'jor_empleados:equipo_liberar' f.m.pk tipo %}" class="inline" data-confirmar="¿Liberar el {{ nombre }} habitual de {{ f.m.user }}? El próximo equipo que use quedará como habitual.">{% csrf_token %}
       <input type="hidden" name="next" value="equipo">
-      <button type="submit" class="btn btn-ghost btn-square {{ btn }} text-success hover:bg-error/10 hover:text-error" title="{{ nombre|capfirst }} habitual registrado el {{ eq.creado|date:'d/m/Y' }}{% if eq.ultimo_uso %}, último uso {{ eq.ultimo_uso|date:'d/m H:i' }}{% endif %}. Clic para liberar" aria-label="Liberar el {{ nombre }} habitual de {{ f.m.user }}">{% include "components/icon.html" with name=icono cls="size-5" %}</button>
+      <button type="submit" class="btn-icono icono-ok" title="{{ nombre|capfirst }} habitual registrado el {{ eq.creado|date:'d/m/Y' }}{% if eq.ultimo_uso %}, último uso {{ eq.ultimo_uso|date:'d/m H:i' }}{% endif %}. Clic para liberar" aria-label="Liberar el {{ nombre }} habitual de {{ f.m.user }}">{% include "components/icon.html" with name=icono cls="size-5" %}</button>
     </form>
     {% else %}
-    <span class="btn btn-ghost btn-square {{ btn }} pointer-events-none text-success" title="{{ nombre|capfirst }} habitual registrado el {{ eq.creado|date:'d/m/Y' }}" aria-label="{{ nombre|capfirst }} habitual registrado">{% include "components/icon.html" with name=icono cls="size-5" %}</span>
+    <span class="btn-icono icono-ok pointer-events-none" title="{{ nombre|capfirst }} habitual registrado el {{ eq.creado|date:'d/m/Y' }}" aria-label="{{ nombre|capfirst }} habitual registrado">{% include "components/icon.html" with name=icono cls="size-5" %}</span>
     {% endif %}
   {% else %}
-  <span class="btn btn-ghost btn-square {{ btn }} pointer-events-none text-base-content/25" title="Sin {{ nombre }} registrado" aria-label="Sin {{ nombre }} registrado">{% include "components/icon.html" with name=icono cls="size-5" %}</span>
+  <span class="btn-icono pointer-events-none text-base-content/25" title="Sin {{ nombre }} registrado" aria-label="Sin {{ nombre }} registrado">{% include "components/icon.html" with name=icono cls="size-5" %}</span>
   {% endif %}
 {% endfor %}
 {% endif %}

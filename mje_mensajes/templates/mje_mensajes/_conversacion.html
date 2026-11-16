@@ -14,7 +14,7 @@
   <button type="button" class="btn btn-ghost btn-xs mx-auto mb-2 {% if not hay_mas %}hidden{% endif %}" data-msj="mas">Cargar mensajes anteriores</button>
   <div data-msj-lista>{% include "mje_mensajes/_mensajes.html" %}</div>
   <div class="flex flex-col items-center gap-2 px-6 py-12 text-center text-sm text-base-content/55{% if mensajes %} hidden{% endif %}" data-msj-vacio>
-    <span class="grid size-12 place-items-center rounded-full bg-base-100 text-base-content/40 shadow-sm">{% include "components/icon.html" with name="chat" cls="size-6" %}</span>
+    <span class="grid size-12 place-items-center rounded-full bg-base-100 text-base-content/40">{% include "components/icon.html" with name="chat" cls="size-6" %}</span>
     <p>Aún no hay mensajes.<br><strong class="font-medium text-base-content/75">¡Escribe el primero!</strong></p>
   </div>
 </div>

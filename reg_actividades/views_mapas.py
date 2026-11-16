@@ -43,8 +43,8 @@ def guardar(request, clave, pk, nombre):
     pw = next((p for p in a.paso.widgets.all() if p.widget_slug in _SLUGS_MAPA), None)
     if pw is None or obtener(pw.widget_slug) is None:
         return JsonResponse({'success': False, 'error': 'Este paso no tiene un widget de mapa.'}, status=400)
-    if not mapas.hay_clave():
-        return JsonResponse({'success': False, 'error': 'No hay una clave de Google Maps configurada en el servidor.'},
+    if not mapas.hay_clave(request.empresa):
+        return JsonResponse({'success': False, 'error': 'Esta empresa no tiene una clave de Google Maps configurada (empresa → Credenciales).'},
                             status=503)
     puntos = mapas.puntos_de_widget(pw.widget_slug, pw.config, registro, a.paso)
     if not puntos:

@@ -1,7 +1,7 @@
 <div data-ubicacion class="space-y-4">
   {# Lectura: lo que quedó registrado, grande y de un vistazo. #}
-  <div class="flex items-center gap-3 rounded-box bg-base-200/60 p-3 ring-1 ring-base-300 sm:gap-4 sm:p-4">
-    <span class="grid size-12 shrink-0 place-items-center rounded-full sm:size-14 {% if b.lat %}bg-success/15 text-success{% else %}bg-base-300 text-base-content/50{% endif %}" data-lectura-icono>
+  <div class="superficie flex items-center gap-3 p-3 sm:gap-4 sm:p-4">
+    <span class="grid size-12 shrink-0 place-items-center rounded-xl sm:size-14 {% if b.lat %}ficha ficha-ok{% else %}bg-base-300 text-base-content/50{% endif %}" data-lectura-icono>
       {% include "components/icon.html" with name="map-pin" cls="size-7" %}
     </span>
     <div class="min-w-0 flex-1">
@@ -18,7 +18,7 @@
 
   {% if puede_escribir %}
     <div class="space-y-2">
-      <button type="button" class="btn btn-outline btn-primary w-full gap-2" data-usar-gps>
+      <button type="button" class="btn btn-primary w-full gap-2" data-usar-gps>
         <span data-gps-icono>{% include "components/icon.html" with name="map-pin" cls="size-5" %}</span><span class="loading loading-spinner loading-sm hidden" data-gps-spinner aria-hidden="true"></span>Usar mi ubicación
       </button>
       <p class="min-h-5 text-center text-sm text-base-content/60" role="status" aria-live="polite" data-gps-estado></p>
@@ -26,13 +26,13 @@
   {% endif %}
 
   {# Los campos siguen en el formulario (se envían aunque estén plegados); se abren solo para corregir a mano. #}
-  <details class="rounded-box border border-base-300"{% if b.errores %} open{% endif %}>
+  <details class="superficie"{% if b.errores %} open{% endif %}>
     <summary class="cursor-pointer select-none px-4 py-2 text-sm text-base-content/70">Coordenadas{% if puede_escribir %} (editar a mano){% endif %}</summary>
-    <div class="space-y-4 border-t border-base-300 p-3 sm:p-4">
+    <div class="space-y-4 border-t border-base-content/10 p-3 sm:p-4">
       {% if puede_escribir %}
-        <div class="join" role="group" aria-label="Formato de las coordenadas">
-          <button type="button" class="btn btn-sm join-item btn-neutral" data-modo-coord="dec" aria-pressed="true">Decimal</button>
-          <button type="button" class="btn btn-sm join-item" data-modo-coord="dms" aria-pressed="false">Grados, min, seg</button>
+        <div class="segmentado" role="group" aria-label="Formato de las coordenadas">
+          <button type="button" data-modo-coord="dec" aria-pressed="true">Decimal</button>
+          <button type="button" data-modo-coord="dms" aria-pressed="false">Grados, min, seg</button>
         </div>
       {% endif %}
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3" data-panel-dec>

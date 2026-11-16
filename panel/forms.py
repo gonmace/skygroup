@@ -3,7 +3,7 @@ import re
 from django import forms
 from django.db import models
 
-from cuentas.models import (CorreoBloqueado, CorreoConfig, CredencialesPlataforma, DominioPermitido, NextcloudConfig,
+from cuentas.models import (CorreoBloqueado, CorreoConfig, CredencialesEmpresa, DominioPermitido, NextcloudConfig,
                             RolEmpresa)
 from cuentas.roles import RolBase
 from empresas.models import Contratista, Empresa, Modulo, Sede
@@ -359,17 +359,22 @@ class NextcloudForm(EstiloMixin, forms.ModelForm):
 
 
 class CredencialesForm(EstiloMixin, forms.ModelForm):
-    """Credenciales de la plataforma. La clave no se muestra: vacía conserva la guardada; «Quitar» la borra."""
+    """Credenciales de la empresa. La clave no se muestra: vacía conserva la guardada; «Quitar» la borra."""
 
     google_maps_api_key = forms.CharField(
         label='Clave de Google Maps (Static Maps API)', required=False, max_length=255,
         widget=forms.PasswordInput(render_value=False, attrs={'autocomplete': 'off', 'placeholder': 'AIza…'}),
         help_text='Se guarda en la base de datos. Déjala vacía para conservar la actual. Debe tener habilitada la «Maps Static API».')
     quitar_google_maps = forms.BooleanField(label='Quitar la clave guardada', required=False)
+    n8n_api_key = forms.CharField(
+        label='API key de n8n', required=False, max_length=1024,   # las claves de n8n son JWT (≈265 caracteres), no caben en 255
+        widget=forms.PasswordInput(render_value=False, attrs={'autocomplete': 'off'}),
+        help_text='Se guarda en la base de datos. Déjala vacía para conservar la actual.')
+    quitar_n8n = forms.BooleanField(label='Quitar la API key guardada', required=False)
 
     class Meta:
-        model = CredencialesPlataforma
-        fields = ('google_maps_api_key',)
+        model = CredencialesEmpresa
+        fields = ('google_maps_api_key', 'n8n_api_url', 'n8n_api_key')
 
     def clean_google_maps_api_key(self):
         clave = self.cleaned_data['google_maps_api_key'].strip()
@@ -377,9 +382,23 @@ class CredencialesForm(EstiloMixin, forms.ModelForm):
             raise forms.ValidationError('La clave no puede tener espacios.')
         return clave or self.instance.google_maps_api_key
 
+    def clean_n8n_api_key(self):
+        clave = self.cleaned_data['n8n_api_key'].strip()
+        if clave and any(c.isspace() for c in clave):
+            raise forms.ValidationError('La clave no puede tener espacios.')
+        return clave or self.instance.n8n_api_key
+
+    def clean_n8n_api_url(self):
+        url = self.cleaned_data['n8n_api_url'].strip()
+        if url and not url.startswith(('http://', 'https://')):
+            raise forms.ValidationError('Empieza con http:// o https://')
+        return url
+
     def save(self, commit=True):
         if self.cleaned_data.get('quitar_google_maps'):
             self.instance.google_maps_api_key = ''
+        if self.cleaned_data.get('quitar_n8n'):
+            self.instance.n8n_api_key = ''
         return super().save(commit)
 
 

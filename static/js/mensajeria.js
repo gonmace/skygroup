@@ -197,16 +197,16 @@ document.addEventListener('DOMContentLoaded', function () {
     ul.innerHTML = '';
     archivos.forEach(function (f, i) {
       var li = document.createElement('li');
-      li.className = 'relative flex items-center gap-2 rounded-lg border border-base-content/15 bg-base-200 p-1 pr-7 text-xs';
+      li.className = 'relative flex items-center gap-2 rounded-xl bg-base-200 p-1 pr-8 text-xs';
       if (f.type.indexOf('image/') === 0) {
-        var im = document.createElement('img'); im.className = 'size-10 rounded object-cover'; im.alt = '';
+        var im = document.createElement('img'); im.className = 'size-10 rounded-lg object-cover'; im.alt = f.name; im.loading = 'lazy';
         im.src = URL.createObjectURL(f); im.onload = function () { URL.revokeObjectURL(im.src); };
         li.appendChild(im);
       }
       var n = document.createElement('span'); n.className = 'max-w-28 truncate'; n.textContent = f.name; li.appendChild(n);
       var q = document.createElement('button'); q.type = 'button';
-      q.className = 'btn btn-ghost btn-circle btn-xs absolute right-0 top-1/2 -translate-y-1/2';
-      q.setAttribute('aria-label', 'Quitar ' + f.name); q.textContent = '✕'; q.dataset.msjQuitar = i;
+      q.className = 'btn-icono icono-peligro absolute right-0 top-1/2 size-7 -translate-y-1/2';
+      q.setAttribute('aria-label', 'Quitar ' + f.name); q.title = 'Quitar archivo'; q.innerHTML = window.iconoSVG('x', 'size-4'); q.dataset.msjQuitar = i;
       li.appendChild(q); ul.appendChild(li);
     });
   }

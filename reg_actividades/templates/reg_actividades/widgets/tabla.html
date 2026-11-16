@@ -1,6 +1,6 @@
 {% comment %}Una fila = una <tr> con un input por columna; todos los inputs de una columna comparten nombre (listas paralelas).{% endcomment %}
 <div data-reg-tabla data-max="{{ b.max_filas }}" class="space-y-2">
-  <div class="overflow-x-auto">
+  <div class="table-card overflow-x-auto">
     <table class="table table-sm">
       <thead><tr>{% for c in b.columnas %}<th class="whitespace-nowrap">{{ c.label }}{% if c.obligatorio %} <span class="text-error">*</span>{% endif %}</th>{% endfor %}{% if puede_escribir %}<th class="w-10"><span class="sr-only">Quitar fila</span></th>{% endif %}</tr></thead>
       <tbody data-reg-tabla-filas>
@@ -21,5 +21,5 @@
       </tbody>
     </table>
   </div>
-  {% if puede_escribir %}<button type="button" class="btn btn-soft btn-sm gap-1" data-reg-tabla-agregar hidden>{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar fila</button>{% endif %}
+  {% if puede_escribir %}<button type="button" class="btn btn-sm gap-1" data-reg-tabla-agregar hidden>{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar fila</button>{% endif %}
 </div>

@@ -17,7 +17,7 @@
       <a href="{% querystring sort='modificado' page=None %}" {% if orden == 'modificado' %}aria-current="true"{% endif %}>Modificado</a>
     </div>
   </div>
-  <div class="overflow-hidden rounded-2xl border border-base-300 bg-base-100"><div class="divide-y divide-base-300">
+  <div class="overflow-hidden superficie"><div class="divide-y divide-base-300">
     {% for t in pagina %}
       <a href="{% url 'tar_tickets:detalle' t.pk %}" title="Estado: {{ t.estado_visual_label }}"
          class="flex flex-col gap-1.5 border-l-4 py-3 pl-3 pr-4 transition-colors sm:flex-row sm:items-start sm:gap-3 hover:bg-base-200/50 {% if t.estado_visual == 'BACKLOG' %}border-l-base-content/30{% elif t.estado_visual == 'TODO' %}border-l-info{% elif t.estado_visual == 'IN_PROGRESS' %}border-l-warning{% elif t.estado_visual == 'DONE' %}border-l-success{% else %}border-l-error{% endif %}">
@@ -48,6 +48,6 @@
   </div></div>
   {% include "tar_tickets/parciales/_paginacion.html" %}
 {% else %}
-  <div class="rounded-2xl border border-base-300 bg-base-100 p-10 text-center text-base-content/40">No tienes tickets asignados abiertos.</div>
+  <div class="superficie p-10 text-center text-base-content/40">No tienes tickets asignados abiertos.</div>
 {% endif %}
 {% endblock %}

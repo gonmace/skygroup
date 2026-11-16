@@ -24,7 +24,7 @@
 
 {% if s3 and not estado.bucket_privado %}
 <div role="alert" class="alert alert-warning mt-6 text-sm">
-  <span>Los archivos privados comparten bucket con los públicos (carpeta <code>privado/</code>). Define un <strong>bucket privado</strong> sin acceso público ni CDN, o asegúrate de que la política del bucket y de la CDN denieguen la lectura anónima de <code>privado/*</code>. <a class="link" href="{% url 'admin:archivos_mediastorageconfig_changelist' %}">Configurar</a></span>
+  {% include "components/icon.html" with name="alert-triangle" cls="size-5" %}<span>Los archivos privados comparten bucket con los públicos (carpeta <code>privado/</code>). Define un <strong>bucket privado</strong> sin acceso público ni CDN, o asegúrate de que la política del bucket y de la CDN denieguen la lectura anónima de <code>privado/*</code>. <a class="link" href="{% url 'admin:archivos_mediastorageconfig_changelist' %}">Configurar</a></span>
 </div>
 {% endif %}
 

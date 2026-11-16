@@ -1,0 +1,5 @@
+{% if puede_escribir_chat %}{% if a.subido_por_id == request.user.id or puede_moderar_chat %}{% if not en_chat or es_ultimo_mensaje %}
+<form method="post" action="{% url 'tar_tickets:adjunto_borrar' a.pk %}" data-confirmar="¿Borrar el adjunto «{{ a.nombre }}»?"{% if sobre_foto %} class="contents"{% endif %}>{% csrf_token %}
+  <button class="{% if sobre_foto %}foto-acc peligro{% else %}btn-icono icono-peligro{% endif %}" title="Borrar adjunto" aria-label="Borrar adjunto {{ a.nombre }}">{% include "components/icon.html" with name="trash" cls="size-4" %}</button>
+</form>
+{% endif %}{% endif %}{% endif %}

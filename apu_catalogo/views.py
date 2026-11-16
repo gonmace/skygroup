@@ -2,9 +2,10 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Count, Prefetch, Q
-from django.http import Http404
+from django.db.models import Count, Prefetch, ProtectedError, Q
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from cuentas.capacidades import tiene_capacidad
@@ -12,11 +13,11 @@ from proyectos.models import Proyecto
 
 from apu_motor import PerfilInvalido, validar_perfil
 
-from . import editor
+from . import categorias as cats, editor
 from .acceso import acceso_apu
-from .forms import MODOS, PerfilDatosForm
+from .forms import MODOS, InsumoForm, PerfilDatosForm
 from . import calculo
-from .models import Insumo, ItemModelo, PerfilCalculo, PrecioInsumo, ProyectoAPU, Tipo
+from .models import CategoriaAPU, Insumo, ItemModelo, PerfilCalculo, PrecioInsumo, ProyectoAPU, Tipo
 
 
 @acceso_apu('apu.ver')
@@ -163,13 +164,15 @@ def items(request):
     q = request.GET.get('q', '').strip()
     proyecto = request.GET.get('proyecto', '')
     categoria = request.GET.get('categoria', '')
-    qs = ItemModelo.objects.filter(empresa=empresa).select_related('proyecto')
+    qs = ItemModelo.objects.filter(empresa=empresa).select_related('proyecto', 'categoria')
     if q:
         qs = qs.filter(Q(codigo__icontains=q) | Q(descripcion__icontains=q))
     if proyecto.isdigit():
         qs = qs.filter(proyecto_id=proyecto)
-    if categoria:
-        qs = qs.filter(categoria=categoria)
+    if categoria.isdigit():
+        qs = qs.filter(categoria_id=categoria)
+    elif categoria == 'sin':
+        qs = qs.filter(categoria__isnull=True)
     pagina = Paginator(qs.order_by('proyecto__nombre', 'codigo'), 25).get_page(request.GET.get('page'))
     for it in pagina:
         a = _analisis_de(it)
@@ -183,7 +186,7 @@ def items(request):
     return render(request, 'apu_catalogo/items.html', {
         'pagina': pagina, 'q': q, 'proyecto_sel': proyecto, 'categoria_sel': categoria, 'qs_filtros': params.urlencode(),
         'proyectos': Proyecto.objects.de_empresa(empresa).activos().filter(apu_items__isnull=False).distinct().order_by('nombre'),
-        'categorias': ItemModelo.objects.filter(empresa=empresa).exclude(categoria='').values_list('categoria', flat=True).distinct().order_by('categoria'),
+        'categorias': CategoriaAPU.objects.filter(empresa=empresa),
         'puede_generar': tiene_capacidad(request.user, 'apu.catalogo.manage', empresa)})
 
 
@@ -211,22 +214,49 @@ def item_detalle(request, pk):
         'con_apu': set(ProyectoAPU.objects.filter(proyecto__empresa=empresa).values_list('proyecto_id', flat=True))})
 
 
+def _lista_proyectos(empresa):
+    return (Proyecto.objects.de_empresa(empresa).activos()
+            .annotate(n_apu=Count('apu_items', distinct=True)).filter(Q(n_apu__gt=0) | Q(apu__isnull=False))
+            .select_related('apu__perfil').order_by('nombre'))
+
+
+def _permisos_proyectos(request, empresa):
+    return {'puede_incidencias': tiene_capacidad(request.user, 'apu.perfiles.manage', empresa),
+            'puede_generar': tiene_capacidad(request.user, 'apu.catalogo.manage', empresa)}
+
+
 @acceso_apu('apu.ver')
 def proyectos(request):
+    """Solo el resumen de cada proyecto; el listado de sus APU está en el detalle (`proyecto_detalle`)."""
     empresa = request.empresa
-    lista = (Proyecto.objects.de_empresa(empresa).activos()
-             .annotate(n_apu=Count('apu_items', distinct=True)).filter(Q(n_apu__gt=0) | Q(apu__isnull=False))
-             .select_related('apu__perfil').order_by('nombre'))
-    lista = list(lista)
-    # El proyecto elegido (?proyecto=) manda; sin elegir (o con uno que no es de la lista) se muestra el primero.
-    clave = request.GET.get('proyecto', '')
-    elegido = next((p for p in lista if str(p.pk) == clave), None) or (lista[0] if lista else None)
+    tarjetas = []
+    for p in _lista_proyectos(empresa):
+        r = calculo.resumen_proyecto(p)
+        r.pop('filas', None)               # aquí no se listan los APU
+        tarjetas.append({'proyecto': p, 'resumen': r})
     return render(request, 'apu_catalogo/proyectos.html', {
-        'proyectos': lista, 'elegido': elegido, 'resumen': calculo.resumen_proyecto(elegido) if elegido else None,
-        'puede_incidencias': tiene_capacidad(request.user, 'apu.perfiles.manage', empresa),
-        'puede_generar': tiene_capacidad(request.user, 'apu.catalogo.manage', empresa),
+        'tarjetas': tarjetas, **_permisos_proyectos(request, empresa),
         'puede_proyectos': tiene_capacidad(request.user, 'proyectos.manage', empresa),
         'hay_sin_habilitar': Proyecto.objects.de_empresa(empresa).activos().filter(apu__isnull=True).exists()})
+
+
+@acceso_apu('apu.ver')
+def proyecto_detalle(request, pk):
+    """Detalle de un proyecto: su resumen y el listado de todos sus APU (con las cantidades editables)."""
+    empresa = request.empresa
+    elegido = get_object_or_404(_lista_proyectos(empresa), pk=pk)
+    return render(request, 'apu_catalogo/proyecto_detalle.html', {
+        'elegido': elegido, 'resumen': calculo.resumen_proyecto(elegido), **_permisos_proyectos(request, empresa)})
+
+
+@acceso_apu('apu.ver')
+def proyecto_pdf(request, pk):
+    """PDF con el resumen del proyecto y la composición de cada uno de sus APU."""
+    from . import pdf
+    elegido = get_object_or_404(_lista_proyectos(request.empresa), pk=pk)
+    resp = HttpResponse(pdf.generar(elegido), content_type='application/pdf')
+    resp['Content-Disposition'] = f'inline; filename="APU-{elegido.codigo or elegido.pk}.pdf"'
+    return resp
 
 
 @acceso_apu('apu.perfiles.manage')
@@ -352,8 +382,158 @@ def insumos(request):
         qs = qs.filter(Q(codigo__icontains=q) | Q(descripcion__icontains=q))
     if tipo in Tipo.values:
         qs = qs.filter(tipo=tipo)
+    solo_sin_precio = request.GET.get('sin_precio') == '1'
+    if solo_sin_precio:
+        qs = qs.filter(precios__isnull=True)
+    todos = Insumo.objects.filter(empresa=empresa)
+    conteos = dict(todos.values_list('tipo').annotate(n=Count('pk')))
     pagina = Paginator(qs.order_by('tipo', 'codigo'), 40).get_page(request.GET.get('page'))
     params = request.GET.copy()
     params.pop('page', None)
+    # Se separan por tipo (material, mano de obra, equipo) conservando el orden de la página.
+    grupos = [{'tipo': v, 'nombre': l, 'insumos': [i for i in pagina if i.tipo == v]} for v, l in Tipo.choices]
     return render(request, 'apu_catalogo/insumos.html', {
-        'pagina': pagina, 'q': q, 'tipo_sel': tipo, 'tipos': Tipo.choices, 'qs_filtros': params.urlencode()})
+        'grupos': [g for g in grupos if g['insumos']],
+        'puede_editar': tiene_capacidad(request.user, 'apu.catalogo.manage', empresa),
+        'pagina': pagina, 'q': q, 'tipo_sel': tipo, 'tipos': Tipo.choices, 'qs_filtros': params.urlencode(),
+        'tipos_conteo': [(v, l, conteos.get(v, 0)) for v, l in Tipo.choices], 'n_total': sum(conteos.values()),
+        'solo_sin_precio': solo_sin_precio,
+        'n_sin_precio': todos.filter(precios__isnull=True).count(),
+        'hay_filtros': bool(q or tipo or solo_sin_precio)})
+
+
+@acceso_apu('apu.catalogo.manage')
+def insumo_editar(request, pk):
+    insumo = get_object_or_404(Insumo, pk=pk, empresa=request.empresa)
+    form = InsumoForm(request.empresa, request.POST or None, instance=insumo)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, f'Se guardó el insumo «{insumo.descripcion}».')
+        return redirect('apu_catalogo:insumos')
+    return render(request, 'apu_catalogo/insumo_form.html', {'form': form, 'insumo': insumo})
+
+
+@acceso_apu('apu.catalogo.manage')
+@require_POST
+def insumo_eliminar(request, pk):
+    insumo = get_object_or_404(Insumo, pk=pk, empresa=request.empresa)
+    nombre = insumo.descripcion
+    try:
+        insumo.delete()
+    except ProtectedError:
+        messages.error(request, f'No se puede eliminar «{nombre}»: lo usan APU existentes. '
+                                'Puedes desactivarlo desde «Editar».')
+    else:
+        messages.success(request, f'Se eliminó el insumo «{nombre}».')
+    return redirect('apu_catalogo:insumos')
+
+
+
+# ── Categorías de APU ─────────────────────────────────────────────────────────
+
+@acceso_apu('apu.ver')
+def categorias(request):
+    empresa = request.empresa
+    lista = list(CategoriaAPU.objects.filter(empresa=empresa).annotate(n_apu=Count('items')))
+    return render(request, 'apu_catalogo/categorias.html', {
+        'categorias': lista, 'puede_editar': tiene_capacidad(request.user, 'apu.catalogo.manage', empresa),
+        'sin_categoria': ItemModelo.objects.filter(empresa=empresa, categoria__isnull=True).count()})
+
+
+def _categoria_propia(request, pk):
+    return get_object_or_404(CategoriaAPU, pk=pk, empresa=request.empresa)
+
+
+@acceso_apu('apu.catalogo.manage')
+@require_POST
+def categoria_nueva(request):
+    try:
+        c = cats.crear(request.empresa, request.POST.get('nombre'))
+        messages.success(request, f'Se creó la categoría «{c.nombre}».')
+    except ValueError as e:
+        messages.error(request, str(e))
+    return redirect('apu_catalogo:categorias')
+
+
+@acceso_apu('apu.catalogo.manage')
+@require_POST
+def categoria_renombrar(request, pk):
+    c = _categoria_propia(request, pk)
+    try:
+        anterior = c.nombre
+        cats.renombrar(c, request.POST.get('nombre'))
+        messages.success(request, f'«{anterior}» ahora se llama «{c.nombre}».')
+    except ValueError as e:
+        messages.error(request, str(e))
+    return redirect('apu_catalogo:categorias')
+
+
+@acceso_apu('apu.catalogo.manage')
+@require_POST
+def categoria_mover(request, pk):
+    c = _categoria_propia(request, pk)
+    cats.reordenar(request.empresa, c.pk, -1 if request.POST.get('sentido') == 'subir' else 1)
+    return redirect('apu_catalogo:categorias')
+
+
+@acceso_apu('apu.catalogo.manage')
+@require_POST
+def categoria_fusionar(request, pk):
+    origen = _categoria_propia(request, pk)
+    destino = CategoriaAPU.objects.filter(empresa=request.empresa, pk=request.POST.get('destino') or 0).first()
+    if destino is None:
+        messages.error(request, 'Elige la categoría a la que se moverán los APU.')
+        return redirect('apu_catalogo:categorias')
+    try:
+        nombre = origen.nombre
+        n = cats.fusionar(origen, destino)
+        messages.success(request, f'«{nombre}» se fusionó en «{destino.nombre}» ({n} APU movidos).')
+    except ValueError as e:
+        messages.error(request, str(e))
+    return redirect('apu_catalogo:categorias')
+
+
+@acceso_apu('apu.catalogo.manage')
+@require_POST
+def categoria_eliminar(request, pk):
+    c = _categoria_propia(request, pk)
+    nombre, n = c.nombre, c.items.count()
+    c.delete()   # los APU quedan «Sin categoría»
+    messages.success(request, f'Se eliminó la categoría «{nombre}»' + (f'; {n} APU quedaron sin categoría.' if n else '.'))
+    return redirect('apu_catalogo:categorias')
+
+
+@acceso_apu('apu.catalogo.manage')
+@require_POST
+def cantidades_guardar(request, pk):
+    """Guarda las cantidades (metrados) de los APU de un proyecto: campos `metrado_<pk del APU>`; vacío = sin cantidad."""
+    proyecto = get_object_or_404(Proyecto.objects.de_empresa(request.empresa), pk=pk)
+    items = list(ItemModelo.objects.filter(empresa=request.empresa, proyecto=proyecto))
+    nuevos, errores = {}, []
+    for it in items:
+        crudo = request.POST.get(f'metrado_{it.pk}')
+        if crudo is None:
+            continue                      # el campo no vino en el formulario: no se toca
+        crudo = crudo.strip().replace(' ', '').replace(',', '.')
+        if not crudo:
+            nuevos[it.pk] = None
+            continue
+        try:
+            valor = Decimal(crudo)
+        except InvalidOperation:
+            errores.append(f'«{crudo}» no es una cantidad válida ({it.codigo}).')
+            continue
+        if not valor.is_finite() or valor < 0 or valor >= Decimal('1e12'):
+            errores.append(f'La cantidad de {it.codigo} debe estar entre 0 y 999 999 999 999.')
+            continue
+        nuevos[it.pk] = valor.quantize(Decimal('0.0001'))
+    if errores:
+        messages.error(request, errores[0] + (f' (y {len(errores) - 1} más)' if len(errores) > 1 else '') + ' No se guardó nada.')
+    else:
+        cambiados = 0
+        for it in items:
+            if it.pk in nuevos and it.metrado != nuevos[it.pk]:
+                ItemModelo.objects.filter(pk=it.pk).update(metrado=nuevos[it.pk])
+                cambiados += 1
+        messages.success(request, f'Cantidades guardadas ({cambiados} APU actualizados).' if cambiados else 'No había cambios en las cantidades.')
+    return redirect('apu_catalogo:proyecto_detalle', pk=proyecto.pk)

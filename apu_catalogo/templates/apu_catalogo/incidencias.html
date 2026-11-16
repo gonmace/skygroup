@@ -10,8 +10,8 @@
 </div>
 
 <form method="post" class="space-y-6">{% csrf_token %}
-  {% if errores.general %}<div role="alert" class="alert alert-error alert-soft text-sm">{{ errores.general }}</div>{% endif %}
-  {% if huerfanos %}<div role="alert" class="alert alert-warning alert-soft text-sm">Estos ajustes ya no existen en el perfil base y se ignoran: {{ huerfanos|join:", " }}.</div>{% endif %}
+  {% if errores.general %}<div role="alert" class="alert alert-error alert-soft text-sm">{% include "components/icon.html" with name="x-circle" cls="size-5 shrink-0" %}<span>{{ errores.general }}</span></div>{% endif %}
+  {% if huerfanos %}<div role="alert" class="alert alert-warning alert-soft text-sm">{% include "components/icon.html" with name="alert-triangle" cls="size-5 shrink-0" %}<span>Estos ajustes ya no existen en el perfil base y se ignoran: {{ huerfanos|join:", " }}.</span></div>{% endif %}
 
   <section class="card bg-base-100"><div class="card-body gap-4 p-5">
     <label class="flex max-w-md flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Perfil de cálculo base</span>

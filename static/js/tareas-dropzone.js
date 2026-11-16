@@ -92,12 +92,18 @@
     return el;
   }
 
-  function removeButton(onRemove) {
+  function removeButton(onRemove, sobreFoto) {
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-error text-white text-[10px] leading-none flex items-center justify-center';
+    if (sobreFoto) {
+      btn.className = 'foto-acc peligro';
+      btn.style.opacity = '1'; // en pantallas táctiles no hay hover
+    } else {
+      btn.className = 'btn-icono icono-peligro absolute right-0 top-1/2 size-6 -translate-y-1/2';
+    }
+    btn.title = 'Quitar archivo';
     btn.setAttribute('aria-label', 'Quitar archivo');
-    btn.textContent = '✕';
+    btn.innerHTML = window.iconoSVG('x', 'size-4');
     // preventDefault: el item vive dentro del <label> del dropzone desktop, que
     // abriría el selector de archivos si el click llega a su acción por defecto.
     btn.addEventListener('click', function (ev) {
@@ -139,10 +145,10 @@
 
     function buildThumb(file, index, isPdf) {
       var wrap = document.createElement('div');
-      wrap.className = 'relative';
+      wrap.className = 'foto-mini';
       if (isPdf) {
         var box = document.createElement('div');
-        box.className = 'w-16 h-16 rounded-lg border border-base-300 bg-error/10 text-error flex flex-col items-center justify-center gap-0.5';
+        box.className = 'flex size-full flex-col items-center justify-center gap-0.5 bg-error/10 text-error';
         box.title = file.name;
         box.appendChild(svg(FILE_ICON_PATHS, 'w-5 h-5'));
         var tag = document.createElement('span');
@@ -157,16 +163,16 @@
         img.src = url;
         img.alt = file.name;
         img.title = file.name;
-        img.className = 'w-16 h-16 object-cover rounded-lg border border-base-300 bg-base-200';
+        img.loading = 'lazy';
         wrap.appendChild(img);
       }
-      wrap.appendChild(removeButton(function () { removeAt(index); }));
+      wrap.appendChild(removeButton(function () { removeAt(index); }, true));
       return wrap;
     }
 
     function buildListItem(file, index) {
       var wrap = document.createElement('div');
-      wrap.className = 'relative inline-flex items-center gap-1.5 bg-base-200 rounded-lg pl-2 pr-4 py-1.5 text-xs max-w-full';
+      wrap.className = 'relative inline-flex items-center gap-1.5 bg-base-200 rounded-xl pl-2 pr-8 py-1.5 text-xs max-w-full';
 
       var iconBox = document.createElement('span');
       var ext = extOf(file.name);

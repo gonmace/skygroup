@@ -17,13 +17,13 @@
         <td class="text-right whitespace-nowrap">
           {% if request.user.is_superuser and not request.impersonador and u.is_active and not u.is_superuser %}
           <form method="post" action="{% url 'cuentas:impersonar' u.pk %}" class="inline">{% csrf_token %}
-            <button type="submit" class="btn btn-ghost btn-square btn-sm text-accent hover:bg-accent/10" title="Ver como {{ u.email }}" aria-label="Ver la aplicación como {{ u.email }}">{% include "components/icon.html" with name="user-switch" cls="size-5" %}</button>
+            <button type="submit" class="btn-icono icono-ver" title="Ver como {{ u.email }}" aria-label="Ver la aplicación como {{ u.email }}">{% include "components/icon.html" with name="user-switch" cls="size-5" %}</button>
           </form>
           {% endif %}
-          <a class="btn btn-ghost btn-square btn-sm text-primary-text hover:bg-primary/10" title="Editar" aria-label="Editar a {{ u.email }}" href="{% url 'panel:administrador_editar' u.pk %}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+          <a class="btn-icono icono-editar" title="Editar" aria-label="Editar a {{ u.email }}" href="{% url 'panel:administrador_editar' u.pk %}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
           {% if u.pk != request.user.pk %}
           <form method="post" action="{% url 'panel:administrador_quitar' u.pk %}" class="inline" data-confirmar="¿Quitar a {{ u.email }} como administrador? La cuenta y sus membresías no se tocan.">{% csrf_token %}
-            <button type="submit" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Quitar administrador" aria-label="Quitar administrador a {{ u.email }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+            <button type="submit" class="btn-icono icono-peligro" title="Quitar administrador" aria-label="Quitar administrador a {{ u.email }}">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
           </form>
           {% endif %}
         </td>

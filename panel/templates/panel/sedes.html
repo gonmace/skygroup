@@ -15,15 +15,15 @@
         <td class="text-center">{{ s.num_miembros }}</td>
         <td class="text-center">
           <form method="post" action="{% url 'panel:sede_alternar' s.pk %}">{% csrf_token %}
-            <input type="checkbox" class="toggle toggle-success toggle-sm" {% if s.activo %}checked{% endif %}
+            <input type="checkbox" role="switch" class="toggle toggle-success toggle-sm" {% if s.activo %}checked{% endif %}
                    title="{% if s.activo %}Desactivar{% else %}Activar{% endif %}" aria-label="{% if s.activo %}Desactivar{% else %}Activar{% endif %} la sede {{ s.nombre }}"
                    data-autoenviar="{% if s.activo %}¿Desactivar la sede «{{ s.nombre }}»?{% endif %}">
           </form>
         </td>
         <td class="whitespace-nowrap text-right">
-          <a class="btn btn-ghost btn-square btn-sm text-primary-text hover:bg-primary/10" title="Editar" aria-label="Editar" href="{% url 'panel:sede_editar' s.pk %}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+          <a class="btn-icono icono-editar" title="Editar" aria-label="Editar" href="{% url 'panel:sede_editar' s.pk %}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
           <form method="post" action="{% url 'panel:sede_eliminar' s.pk %}" class="inline" data-confirmar="¿Eliminar la sede «{{ s.nombre }}»?">{% csrf_token %}
-            <button type="submit" class="btn btn-ghost btn-square btn-sm text-error hover:bg-error/10" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+            <button type="submit" class="btn-icono icono-peligro" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
           </form>
         </td>
       </tr>

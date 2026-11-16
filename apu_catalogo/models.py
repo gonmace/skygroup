@@ -68,14 +68,35 @@ class PrecioInsumo(models.Model):
         return f'{self.insumo.codigo} {self.region or "nacional"} {self.fecha}: {self.precio} {self.moneda}'
 
 
+class CategoriaAPU(models.Model):
+    """Categoría de APU de la empresa («Obra gruesa», «Acabados»…). El orden lo define la empresa a mano; la IA reutiliza
+    estos nombres exactos."""
+    empresa = models.ForeignKey('empresas.Empresa', on_delete=models.CASCADE, related_name='apu_categorias')
+    nombre = models.CharField('Nombre', max_length=80)
+    orden = models.PositiveIntegerField('Orden', default=0)
+    activo = models.BooleanField('Activa', default=True)
+
+    class Meta:
+        ordering = ['orden', 'nombre']
+        verbose_name = 'Categoría de APU'
+        verbose_name_plural = 'Categorías de APU'
+        constraints = [models.UniqueConstraint(fields=['empresa', 'nombre'], name='apu_categoria_nombre_unico')]
+
+    def __str__(self):
+        return self.nombre
+
+
 class ItemModelo(models.Model):
     """Ítem del catálogo («Muro de ladrillo 6H e=12 cm [m²]») con su composición."""
     empresa = models.ForeignKey('empresas.Empresa', on_delete=models.CASCADE, related_name='apu_items')
     codigo = models.CharField('Código', max_length=30)
     descripcion = models.CharField('Descripción', max_length=250)
     unidad = models.CharField('Unidad', max_length=20)
-    categoria = models.CharField('Categoría', max_length=80, blank=True, help_text='Obra gruesa, acabados…')
+    categoria = models.ForeignKey(CategoriaAPU, null=True, blank=True, on_delete=models.SET_NULL, related_name='items',
+                                  verbose_name='Categoría')
     activo = models.BooleanField('Activo', default=True)
+    metrado = models.DecimalField('Cantidad (metrado)', max_digits=16, decimal_places=4, null=True, blank=True,
+                                  help_text='Cuánto se ejecuta de esta actividad en el proyecto, en la unidad del APU.')
     proyecto = models.ForeignKey('proyectos.Proyecto', null=True, blank=True, on_delete=models.PROTECT,
                                  related_name='apu_items',
                                  help_text='Proyecto al que pertenece el APU. Vacío solo en sub-análisis cargados por admin.')

@@ -6,7 +6,7 @@
     <div data-reg-firma-pizarra hidden class="space-y-2">
       <canvas data-reg-firma-lienzo width="600" height="220" class="w-full touch-none rounded-lg border border-dashed border-base-content/30 bg-white" aria-label="Zona para firmar con el dedo o el mouse"></canvas>
       <div class="flex gap-2">
-        <button type="button" class="btn btn-soft btn-sm" data-reg-firma-limpiar>Limpiar</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-reg-firma-limpiar>Limpiar</button>
         {% if b.png %}<label class="ml-auto flex items-center gap-2 text-sm"><input type="checkbox" name="{{ b.campo_borrar }}" class="checkbox checkbox-sm"> Quitar la firma guardada</label>{% endif %}
       </div>
       <input type="hidden" name="{{ b.campo_png }}" data-reg-firma-dato>

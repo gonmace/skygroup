@@ -70,17 +70,17 @@
         <td class="text-right tabular-nums">{{ p.datos.lineas|length }}</td>
         <td>
           <div class="flex justify-end gap-1">
-            <a href="{% url 'apu_catalogo:perfil_detalle' p.pk %}" class="btn btn-ghost btn-square btn-sm text-info" title="Ver estructura" aria-label="Ver estructura">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
+            <a href="{% url 'apu_catalogo:perfil_detalle' p.pk %}" class="btn-icono icono-ver" title="Ver estructura" aria-label="Ver estructura">{% include "components/icon.html" with name="eye" cls="size-5" %}</a>
             {% if puede_perfiles %}
             {% if not p.es_plantilla %}
-            <a href="{% url 'apu_catalogo:perfil_editar' p.pk %}" class="btn btn-ghost btn-square btn-sm text-primary-text" title="Editar" aria-label="Editar">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+            <a href="{% url 'apu_catalogo:perfil_editar' p.pk %}" class="btn-icono icono-editar" title="Editar" aria-label="Editar">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
             {% endif %}
             <form method="post" action="{% url 'apu_catalogo:perfil_copiar' p.pk %}">{% csrf_token %}
-              <button class="btn btn-ghost btn-square btn-sm text-info" title="Copiar y editar" aria-label="Copiar y editar">{% include "components/icon.html" with name="copy" cls="size-5" %}</button>
+              <button class="btn-icono" title="Copiar y editar" aria-label="Copiar y editar">{% include "components/icon.html" with name="copy" cls="size-5" %}</button>
             </form>
             {% if not p.es_plantilla %}
             <form method="post" action="{% url 'apu_catalogo:perfil_eliminar' p.pk %}" data-confirmar="¿Eliminar el perfil «{{ p.nombre }}»? Los presupuestos ya hechos no cambian.">{% csrf_token %}
-              <button class="btn btn-ghost btn-square btn-sm text-error" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
+              <button class="btn-icono icono-peligro" title="Eliminar" aria-label="Eliminar">{% include "components/icon.html" with name="trash" cls="size-5" %}</button>
             </form>
             {% endif %}
             {% endif %}

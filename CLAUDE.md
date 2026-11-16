@@ -41,19 +41,66 @@ Para el resto de la interfaz (listas de usuarios, equipo, asistencia, ficha de p
 persona, nunca `m.rol.nombre` / `badge-rol-{{ m.rol.jerarquia }}` directamente:
 `m.cargo_visible`, `m.clase_color`, `m.clase_avatar`. En Usuarios su cargo no es editable (se muestra fijo).
 
+## Estándar de interfaz (regla única de estilo)
+
+Referencia visual y viva: **`docs/estandar-interfaz.html`** (ábrelo en el navegador; el selector de arriba cambia el color de módulo).
+Todo lo nuevo se construye con las clases del sistema y este estándar; no se inventan colores, radios ni sombras por pantalla.
+**Excepción: los cards de módulo de Inicio (`.mod-card*`, `home/templates`) no se tocan.**
+
+**Cuatro principios.** (1) Contorno fino de 1 px en todo lo que se toca o agrupa. (2) Color = fondo pastel + texto del color; el relleno
+pleno solo al pasar el cursor. (3) El color dice algo: el del módulo (`--mod-soft/-ink/-line`) identifica dónde estás; verde, rojo, ámbar y
+azul son solo de estado; violeta, rosa y ámbar de plataforma son de nivel de acceso y no se reutilizan. (4) Formas: píldora (botones,
+insignias, segmentado), 12 px (campos, fichas, iconos), 16 px (tarjetas, tablas). Nada más.
+
+- **Botones** (`.btn`): de color = pastel + contorno 1 px + texto del color; al pasar el cursor se rellenan. El principal toma el color del
+  módulo; los de estado (`-success`, `-error`, `-warning`, `-info`), el suyo. Fantasma y neutro llevan anillo de 1 px. Una acción principal
+  por zona. Nunca `border: 0` ni relleno sólido en reposo. Destructivas siempre con confirmación (toast).
+- **Iconos** (`templates/components/icon.html`, trazo 1,8, sin relleno; 16 px junto a texto, 20 en botones de icono, 24 en encabezados,
+  32 en tarjetas de módulo). Acciones repetidas en filas = solo icono con `title` y `aria-label` (nunca texto ni `▲ ▼ ✕ ✓`).
+  Color por significado: ver/abrir/info = **azul**; editar/renombrar = **turquesa** (`--edit`); guardar/confirmar/agregar = **verde**;
+  eliminar/borrar/error = **rojo intenso**, en botón de fila **solo el icono** (sin fondo ni contorno) y en una ficha con pastel + contorno;
+  neutro/mover/fusionar/copiar = gris (copiar pasa a check verde 1,5 s); encabezados, vacíos e IA = color del módulo en ficha.
+  **Icono de PDF** (`name="pdf"`): siempre con el **color propio de PDF, rojo `#d93025`** (fijo dentro de `icon.html`, no hereda el color del botón ni
+  el de «error»). Va en botones de «Generar PDF» / «Descargar PDF», con o sin texto, en cualquier módulo; no se le pone `icono-ver` ni otra clase de color.
+  Ficha de icono (avisos, estados, tarjetas): 38 px, 12 px de radio, pastel + contorno 1 px. Persona = círculo con iniciales.
+- **Campos** (`.input`, `.select`, `.textarea`, también filtros): borde 1 px del color del módulo; al enfocar, color pleno y halo. Elegir una
+  opción entre 2–4 = **control segmentado** (`.segmentado`: pista con contorno, activa = pastel + tinta + contorno), no un desplegable.
+- **Interruptor**: `role="switch"`; apagado gris con contorno; encendido pastel verde + perilla verde + check; pequeño en tablas.
+  Un cambio que afecta a otra persona pide confirmación en toast.
+- **Tarjetas y tablas** (`.card`, `.superficie`, `.table-card`): 16 px, filete 1 px del módulo (`--elev-1/-2`) y sombra corta; las que son
+  enlace (`.card-enlace`) suben 2 px al pasar el cursor. Recuadros de dato `.dato-tile` (el principal `.dato-tile-fuerte`).
+  Tabla: cabecera propia, títulos en gris pequeño, línea tenue entre filas, acciones en la última columna solo con iconos.
+- **Estado en filas**: franja izquierda de 4 px + fondo al 6 % + línea teñida + **insignia con icono y texto** (nunca solo color).
+  Concluido/completo = verde, parcial = ámbar, vacío/sin precio = rojo, sin estado = neutro. Variante sobria (listas largas): solo franja.
+- **Insignias y píldoras**: pastel + contorno fino + texto en negrita; `.dato-resumen` para cifras con punto de estado. Los cargos conservan
+  `badge-rol-*`.
+- **Miniaturas**: recorte centrado (`object-fit: cover`), carga diferida y `alt` siempre; 12 px de radio y contorno del módulo. Tres formatos:
+  cuadrada 88 px (adjuntos), tarjeta de galería 4:3 (Registros → Imágenes) y chat (≤ 220 px). Estados: normal, hover (zoom 5 % + ojo),
+  elegida, cargando, archivo, error y «+N». Acciones sobre la imagen en cuadros de 24 px; quitar = único rojo, solo icono.
+- **Mensajes**: ver la sección siguiente (toast con superficie del 9 % del color del estado, contorno, ficha, título + detalle, acción
+  opcional, cierre con icono y barra de tiempo que se pausa al pasar el cursor).
+- **Estructura de pantalla**: enlace de vuelta, título de 24 px + descripción corta + acciones (una principal), resumen en recuadros, luego
+  tablas o tarjetas.
+- Dentro de un módulo (`[data-modulo]`) filete, anillos y campos toman el color del módulo; fuera de uno, gris/marca.
+Las clases viven en `theme/static_src/src/styles.css`; tras tocarlas, `cd theme/static_src && npm run build`.
+
 ## Mensajes al usuario: siempre en toast (regla de interfaz)
 
 Todo mensaje que la interfaz le muestre a la persona sale como **toast** arriba a la derecha, no como banner dentro de la
 página, `alert()` ni `confirm()` del navegador:
 
 - **Avisos** (éxito, error, advertencia, información; también los de acciones AJAX y el progreso de una operación larga):
-  `window.avisar(texto, tipo, {fijo})` de `static/js/shell.js`. `tipo` es `success`, `error`, `warning` o `info`; se
-  cierra solo (error a los 12 s, el resto a los 6 s) salvo `{fijo: true}`, pensado para el progreso: devuelve el
-  elemento, y quien lo creó lo actualiza y lo quita (`el.remove()`).
-- **Mensajes de Django** (`messages.success/error/...` en la vista): ya los pinta `templates/shell.html` como toast; no
+  `window.avisar(texto, tipo, {fijo, titulo, accion: {texto, alClick}})` de `static/js/shell.js`. `tipo` es `success`, `error`, `warning` o
+  `info`. El aviso lleva ficha con icono, **título** (por defecto «Listo», «No se pudo completar», «Atención», «Información») y el `texto`
+  como detalle, una acción opcional («Deshacer», «Reintentar», «Ver») y cierre con icono. Se cierra solo (error a los 12 s, el resto a los
+  6 s) con una barra de tiempo que se detiene al pasar el cursor; `{fijo: true}` es para el progreso (sin barra): devuelve el elemento, y quien
+  lo creó lo actualiza y lo quita (`el.remove()`). `window.Alert` (Tareas) es solo un adaptador de `avisar`; no hay otro sistema de avisos.
+  Estilos `.aviso*` y `.ficha*` en `styles.css`.
+- **Mensajes de Django** (`messages.success/error/...` en la vista): ya los pinta `templates/shell.html` con el mismo marcado; no
   hace falta nada más.
-- **Confirmaciones**: `await window.confirmarUI(mensaje, {titulo, aceptar, tipo})` (Promise<boolean>), también con forma
-  de toast. En botones y formularios sin JS propio basta `data-confirmar="…"`. Si el mensaje es destructivo, `tipo: 'peligro'`.
+- **Confirmaciones**: `await window.confirmarUI(mensaje, {titulo, aceptar, tipo})` (Promise<boolean>), con el mismo aspecto (ficha, título,
+  mensaje y botones Cancelar + acción). En botones, formularios y `<option>` sin JS propio basta `data-confirmar="…"`. Si el mensaje es
+  destructivo, `tipo: 'peligro'` (ficha roja con papelera).
 - Si la página se recarga justo después de la acción, el toast se perdería: guardarlo en `sessionStorage` y mostrarlo en
   `DOMContentLoaded` (`window.avisar` se define al terminar de cargar; ver `static/js/reg-imagenes.js`).
 - Las respuestas JSON de las vistas llevan un `message` legible y **específico** (qué pasó y por qué), no un «0» a secas;
@@ -61,16 +108,18 @@ página, `alert()` ni `confirm()` del navegador:
 - Los errores de validación de un formulario junto a su campo (`templates/components/campos.html`) siguen en línea,
   porque señalan qué campo corregir; el resumen del resultado (guardado, falló) sí va en toast.
 
-Pendientes de migrar (aún usan banner o diálogo del navegador): `static/js/jor-marcar.js` (`alert`),
-`reg_construccion/detalle.html`, `reg_actividades/paso.html`, `jor_diario/inicio.html`, `panel/correo.html`,
+Pendientes de migrar (aún usan banner): `reg_construccion/detalle.html`, `reg_actividades/paso.html`, `jor_diario/inicio.html`, `panel/correo.html`,
 `panel/almacenamiento.html`, `panel/nextcloud.html`, `panel/credenciales.html`. Al tocar una de esas pantallas, migrarla.
 
-## Credenciales de servicios externos
-Las claves de servicios externos de la plataforma (hoy: Google Maps) se cargan en **Plataforma → Credenciales** (solo
-superusuario) y viven en `cuentas.models.CredencialesPlataforma` (una sola para todas las empresas). El `.env`
-(`GOOGLE_MAPS_API_KEY`) es solo el respaldo. Para leer la clave usar `CredencialesPlataforma.clave_google_maps()` (o
-`reg_actividades.mapas.clave_google()`), nunca `settings.GOOGLE_MAPS_API_KEY` directo. Una credencial nueva = un campo
-nuevo en ese modelo + su formulario en `panel/forms.py` (`CredencialesForm`); el campo nunca se muestra entero.
+## Credenciales de servicios externos (propias de cada empresa)
+Las claves de servicios externos (hoy: Google Maps y la API de n8n con que se mide la IA de APU) son **propias de cada
+empresa** y nunca se comparten: las carga el superusuario en **empresa → Credenciales** (`/<slug>/config/credenciales/`,
+menú «Empresa», contorno ámbar) y viven en `cuentas.models.CredencialesEmpresa` (una por empresa). El `.env`
+(`GOOGLE_MAPS_API_KEY`, `N8N_API_URL`, `N8N_API_KEY`) es solo el respaldo del servidor para la empresa que no tiene las
+suyas. Para leerlas usar siempre **con la empresa**: `CredencialesEmpresa.clave_google_maps(empresa)` /
+`CredencialesEmpresa.n8n_api(empresa)` (o `reg_actividades.mapas.clave_google(empresa)`), nunca `settings.…` directo.
+Una credencial nueva = un campo nuevo en ese modelo + su formulario en `panel/forms.py` (`CredencialesForm`); el campo
+nunca se muestra entero (solo cómo termina). Los campos de clave deben admitir claves largas (la de n8n es un JWT de ~290).
 
 ## Dictado por voz en los textarea
 Todo `<textarea>` (también los que se insertan por JS) recibe solo un botón de micrófono: `static/js/dictado.js`
@@ -114,5 +163,5 @@ el APU solo se enlaza al proyecto por FK (`ItemModelo.proyecto`).
 - **Precios estimados por IA**: en el paso de precios, «Sugerir precios con IA» (`apu-precios`, búsqueda web) propone
   precios de los insumos sin precio como **recomendación**: no se guardan solos ni cobran créditos; los que la persona
   acepta se guardan con `PrecioInsumo.estimado=True` y se muestran con la insignia «Estimado» hasta que los corrija.
-- **Tokens y costo** (solo superusuario): `LlamadaIA` guarda la ejecución de n8n; el uso se lee de la API de n8n
-  (`N8N_API_URL`/`N8N_API_KEY`) y el costo sale de `TarifaModeloIA` (botón «Verificar tarifas»).
+- **Tokens y costo** (solo superusuario): `LlamadaIA` guarda la ejecución de n8n; el uso se lee de la API de n8n DE LA EMPRESA
+  de cada llamada (empresa → Credenciales; el `.env` es el respaldo) y el costo sale de `TarifaModeloIA` (botón «Verificar tarifas»).

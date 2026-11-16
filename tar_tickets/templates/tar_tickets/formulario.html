@@ -7,9 +7,9 @@
 <div class="mx-auto max-w-3xl">
   <form method="post" class="space-y-5">
     {% csrf_token %}
-    {% if form.non_field_errors %}<div class="alert alert-error py-2 text-sm"><span>{{ form.non_field_errors.0 }}</span></div>{% endif %}
+    {% if form.non_field_errors %}<div role="alert" class="flex items-center gap-2 rounded-xl border border-error/40 bg-error/10 px-3 py-2 text-sm text-error">{% include "components/icon.html" with name="alert-triangle" cls="size-4 shrink-0" %}<span>{{ form.non_field_errors.0 }}</span></div>{% endif %}
 
-    <div class="space-y-4 rounded-2xl border border-base-300 bg-base-100 p-6">
+    <div class="space-y-4 superficie p-6">
       <div><label class="mb-1 block text-sm font-medium" for="{{ form.titulo.id_for_label }}">Título</label>{{ form.titulo }}{% for e in form.titulo.errors %}<p class="mt-1 text-xs text-error">{{ e }}</p>{% endfor %}</div>
       <div><label class="mb-1 block text-sm font-medium" for="{{ form.solicitante.id_for_label }}">Solicitante</label>{{ form.solicitante }}{% for e in form.solicitante.errors %}<p class="mt-1 text-xs text-error">{{ e }}</p>{% endfor %}</div>
       <div><label class="mb-1 block text-sm font-medium" for="{{ form.descripcion.id_for_label }}">Descripción</label>{{ form.descripcion }}</div>
@@ -42,7 +42,7 @@
     </div>
 
     {% if form.ejecutores %}
-      <div class="space-y-4 rounded-2xl border border-base-300 bg-base-100 p-6">
+      <div class="space-y-4 superficie p-6">
         <div class="flex items-center justify-between gap-4">
           <h2 class="text-sm font-bold">Asignación</h2>
           <label class="flex cursor-pointer items-center gap-2"><span class="text-sm">Tiene subproductos</span>{{ form.tiene_subproductos }}</label>

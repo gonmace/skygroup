@@ -15,7 +15,7 @@
         </div>
         {% if f.activo and f.tipo.restaurar %}
         <form method="post" action="{% url 'reg_base:tipo_restaurar' f.tipo.clave %}" data-confirmar="¿Restaurar la plantilla estándar de «{{ f.tipo.nombre }}»? Se vuelven a escribir los componentes de sus pasos estándar.">{% csrf_token %}
-          <button type="submit" class="btn btn-ghost btn-square btn-sm text-info hover:bg-info/10" title="Restaurar plantilla estándar" aria-label="Restaurar la plantilla estándar de {{ f.tipo.nombre }}">{% include "components/icon.html" with name="restore" cls="size-5" %}</button>
+          <button type="submit" class="btn-icono icono-ver" title="Restaurar plantilla estándar" aria-label="Restaurar la plantilla estándar de {{ f.tipo.nombre }}">{% include "components/icon.html" with name="restore" cls="size-5" %}</button>
         </form>
         {% endif %}
         <form method="post" action="{% url 'reg_base:tipo_alternar' f.tipo.clave %}">{% csrf_token %}
@@ -26,6 +26,6 @@
       {% endfor %}
     </ul>
   </div></section>
-  <p class="text-sm"><a class="link" href="{% url 'reg_base:config' %}">← Configuración de Registros</a></p>
+  <p class="text-sm"><a class="link" href="{% url 'reg_base:config' %}">{% include "components/icon.html" with name="arrow-left" cls="size-4" %} Configuración de Registros</a></p>
 </div>
 {% endblock %}

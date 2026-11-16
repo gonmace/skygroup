@@ -1,10 +1,14 @@
 // Visor de fotos de Registros: al tocar una miniatura (enlace a /registros/fotos/<id>/imagen/) se abre en un modal
-// que ocupa casi toda la pantalla, en vez de otra pestaña. Cierra con ✕, clic fuera, Esc; ←/→ navegan entre las fotos.
+// que ocupa casi toda la pantalla, en vez de otra pestaña. Cierra con el botón de cerrar, clic fuera, Esc; ←/→ navegan entre las fotos.
 // CSP-safe: sin inline; el <dialog> se crea aquí.
 (function () {
   'use strict';
   var RUTA = /\/registros\/fotos\/\d+\/imagen\/$/;
   var dlg, img, enlaces = [], idx = 0;
+
+  function svg(trazo, cls) {   // icono estándar (trazo 1,8, sin relleno)
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="' + cls + '" aria-hidden="true">' + trazo + '</svg>';
+  }
 
   function crear() {
     dlg = document.createElement('dialog');
@@ -13,13 +17,14 @@
     dlg.innerHTML =
       '<div style="width:96vw;height:94vh" class="relative flex items-center justify-center">' +
       '<img alt="" style="max-width:100%;max-height:100%" class="rounded-lg object-contain shadow-2xl">' +
-      '<button type="button" data-v="cerrar" aria-label="Cerrar" class="btn btn-circle btn-sm absolute right-2 top-2">✕</button>' +
-      '<button type="button" data-v="ant" aria-label="Anterior" class="btn btn-circle absolute left-2 top-1/2 -translate-y-1/2">‹</button>' +
-      '<button type="button" data-v="sig" aria-label="Siguiente" class="btn btn-circle absolute right-2 top-1/2 -translate-y-1/2">›</button>' +
+      '<button type="button" data-v="cerrar" aria-label="Cerrar" class="btn btn-circle btn-sm absolute right-2 top-2">' + svg('<path d="M6 6l12 12M18 6 6 18"/>', 'size-4') + '</button>' +
+      '<button type="button" data-v="ant" aria-label="Anterior" class="btn btn-circle absolute left-2 top-1/2 -translate-y-1/2">' + svg('<path d="m15 5-7 7 7 7"/>', 'size-5') + '</button>' +
+      '<button type="button" data-v="sig" aria-label="Siguiente" class="btn btn-circle absolute right-2 top-1/2 -translate-y-1/2">' + svg('<path d="m9 5 7 7-7 7"/>', 'size-5') + '</button>' +
       '</div>';
     img = dlg.querySelector('img');
     dlg.addEventListener('click', function (e) {
-      var v = e.target.getAttribute && e.target.getAttribute('data-v');
+      var b = e.target.closest && e.target.closest('[data-v]');
+      var v = b && b.getAttribute('data-v');
       if (v === 'ant') mover(-1);
       else if (v === 'sig') mover(1);
       else if (v === 'cerrar' || e.target === dlg || e.target === dlg.firstChild) dlg.close();

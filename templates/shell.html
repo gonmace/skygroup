@@ -20,7 +20,7 @@ y rellenan `page_title` y `content_main`. El menú viene de panel.menu (context 
     </div>
 
     {% if app_activa %}
-    <div class="mx-3 mb-3 flex items-center gap-3 rounded-2xl bg-base-100 px-3 py-2 shadow-sm">
+    <div class="mx-3 mb-3 flex items-center gap-3 superficie px-3 py-2">
       <span class="grid size-8 place-items-center rounded-lg {{ app_activa.clases }}">{% include "components/icon.html" with name=app_activa.icono %}</span>
       <span class="font-medium">{{ app_activa.nombre }}</span>
     </div>
@@ -138,9 +138,10 @@ y rellenan `page_title` y `content_main`. El menú viene de panel.menu (context 
     {% if messages %}
     <div class="toast toast-top toast-end z-50" role="region" aria-label="Avisos">
       {% for m in messages %}
-        <div class="alert {% if m.tags == 'error' %}alert-error{% elif m.tags == 'success' %}alert-success{% elif m.tags == 'warning' %}alert-warning{% else %}alert-info{% endif %}" role="{% if m.tags == 'error' %}alert{% else %}status{% endif %}" data-autocerrar>
-          <span>{{ m }}</span>
-          <button type="button" class="btn btn-ghost btn-xs btn-square" data-accion="cerrar-aviso" aria-label="Cerrar aviso">✕</button>
+        <div class="aviso aviso-{% if m.tags == 'error' %}error{% elif m.tags == 'success' %}success{% elif m.tags == 'warning' %}warning{% else %}info{% endif %}" role="{% if m.tags == 'error' %}alert{% else %}status{% endif %}" data-autocerrar>
+          <span class="ficha ficha-{% if m.tags == 'error' %}error{% elif m.tags == 'success' %}ok{% elif m.tags == 'warning' %}aviso{% else %}info{% endif %}">{% if m.tags == 'success' %}{% include "components/icon.html" with name="check" cls="size-5" %}{% elif m.tags == 'error' or m.tags == 'warning' %}{% include "components/icon.html" with name="alert-triangle" cls="size-5" %}{% else %}{% include "components/icon.html" with name="info" cls="size-5" %}{% endif %}</span>
+          <div class="aviso__cuerpo"><span class="aviso__titulo">{% if m.tags == 'error' %}No se pudo completar{% elif m.tags == 'success' %}Listo{% elif m.tags == 'warning' %}Atención{% else %}Información{% endif %}</span><span class="aviso__detalle">{{ m }}</span></div>
+          <button type="button" class="btn-icono" data-accion="cerrar-aviso" aria-label="Cerrar aviso">{% include "components/icon.html" with name="x" cls="size-4" %}</button>
         </div>
       {% endfor %}
     </div>

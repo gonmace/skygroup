@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 
 from apu_catalogo.acceso import acceso_apu, es_admin_o_super
 from core.n8n import N8NError
-from cuentas.models import Membresia
+from cuentas.models import CredencialesEmpresa, Membresia
 
 from . import creditos, ia
 from .models import ConsumoAPU, LimiteAPU, LimiteEmpresaAPU, LlamadaIA, TarifaModeloIA
@@ -118,11 +118,17 @@ def consumo_ia(request):
                 fila['entrada'] += v.get('entrada', 0)
                 fila['salida'] += v.get('salida', 0)
             fila['costo'] += ll.costo_usd or Decimal(0)
+    total = ia.resumen_uso(llamadas)
+    tarifas = {t.modelo: t for t in TarifaModeloIA.objects.all()}
+    for f in total['modelos']:   # consumo y costo de cada modelo con su tarifa (costo None si no tiene tarifa)
+        t = tarifas.get(f['modelo'])
+        f['tarifa'] = t
+        f['costo'] = t.costo(f['entrada'], f['salida']).quantize(Decimal('0.000001')) if t else None
     return render(request, 'apu_generador/consumo_ia.html', {
-        'total': ia.resumen_uso(llamadas), 'por_empresa': sorted(por_empresa.values(), key=lambda f: -f['costo']),
+        'total': total, 'por_empresa': sorted(por_empresa.values(), key=lambda f: -f['costo']),
         'por_persona': sorted(por_persona.values(), key=lambda f: -f['costo']),
         'por_mes': sorted(por_mes.values(), key=lambda f: f['nombre'], reverse=True),
-        'tarifas': TarifaModeloIA.objects.all(), 'medicion_activa': bool(settings.N8N_API_KEY)})
+        'tarifas': TarifaModeloIA.objects.all(), 'medicion_activa': bool(CredencialesEmpresa.n8n_api(request.empresa)[1])})
 
 
 @acceso_apu('apu.ver')

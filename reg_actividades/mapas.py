@@ -26,14 +26,14 @@ COLOR_1, COLOR_2 = '#e74c3c', '#0054ff'
 _HEX = re.compile(r'^#[0-9a-fA-F]{6}$')
 
 
-def clave_google():
-    """Clave de Google Maps: Plataforma → Credenciales y, si no hay, GOOGLE_MAPS_API_KEY del .env."""
-    from cuentas.models import CredencialesPlataforma
-    return CredencialesPlataforma.clave_google_maps()
+def clave_google(empresa=None):
+    """Clave de Google Maps de la empresa (empresa → Credenciales) y, si no tiene, GOOGLE_MAPS_API_KEY del .env."""
+    from cuentas.models import CredencialesEmpresa
+    return CredencialesEmpresa.clave_google_maps(empresa)
 
 
-def hay_clave():
-    return bool(clave_google())
+def hay_clave(empresa=None):
+    return bool(clave_google(empresa))
 
 
 def probar_clave(clave):
@@ -185,11 +185,11 @@ def misma_geometria(a, b):
         return False
 
 
-def descargar_imagen(puntos, zoom=None, maptype='hybrid', scale=2, tamano=TAMANO):
+def descargar_imagen(puntos, zoom=None, maptype='hybrid', scale=2, tamano=TAMANO, empresa=None):
     """Bytes PNG de la imagen estática con un marcador por punto; None si no hay clave, no hay puntos o Google falla."""
-    clave = clave_google()
+    clave = clave_google(empresa)
     if not clave:
-        logger.warning('No hay clave de Google Maps (Plataforma → Credenciales): no se genera la imagen del mapa.')
+        logger.warning('No hay clave de Google Maps (empresa → Credenciales): no se genera la imagen del mapa.')
         return None
     if not puntos:
         return None
@@ -226,7 +226,7 @@ def _nombre_archivo(registro, etapa):
 def guardar_imagen(registro, etapa, puntos):
     """Genera y guarda (reemplazando) la imagen del mapa del paso. Devuelve la `ImagenMapa` o None si no se pudo
     generar (sin clave, sin puntos o error de Google); en ese caso no se toca la imagen anterior."""
-    contenido = descargar_imagen(puntos)
+    contenido = descargar_imagen(puntos, empresa=registro.empresa)
     if not contenido:
         return None
     zoom = zoom_de(puntos)
@@ -252,7 +252,7 @@ def regenerar_afectados(registro, clave, paso_cambiado):
     """Tras guardar el paso `paso_cambiado`: regenera la imagen de cada `mapa_2_puntos` del registro que lo use como
     `paso1`/`paso2` y cuyos puntos hayan cambiado respecto a lo guardado (no se gasta cuota si nada cambió). Solo
     actúa si ya existía una imagen (la primera la crea la persona con «Guardar imagen») y hay clave configurada."""
-    if not hay_clave():
+    if not hay_clave(registro.empresa):
         return
     cambiado = _sin_acentos(paso_cambiado)
     from .servicios import asignados_de
@@ -279,7 +279,7 @@ def generar_automaticas(registro, clave):
     """Genera (o regenera si cambiaron las coordenadas) la imagen de cada widget de mapa del registro cuyos puntos
     estén completos. No hace nada si el tipo no es automático o no hay clave de Google. Un fallo de Google nunca
     propaga: devuelve cuántas imágenes se generaron."""
-    if clave not in AUTOMATICOS or not hay_clave():
+    if clave not in AUTOMATICOS or not hay_clave(registro.empresa):
         return 0
     from .servicios import asignados_de
     hechas = 0

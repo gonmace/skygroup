@@ -45,11 +45,9 @@
     });
   }
 
-  var aviso = raiz.querySelector('[data-marcar-error]');
+  // Los errores salen como toast (regla de interfaz); nunca alert() del navegador.
   function mostrarError(msg) {
-    if (!aviso) return alert(msg);
-    aviso.textContent = msg;
-    aviso.classList.remove('hidden');
+    if (window.avisar) window.avisar(msg, 'error');
   }
   // Con reporte obligatorio, "Finalizar" queda deshabilitado hasta completar realizado y planificado.
   function reporteIncompleto(form) {
@@ -75,7 +73,6 @@
   raiz.querySelectorAll('form[data-marcar]').forEach(function (form) {
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      if (aviso) aviso.classList.add('hidden');
       if (form.hasAttribute('data-exige-reporte')) {  // mínimos de palabras: solo se avisa al pulsar el botón
         var minimos = [['realizado', 10, 'realizadas'], ['planificado', 3, 'planificadas']];
         for (var i = 0; i < minimos.length; i++) {

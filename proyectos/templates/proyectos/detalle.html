@@ -5,7 +5,7 @@
   {% include "proyectos/_badge_estado.html" with estado=p.estado nombre=p.get_estado_display %}
   {% include "proyectos/_badge_tipo.html" with tipo=p.tipo sin_tipo=termino_proyecto %}
   <div class="ml-auto flex gap-2">
-    {% if puede_chat %}<button type="button" class="btn btn-md btn-outline gap-1 sm:btn-sm" data-msj-proyecto="{{ p.pk }}">{% include "components/icon.html" with name="chat" cls="size-4" %} Chat</button>{% endif %}
+    {% if puede_chat %}<button type="button" class="btn btn-md btn-ghost gap-1 sm:btn-sm" data-msj-proyecto="{{ p.pk }}">{% include "components/icon.html" with name="chat" cls="size-4" %} Chat</button>{% endif %}
     <a href="{% url 'proyectos:editar' p.pk %}" class="btn btn-md gap-1 sm:btn-sm">{% include "components/icon.html" with name="pencil" cls="size-4" %} Editar</a>
     <form method="post" action="{% url 'proyectos:eliminar' p.pk %}" data-confirmar="¿Eliminar «{{ p.nombre }}»?">{% csrf_token %}
       <button type="submit" class="btn btn-md btn-ghost text-error sm:btn-sm">Eliminar</button>

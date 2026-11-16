@@ -37,7 +37,7 @@
         a.classList.toggle(a.getAttribute('data-modo'), !valido);
       });
       if (disco) {
-        ['bg-success/15', 'text-success'].forEach(function (c) { disco.classList.toggle(c, hay); });
+        ['ficha', 'ficha-ok'].forEach(function (c) { disco.classList.toggle(c, hay); });
         ['bg-base-300', 'text-base-content/50'].forEach(function (c) { disco.classList.toggle(c, !hay); });
       }
     }
@@ -89,7 +89,6 @@
         if (panelGms) panelGms.classList.toggle('hidden', !gms);
         caja.querySelectorAll('[data-modo-coord]').forEach(function (o) {
           var activo = o === b;
-          o.classList.toggle('btn-neutral', activo);
           o.setAttribute('aria-pressed', activo ? 'true' : 'false');
         });
       });

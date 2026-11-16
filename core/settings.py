@@ -182,6 +182,9 @@ S3_URL_EXPIRE = config('S3_URL_EXPIRE', default=300, cast=int)  # segundos de la
 # Token de los endpoints internos (n8n/cron, cabecera X-Internal-Token). Vacío = deshabilitados.
 INTERNAL_API_TOKEN = config('INTERNAL_API_TOKEN', default='')
 
+# APU solo para superusuario y administradores; el resto ve «Próximamente». Pasar a False para abrirlo a todos.
+APU_SOLO_ADMIN = True
+
 # Webhooks de n8n a los que llama skygroup (APU con IA). Token opcional en una cabecera.
 N8N_BASE_URL = config('N8N_BASE_URL', default='http://n8n:5678')
 N8N_WEBHOOK_TOKEN = config('N8N_WEBHOOK_TOKEN', default='')

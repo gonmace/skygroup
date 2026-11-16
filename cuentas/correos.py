@@ -1,12 +1,29 @@
 """Correos de alta de usuarios. Se arman DENTRO del request (así `reverse()` lleva el prefijo
 `/<slug>/` de la empresa) y devuelven un callable para `transaction.on_commit`."""
+import logging
+
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+
+logger = logging.getLogger(__name__)
+
+
+def sin_fallar(request, enviar, destino):
+    """Envoltorio para `on_commit`: si el correo no sale (buzón inexistente, SMTP caído) el alta ya está
+    guardada, así que no se devuelve un 500: se registra y se avisa con un mensaje."""
+    def _ejecutar():
+        try:
+            enviar()
+        except Exception:
+            logger.exception('No se pudo enviar el correo a %s', destino)
+            messages.warning(request, f'La cuenta se guardó, pero no se pudo enviar el correo a {destino}. Revisa que el buzón exista.')
+    return _ejecutar
 
 
 def _remitente(empresa):

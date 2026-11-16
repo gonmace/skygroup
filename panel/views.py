@@ -114,7 +114,8 @@ def administrador_editar(request, pk=None):
         usuario.save(update_fields=['is_superuser', 'is_staff', 'first_name', 'last_name'])
         usuario.empresas_administradas.set(d['empresas'])
         if creado and d.get('enviar_correo') and d['empresas']:
-            transaction.on_commit(correos.preparar_invitacion_admin(request, usuario, d['empresas'][0]))
+            transaction.on_commit(correos.sin_fallar(
+                request, correos.preparar_invitacion_admin(request, usuario, d['empresas'][0]), usuario.email))
         messages.success(request, f'Administrador {usuario.email} guardado.')
         return redirect('panel:administradores')
     return render(request, 'panel/administrador_form.html', {'form': form, 'obj': usuario})
@@ -389,7 +390,7 @@ def miembro_nuevo(request):
             return respuesta
         if acceso == 'correo':
             preparar = correos.preparar_invitacion if creado else correos.preparar_aviso_agregado
-            transaction.on_commit(preparar(request, user, membresia))
+            transaction.on_commit(correos.sin_fallar(request, preparar(request, user, membresia), user.email))
             messages.success(request, f'{user.email} agregado · correo enviado.')
         elif creado:      # nextcloud
             messages.success(request, f'{user.email} agregado. Entrará con Nextcloud: su usuario allí debe ser este correo.')

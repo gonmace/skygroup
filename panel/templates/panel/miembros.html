@@ -16,10 +16,6 @@
   <span class="flex flex-wrap items-center gap-1"><span class="text-xs text-base-content/60">Sede</span>{% for n, c in resumen.por_sede %}<span class="badge badge-ghost">{{ n }} <strong class="ml-1">{{ c }}</strong></span>{% endfor %}</span>
 </div>
 
-{% if administradores %}<div class="mb-3 flex shrink-0 flex-wrap items-center gap-1 text-sm">
-  <span class="text-xs text-base-content/60">Administradores sin cargo en la empresa</span>
-  {% for u in administradores %}<span class="badge badge-outline badge-plat-admin" title="{{ u.email }} · {% if u.is_superuser %}ve todas las empresas{% else %}administra esta empresa{% endif %}">{{ u.email }}</span>{% endfor %}
-</div>{% endif %}
 
 {# Móvil: tarjetas con la edición rápida (rol, contratista, activo); la tabla de 7 columnas obliga a desplazarse de lado #}
 <div class="flex shrink-0 flex-col xl:hidden">
@@ -103,6 +99,17 @@
         </form>
         {% endif %}
         <a class="btn-icono icono-editar" href="{% url 'panel:miembro_editar' m.pk %}" title="Editar" aria-label="Editar a {{ m.user.email }}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
+      </div>
+    </li>
+    {% endfor %}
+    {% for u in administradores %}
+    <li class="superficie p-3">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex min-w-0 items-center gap-3">
+          <span class="avatar-iniciales badge-plat-admin" aria-hidden="true">{{ u.iniciales }}</span>
+          <div class="min-w-0"><div class="truncate font-medium">{{ u.get_full_name|default:u.email }}</div><div class="truncate text-xs text-base-content/60">{{ u.email }}</div></div>
+        </div>
+        <span class="badge badge-outline badge-plat-admin" title="{% if u.is_superuser %}Superusuario: ve todas las empresas{% else %}Administra esta empresa{% endif %}">Administrador</span>
       </div>
     </li>
     {% endfor %}
@@ -190,6 +197,15 @@
           {% endif %}
           <a class="btn-icono icono-editar" href="{% url 'panel:miembro_editar' m.pk %}" title="Editar" aria-label="Editar a {{ m.user.email }}">{% include "components/icon.html" with name="pencil" cls="size-5" %}</a>
         </td>
+      </tr>
+    {% endfor %}
+    {% for u in administradores %}
+      <tr class="hover">
+        <td><div class="flex items-center gap-3"><span class="avatar-iniciales badge-plat-admin" aria-hidden="true">{{ u.iniciales }}</span><div class="min-w-0 max-w-[11rem] min-[1850px]:max-w-[16rem]"><div class="truncate font-medium" title="{{ u.get_full_name|default:u.email }}">{{ u.get_full_name|default:u.email }}</div><div class="truncate text-xs text-base-content/60" title="{{ u.email }}">{{ u.email }}</div></div></div></td>
+        <td class="hidden whitespace-nowrap text-sm text-base-content/70 min-[1850px]:table-cell">{{ u.telefono|default:"—" }}</td>
+        <td class="text-center"><span class="badge badge-outline badge-plat-admin" title="{% if u.is_superuser %}Superusuario: ve todas las empresas{% else %}Administra esta empresa{% endif %}">Administrador</span></td>
+        <td colspan="{{ columnas|length|add:'-2' }}" class="text-xs text-base-content/60">Administrador de sistema, sin cargo en la empresa</td>
+        <td></td>
       </tr>
     {% endfor %}
     </tbody>

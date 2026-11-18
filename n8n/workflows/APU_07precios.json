@@ -57,7 +57,9 @@
             "searchContextSize": "medium"
           }
         },
-        "options": {}
+        "options": {
+          "reasoningEffort": "low"
+        }
       },
       "id": "888a25d6-28df-4a94-a8f1-59a9584488c7",
       "name": "Modelo con búsqueda web",

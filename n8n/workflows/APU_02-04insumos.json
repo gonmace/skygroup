@@ -189,11 +189,13 @@
       "parameters": {
         "model": {
           "__rl": true,
-          "mode": "list",
-          "value": "gpt-5.1"
+          "mode": "id",
+          "value": "={{ $('Webhook').first().json.body.tipo === 'materiales' ? 'gpt-5.1' : 'gpt-5-mini' }}"
         },
         "builtInTools": {},
-        "options": {},
+        "options": {
+          "reasoningEffort": "low"
+        },
         "responsesApiEnabled": false
       },
       "id": "65b631c8-cd6e-421c-b833-8ada25a8ba6a",

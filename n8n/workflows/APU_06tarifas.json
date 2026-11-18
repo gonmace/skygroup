@@ -27,7 +27,13 @@
             {
               "id": "2adb74fd-06a6-47fc-98a5-7d95b4a2bf90",
               "name": "system_prompt",
-              "value": "Eres un asistente que consulta las tarifas oficiales de la API de OpenAI. Usa la búsqueda web (solo openai.com) para encontrar el precio vigente, en USD por millón de tokens, de entrada y de salida de cada uno de los modelos pedidos. Si un modelo tiene varios niveles de precio, usa el estándar de texto (sin batch ni caché). Si no encuentras un modelo, omítelo: no inventes cifras. En «fuente» pon la URL de la página usada.\nResponde SOLO con el JSON pedido, con los modelos exactamente como se te pidieron.",
+              "value": "Eres un asistente que extrae tarifas de la API de OpenAI de una tabla oficial que se te entrega. Para cada modelo pedido, busca su fila EXACTA en la tabla y devuelve el precio de entrada (Input) y de salida (Output) en USD por millón de tokens, tal como aparece (sin convertir ni estimar). Si un modelo no está en la tabla, omítelo: no inventes cifras. En «fuente» pon exactamente: https://developers.openai.com/api/docs/pricing\nResponde SOLO con el JSON pedido, con los modelos exactamente como se te pidieron.",
+              "type": "string"
+            },
+            {
+              "id": "3be0c9a4-52d1-4f7e-a6b8-0d7c5e21f904",
+              "name": "tabla_precios",
+              "value": "={{ $json.pagina.split('### Standard pricing data')[1].split('### Batch pricing data')[0] }}",
               "type": "string"
             }
           ]
@@ -40,32 +46,28 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        240,
+        360,
         300
       ],
-      "notes": "Aquí vive el prompt de sistema. Edita el texto para mejorar el comportamiento de la IA."
+      "notes": "Aquí vive el prompt de sistema. La tabla «tabla_precios» es la sección Standard de la página oficial (sin batch, flex ni prioridad)."
     },
     {
       "parameters": {
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-5.1"
+          "value": "gpt-4.1-mini"
         },
-        "builtInTools": {
-          "webSearch": {
-            "searchContextSize": "medium",
-            "allowedDomains": "openai.com"
-          }
-        },
-        "options": {}
+        "options": {
+          "temperature": 0
+        }
       },
       "id": "9536cc70-6efd-43ad-8198-638341ffcea6",
-      "name": "Modelo con búsqueda web",
+      "name": "Modelo",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        420,
+        560,
         540
       ],
       "credentials": {
@@ -85,7 +87,7 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        560,
+        700,
         540
       ],
       "notes": "Esquema de lo que devuelve la IA. Si lo cambias, revisa también apu_generador/ia.py."
@@ -93,7 +95,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Modelos: {{ JSON.stringify($('Webhook').item.json.body.modelos) }}",
+        "text": "=Modelos: {{ JSON.stringify($('Webhook').item.json.body.modelos) }}\n\nTabla oficial (USD por millón de tokens, nivel Standard):\n{{ $json.tabla_precios }}",
         "hasOutputParser": true,
         "options": {
           "systemMessage": "={{ $json.system_prompt }}"
@@ -104,7 +106,7 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        500,
+        600,
         300
       ]
     },
@@ -119,14 +121,14 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
       "position": [
-        800,
+        960,
         300
       ],
       "notes": "Devuelve el JSON a skygroup. `ejecucion_id` permite medir los tokens de esta ejecución."
     },
     {
       "parameters": {
-        "content": "Verificar tarifas\nConsulta con la búsqueda web de OpenAI los precios por millón de tokens de los modelos en uso. Skygroup compara con sus tarifas y muestra las diferencias; el superusuario decide si las aplica. Entrada: modelos[].",
+        "content": "Verificar tarifas\nDescarga la tabla Standard de developers.openai.com/api/docs/pricing y el modelo solo extrae las filas pedidas (sin búsqueda web ni memoria: antes mezclaba niveles batch/flex/prioridad). Skygroup compara con sus tarifas y el superusuario decide si las aplica. Entrada: modelos[].",
         "height": 130,
         "width": 520,
         "color": 4
@@ -139,6 +141,37 @@
         200,
         120
       ]
+    },
+    {
+      "parameters": {
+        "url": "https://developers.openai.com/api/docs/pricing",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "text/markdown"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "pagina"
+            }
+          }
+        }
+      },
+      "id": "7a1c3f52-9b0e-4d6a-8c21-5e4f0a9d1b37",
+      "name": "Página de precios",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        120,
+        300
+      ],
+      "notes": "Descarga la página oficial de precios (markdown). El modelo ya no «recuerda» precios: los lee de aquí."
     }
   ],
   "connections": {
@@ -146,7 +179,7 @@
       "main": [
         [
           {
-            "node": "Prompt · Tarifas",
+            "node": "Página de precios",
             "type": "main",
             "index": 0
           }
@@ -175,23 +208,34 @@
         ]
       ]
     },
-    "Modelo con búsqueda web": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Agente · Tarifas",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Esquema · Tarifas": {
       "ai_outputParser": [
         [
           {
             "node": "Agente · Tarifas",
             "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Página de precios": {
+      "main": [
+        [
+          {
+            "node": "Prompt · Tarifas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modelo": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente · Tarifas",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]

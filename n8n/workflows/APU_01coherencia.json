@@ -321,7 +321,9 @@
           "value": "gpt-5.1"
         },
         "builtInTools": {},
-        "options": {},
+        "options": {
+          "reasoningEffort": "low"
+        },
         "responsesApiEnabled": false
       },
       "id": "5f969544-60e3-4b01-ac8b-0b709410b20c",

@@ -267,10 +267,12 @@ def proponer(request, pk, slug):
         'region': borrador.region, 'proyecto': ia.contexto_proyecto(borrador.proyecto),
         'clasificacion': borrador.clasificacion, 'confirmado': confirmado,
         'catalogo': asistente.catalogo_para_ia(request.empresa, tipo, f'{borrador.actividad} {borrador.descripcion}'),
-        'catalogo_items': asistente.catalogo_items_para_ia(request.empresa, borrador.apu_guardado_id),
+        # los sub-análisis solo los usa el prompt de materiales: en mano de obra y equipos no se mandan
+        'catalogo_items': (asistente.catalogo_items_para_ia(request.empresa, borrador.apu_guardado_id,
+                                                            f'{borrador.actividad} {borrador.descripcion}')
+                           if tipo == 'materiales' else []),
         'decisiones_previas': asistente.decisiones_previas(request.empresa, borrador.pk),
         'aclaraciones': asistente.aclaraciones(borrador, tipo),
-        'respuestas': [{'pregunta': h['pregunta'], 'respuesta': h['respuesta']} for h in historial],
         'historial': historial, 'ultima_ronda': usadas >= asistente.MAX_REPETICIONES,
     }
     try:
@@ -450,7 +452,8 @@ def _proponer_modificacion(request, borrador, instruccion):
                'proyecto': ia.contexto_proyecto(borrador.proyecto),
                'apu': {t: ({**getattr(borrador, t)} if getattr(borrador, t) else {'filas': []}) for t in ia.TIPOS_INSUMO},
                'catalogo': {t: asistente.catalogo_para_ia(request.empresa, t) for t in ia.TIPOS_INSUMO},
-               'catalogo_items': asistente.catalogo_items_para_ia(request.empresa, borrador.apu_guardado_id)}
+               'catalogo_items': asistente.catalogo_items_para_ia(request.empresa, borrador.apu_guardado_id,
+                                                                  f'{borrador.actividad} {instruccion}')}
     try:
         crudo = ia.llamar('modificar', payload, empresa=request.empresa, usuario=request.user, borrador=borrador,
                           paso='modificar')

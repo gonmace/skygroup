@@ -2009,6 +2009,63 @@ class TokensTests(Base):
         TarifaModeloIA.objects.create(modelo='gpt-4.1-mini', entrada_usd_mtok=D('0.4'), salida_usd_mtok=D('1.6'))
         self.assertEqual(ia.costo_de_uso(uso), D('0.007740'))
 
+    def test_el_catalogo_de_apu_se_recorta_a_los_mas_parecidos(self):
+        for i in range(asistente.LIMITE_CATALOGO_ITEMS + 10):
+            ItemModelo.objects.create(empresa=self.a, codigo=f'X{i:03d}', descripcion=f'Otro trabajo {i}', unidad='m2')
+        ItemModelo.objects.create(empresa=self.a, codigo='Z999', descripcion='Mortero cementicio especial', unidad='m3')
+        filas = asistente.catalogo_items_para_ia(self.a, texto='Muro con mortero cementicio')
+        self.assertEqual(len(filas), asistente.LIMITE_CATALOGO_ITEMS)
+        self.assertEqual(filas[0]['codigo'], 'Z999')                                  # el más parecido va primero
+
+    def _llamada_en(self, fecha):
+        ll = LlamadaIA.objects.create(empresa=self.a, webhook='apu-insumos', uso={'gpt-5.1': {'entrada': 10, 'salida': 5}})
+        LlamadaIA.objects.filter(pk=ll.pk).update(fecha=fecha)
+        return ll
+
+    def test_el_consumo_se_filtra_por_dia(self):
+        hoy = timezone.localtime().replace(hour=12)
+        self._llamada_en(hoy)
+        self._llamada_en(hoy - timedelta(days=1))
+        self._llamada_en(hoy - timedelta(days=1))
+        self.client.force_login(self.su)
+        self.assertEqual(self.client.get('/tekon/apu/consumo-ia/').context['total']['llamadas'], 3)
+        self.assertEqual(self.client.get('/tekon/apu/consumo-ia/?dia=%s' % hoy.date().isoformat()).context['total']['llamadas'], 1)
+        self.assertEqual(self.client.get('/tekon/apu/consumo-ia/?dia=basura').context['total']['llamadas'], 3)
+
+    def test_reiniciar_borra_solo_el_dia_elegido_o_todo_y_solo_el_superusuario(self):
+        hoy = timezone.localtime().replace(hour=12)
+        self._llamada_en(hoy)
+        self._llamada_en(hoy - timedelta(days=1))
+        url = '/tekon/apu/consumo-ia/reiniciar/'
+        self.client.force_login(self.adm)
+        self.assertEqual(self.client.post(url).status_code, 403)
+        self.assertEqual(LlamadaIA.objects.count(), 2)
+        self.client.force_login(self.su)
+        self.assertEqual(self.client.get(url).status_code, 405)                     # solo POST
+        r = self.client.post(url, {'dia': hoy.date().isoformat()})
+        self.assertRedirects(r, '/tekon/apu/consumo-ia/?dia=%s' % hoy.date().isoformat())
+        self.assertEqual(LlamadaIA.objects.count(), 1)                                # queda la de ayer
+        self.client.post(url, {'dia': ''})
+        self.assertEqual(LlamadaIA.objects.count(), 0)
+
+    @override_settings(N8N_API_URL='http://n8n:5678', N8N_API_KEY='k')
+    def test_la_busqueda_web_suma_su_costo_al_sincronizar(self):
+        TarifaModeloIA.objects.create(modelo='gpt-5.1', entrada_usd_mtok=D('1.25'), salida_usd_mtok=D('10'))
+        TarifaModeloIA.objects.create(modelo='gpt-4.1-mini', entrada_usd_mtok=D('0.4'), salida_usd_mtok=D('1.6'))
+        resp = mock.Mock(**{'json.return_value': self.EJECUCION, 'raise_for_status.return_value': None})
+        sin = LlamadaIA.objects.create(empresa=self.a, webhook='apu-insumos', ejecucion_id='1')
+        con = LlamadaIA.objects.create(empresa=self.a, webhook='apu-precios', ejecucion_id='2')
+        with mock.patch('apu_generador.ia.requests.get', return_value=resp):
+            ia.sincronizar_uso([sin, con])
+        sin.refresh_from_db(); con.refresh_from_db()
+        self.assertEqual(sin.costo_usd, D('0.007740'))
+        self.assertEqual(con.costo_usd, D('0.017740'))      # + $0.01 de la búsqueda web
+
+    def test_el_resumen_marca_lo_estimado(self):
+        ll = LlamadaIA.objects.create(empresa=self.a, webhook='apu-insumos', uso={'gpt-5.1': {'entrada': 1000, 'salida': 0, 'estimado': True}},
+                                      costo_usd=D('0.00125'))
+        self.assertTrue(ia.resumen_uso([ll])['estimado'])
+
     @override_settings(N8N_API_URL='http://n8n:5678', N8N_API_KEY='k')
     def test_sincronizar_deja_pendiente_si_falla_la_api_de_n8n(self):
         ll = LlamadaIA.objects.create(empresa=self.a, webhook='apu-insumos', ejecucion_id='77')

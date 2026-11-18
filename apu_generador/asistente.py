@@ -23,7 +23,9 @@ TIPO_DE_SLUG = {v: k for k, v in SLUG_URL.items()}
 TIPO_INSUMO = {'materiales': Tipo.MATERIAL, 'mano_obra': Tipo.MANO_OBRA, 'equipos': Tipo.EQUIPO}
 MAX_REPETICIONES = 3        # «proponer de nuevo» / respuestas a dudas, además de la primera propuesta de cada paso
 MIN_PALABRAS_DESCRIPCION = 15
-LIMITE_CATALOGO_MATERIALES = 300
+LIMITE_CATALOGO_MATERIALES = 120   # filas de catálogo que se mandan a la IA (las más parecidas a la actividad)
+LIMITE_CATALOGO_ITEMS = 40          # APU del catálogo (sub-análisis) que se mandan a la IA
+LIMITE_DECISIONES_PREVIAS = 5
 
 
 class ErrorPaso(Exception):
@@ -70,14 +72,21 @@ def catalogo_para_ia(empresa, tipo, texto=''):
     return filas
 
 
-def catalogo_items_para_ia(empresa, excluir_pk=None):
+def catalogo_items_para_ia(empresa, excluir_pk=None, texto=''):
+    """APU de la empresa (posibles sub-análisis). Se mandan los `LIMITE_CATALOGO_ITEMS` más parecidos al `texto`
+    (palabras en común); sin texto, los primeros por código."""
     qs = ItemModelo.objects.filter(empresa=empresa, activo=True).order_by('codigo')
     if excluir_pk:
         qs = qs.exclude(pk=excluir_pk)
-    return [{'codigo': i.codigo, 'descripcion': i.descripcion, 'unidad': i.unidad} for i in qs[:300]]
+    filas = [{'codigo': i.codigo, 'descripcion': i.descripcion, 'unidad': i.unidad} for i in qs[:300]]
+    if len(filas) > LIMITE_CATALOGO_ITEMS:
+        palabras = {w for w in clave_texto(texto).split() if len(w) > 3}
+        filas.sort(key=lambda f: -len(palabras & set(clave_texto(f['descripcion']).split())))
+        filas = filas[:LIMITE_CATALOGO_ITEMS]
+    return filas
 
 
-def decisiones_previas(empresa, excluir_pk=None, limite=15):
+def decisiones_previas(empresa, excluir_pk=None, limite=LIMITE_DECISIONES_PREVIAS):
     """Lo que la empresa ya decidió en consultas de otros APU, para que la IA recomiende lo mismo."""
     salida = []
     for b in APUBorrador.objects.filter(empresa=empresa, eliminado=False).exclude(pk=excluir_pk).order_by('-actualizado')[:40]:

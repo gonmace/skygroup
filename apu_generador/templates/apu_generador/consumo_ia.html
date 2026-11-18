@@ -6,7 +6,7 @@
 <div class="flex flex-wrap items-start justify-between gap-4">
   <div>
     <h1 class="text-2xl font-semibold">Consumo de IA</h1>
-    <p class="mt-1 max-w-3xl text-sm text-base-content/60">Tokens y costo de cada llamada a la API de OpenAI que hacen los workflows de APU (últimas 1000 llamadas).{% if not medicion_activa %} <strong>La medición está desactivada</strong>: carga la URL y la API key de n8n en empresa → Credenciales para leer los tokens.{% endif %}</p>
+    <p class="mt-1 max-w-3xl text-sm text-base-content/60">Tokens y costo de cada llamada a la API de OpenAI que hacen los workflows de APU {% if dia %}del <strong>{{ dia|date:'d/m/Y' }}</strong>{% else %}(últimas 1000 llamadas){% endif %}.{% if not medicion_activa %} <strong>La medición está desactivada</strong>: carga la URL y la API key de n8n en empresa → Credenciales para leer los tokens.{% endif %}</p>
   </div>
   <button class="btn btn-ghost btn-sm gap-1" data-verificar-tarifas data-url="{% url 'apu_generador:tarifas_verificar' %}">{% include "components/icon.html" with name="search" cls="size-4" %} Verificar tarifas</button>
 </div>
@@ -15,8 +15,22 @@
   <div class="card bg-base-100"><div class="card-body p-4"><p class="text-3xl font-semibold leading-none tabular-nums">{{ total.llamadas }}</p><p class="mt-1 text-xs text-base-content/60">Llamadas</p></div></div>
   <div class="card bg-base-100"><div class="card-body p-4"><p class="text-3xl font-semibold leading-none tabular-nums">{{ total.entrada }}</p><p class="mt-1 text-xs text-base-content/60">Tokens de entrada</p></div></div>
   <div class="card bg-base-100"><div class="card-body p-4"><p class="text-3xl font-semibold leading-none tabular-nums">{{ total.salida }}</p><p class="mt-1 text-xs text-base-content/60">Tokens de salida</p></div></div>
-  <div class="card bg-base-100"><div class="card-body p-4"><p class="text-3xl font-semibold leading-none tabular-nums">{% if total.costo is None %}—{% else %}${{ total.costo|floatformat:4 }}{% endif %}</p><p class="mt-1 text-xs text-base-content/60">Costo estimado (USD){% if total.pendientes %} · {{ total.pendientes }} sin medir{% endif %}</p></div></div>
+  <div class="card bg-base-100"><div class="card-body p-4"><p class="text-3xl font-semibold leading-none tabular-nums">{% if total.costo is None %}—{% else %}${{ total.costo|floatformat:4 }}{% endif %}</p><p class="mt-1 text-xs text-base-content/60">{% if total.estimado %}<span title="Parte del uso es estimado: OpenAI no reportó la salida (razonamiento) a n8n, así que el costo real puede ser mayor">Costo mínimo estimado (USD)</span>{% else %}Costo estimado (USD){% endif %}{% if total.pendientes %} · {{ total.pendientes }} sin medir{% endif %}</p></div></div>
 </div>
+
+<div class="flex flex-wrap items-center gap-2">
+  <form method="get" class="flex items-center gap-2">
+    <label class="text-sm text-base-content/70" for="consumo-dia">Día</label>
+    <input id="consumo-dia" type="date" name="dia" value="{{ dia|date:'Y-m-d' }}" max="{{ hoy|date:'Y-m-d' }}" class="input input-bordered input-sm" onchange="this.form.submit()">
+  </form>
+  <a href="?dia={{ hoy|date:'Y-m-d' }}" class="btn btn-sm {% if dia == hoy %}btn-primary{% else %}btn-ghost{% endif %}">Hoy</a>
+  <a href="{% url 'apu_generador:consumo_ia' %}" class="btn btn-sm {% if not dia %}btn-primary{% else %}btn-ghost{% endif %}">Todo</a>
+  <form method="post" action="{% url 'apu_generador:consumo_ia_reiniciar' %}" class="ml-auto" data-confirmar="{% if dia %}¿Reiniciar el consumo del {{ dia|date:'d/m/Y' }}? Se borra el registro de tokens y costo de ese día.{% else %}¿Reiniciar TODO el consumo? Se borra el registro de tokens y costo de todos los días.{% endif %} Los créditos y límites de uso no cambian.">{% csrf_token %}
+    <input type="hidden" name="dia" value="{{ dia|date:'Y-m-d' }}">
+    <button class="btn btn-sm btn-error gap-1" title="Reiniciar el consumo {% if dia %}de este día{% else %}de todos los días{% endif %}">{% include "components/icon.html" with name="trash" cls="size-4" %} Reiniciar {% if dia %}este día{% else %}todo{% endif %}</button>
+  </form>
+</div>
+
 
 {% if total.pendientes and total.motivo %}<div role="alert" class="alert alert-warning alert-soft items-start text-sm">{% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}<span><strong>{{ total.pendientes }} llamada{{ total.pendientes|pluralize }} sin medir.</strong> {{ total.motivo }}</span></div>{% endif %}
 

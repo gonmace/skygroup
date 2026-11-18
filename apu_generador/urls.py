@@ -25,6 +25,7 @@ urlpatterns = [
     path('apu/usuarios/empresa/', views_admin.limite_empresa, name='limite_empresa'),
     path('apu/usuarios/<int:pk>/limite/', views_admin.limite_persona, name='limite_persona'),
     path('apu/consumo-ia/', views_admin.consumo_ia, name='consumo_ia'),
+    path('apu/consumo-ia/reiniciar/', views_admin.consumo_ia_reiniciar, name='consumo_ia_reiniciar'),
     path('apu/consumo-ia/tarifas/verificar/', views_admin.tarifas_verificar, name='tarifas_verificar'),
     path('apu/consumo-ia/tarifas/aplicar/', views_admin.tarifas_aplicar, name='tarifas_aplicar'),
     path('apu/consumo-ia/tarifas/<int:pk>/', views_admin.tarifa_editar, name='tarifa_editar'),

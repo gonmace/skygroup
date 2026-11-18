@@ -1,12 +1,15 @@
 """Pantallas de administración de APU: límites por empresa y persona (superusuario y administradores) y consumo de la
 IA con sus tarifas (solo superusuario)."""
 import json
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -103,11 +106,30 @@ def limite_persona(request, pk):
 
 # ── Consumo de IA y tarifas ───────────────────────────────────────────────────
 
+def _dia(texto):
+    """Día elegido en `?dia=AAAA-MM-DD` (o None si no hay o es inválido)."""
+    try:
+        return date.fromisoformat((texto or '').strip())
+    except ValueError:
+        return None
+
+
+def _llamadas_del_dia(dia):
+    """Llamadas de ese día en la hora local del servidor; todas si no se eligió día."""
+    qs = LlamadaIA.objects.all()
+    if dia:
+        zona = timezone.get_current_timezone()
+        inicio = timezone.make_aware(datetime.combine(dia, time.min), zona)
+        qs = qs.filter(fecha__gte=inicio, fecha__lt=inicio + timedelta(days=1))
+    return qs
+
+
 @acceso_apu('apu.ver')
 def consumo_ia(request):
     _solo_super(request)
-    ia.sincronizar_uso(list(LlamadaIA.objects.filter(uso__isnull=True).exclude(ejecucion_id='')[:50]))
-    llamadas = LlamadaIA.objects.select_related('empresa', 'usuario').order_by('-fecha')[:1000]
+    dia = _dia(request.GET.get('dia'))
+    ia.sincronizar_uso(list(_llamadas_del_dia(dia).filter(uso__isnull=True).exclude(ejecucion_id='')[:50]))
+    llamadas = _llamadas_del_dia(dia).select_related('empresa', 'usuario').order_by('-fecha')[:1000]
     por_empresa, por_persona, por_mes = {}, {}, {}
     for ll in llamadas:
         for clave, destino in ((ll.empresa.nombre, por_empresa), (str(ll.usuario or '—'), por_persona),
@@ -128,7 +150,21 @@ def consumo_ia(request):
         'total': total, 'por_empresa': sorted(por_empresa.values(), key=lambda f: -f['costo']),
         'por_persona': sorted(por_persona.values(), key=lambda f: -f['costo']),
         'por_mes': sorted(por_mes.values(), key=lambda f: f['nombre'], reverse=True),
+        'dia': dia, 'hoy': timezone.localdate(),
         'tarifas': TarifaModeloIA.objects.all(), 'medicion_activa': bool(CredencialesEmpresa.n8n_api(request.empresa)[1])})
+
+
+@acceso_apu('apu.ver')
+@require_POST
+def consumo_ia_reiniciar(request):
+    """Reinicia el consumo medido: borra las llamadas registradas del día elegido (o todas si no hay día). Solo borra el
+    registro de tokens y costo; no toca los créditos ni los límites de uso de las personas."""
+    _solo_super(request)
+    dia = _dia(request.POST.get('dia'))
+    borradas = _llamadas_del_dia(dia).delete()[0]
+    donde = f'del {dia:%d/%m/%Y}' if dia else 'de todos los días'
+    messages.success(request, f'Se reinició el consumo {donde}: {borradas} llamada(s) borrada(s).')
+    return redirect(reverse('apu_generador:consumo_ia') + (f'?dia={dia.isoformat()}' if dia else ''))
 
 
 @acceso_apu('apu.ver')

@@ -220,6 +220,10 @@ def uso_de_ejecucion(ejecucion):
     return uso
 
 
+COSTO_BUSQUEDA_WEB = Decimal('0.01')        # USD por llamada a la herramienta de búsqueda web de OpenAI ($10 / 1000 llamadas)
+WEBHOOKS_CON_BUSQUEDA = {'apu-precios'}      # los workflows cuyo modelo busca en la web (sus tokens van aparte, a tarifa del modelo)
+
+
 def costo_de_uso(uso):
     """Costo en USD con las tarifas guardadas; None si algún modelo no tiene tarifa."""
     tarifas = {t.modelo: t for t in TarifaModeloIA.objects.filter(modelo__in=list(uso))}
@@ -296,7 +300,10 @@ def sincronizar_uso(llamadas):
             logger.warning('No se pudo leer la ejecución %s de n8n: %s', ll.ejecucion_id, e)
             motivos.setdefault(ll.empresa_id, f'{nombre}: n8n respondió con un error al leer la ejecución {ll.ejecucion_id}.')
             continue
-        ll.uso, ll.costo_usd = uso, costo_de_uso(uso)
+        costo = costo_de_uso(uso)
+        if costo is not None and ll.webhook in WEBHOOKS_CON_BUSQUEDA:
+            costo += COSTO_BUSQUEDA_WEB      # al menos una búsqueda por llamada
+        ll.uso, ll.costo_usd = uso, costo
         ll.save(update_fields=['uso', 'costo_usd'])
         hechas += 1
     lista = list(motivos.values())
@@ -328,6 +335,6 @@ def resumen_uso(llamadas):
             if v.get('estimado'):
                 fila['estimado'] = True
     filas = sorted(por_modelo.values(), key=lambda f: f['modelo'])
-    return {'modelos': filas, 'entrada': sum(f['entrada'] for f in filas), 'salida': sum(f['salida'] for f in filas),
+    return {'modelos': filas, 'estimado': any(f.get('estimado') for f in filas), 'entrada': sum(f['entrada'] for f in filas), 'salida': sum(f['salida'] for f in filas),
             'costo': costo_total if completo else None, 'pendientes': pendientes, 'duracion_ms': duracion,
             'llamadas': len(llamadas), 'motivo': ESTADO_MEDICION['motivo'] if pendientes else ''}

@@ -32,11 +32,17 @@ class Insumo(models.Model):
     def __str__(self):
         return f'{self.codigo} · {self.descripcion}'
 
-    def precio_vigente(self, region='', fecha=None):
-        """Último precio con fecha ≤ `fecha` en la región; si no hay, el nacional (región vacía). None si no hay."""
+    def precio_vigente(self, region='', fecha=None, proyecto=None):
+        """Último precio con fecha ≤ `fecha`. Con `proyecto`, manda el precio propio de ese proyecto; si no hay, el de la
+        región; si no, el nacional (región vacía). Los precios de otros proyectos nunca cuentan. None si no hay."""
         qs = self.precios.all()
         if fecha:
             qs = qs.filter(fecha__lte=fecha)
+        if proyecto is not None:
+            del_proyecto = qs.filter(proyecto=proyecto).order_by('-fecha').first()
+            if del_proyecto:
+                return del_proyecto
+        qs = qs.filter(proyecto__isnull=True)
         if region:
             propio = qs.filter(region__iexact=region).order_by('-fecha').first()
             if propio:
@@ -54,13 +60,17 @@ class PrecioInsumo(models.Model):
     estimado = models.BooleanField('Estimado por IA', default=False,
                                    help_text='Recomendación de la IA aceptada tal cual; conviene confirmarla con un precio real.')
     fuente = models.CharField('Fuente', max_length=200, blank=True)
+    proyecto = models.ForeignKey('proyectos.Proyecto', null=True, blank=True, on_delete=models.CASCADE, related_name='apu_precios',
+                                 help_text='Si se indica, el precio vale solo para ese proyecto; vacío = catálogo de la empresa.')
 
     class Meta:
         ordering = ['insumo', 'region', '-fecha']
         verbose_name = 'Precio de insumo'
         verbose_name_plural = 'Precios de insumos'
         constraints = [
-            models.UniqueConstraint(fields=['insumo', 'region', 'fecha'], name='apu_precio_unico'),
+            models.UniqueConstraint(fields=['insumo', 'region', 'fecha'], condition=Q(proyecto__isnull=True), name='apu_precio_unico'),
+            models.UniqueConstraint(fields=['insumo', 'proyecto', 'fecha'], condition=Q(proyecto__isnull=False),
+                                    name='apu_precio_proyecto_unico'),
             models.CheckConstraint(condition=Q(precio__gte=0), name='apu_precio_no_negativo'),
         ]
 
@@ -104,6 +114,9 @@ class ItemModelo(models.Model):
                                help_text='APU del que se copió al reutilizarlo en otro proyecto.')
     creado_por = models.ForeignKey('cuentas.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     creado = models.DateTimeField(auto_now_add=True, null=True)
+    plantilla = models.ForeignKey('PlantillaAPU', null=True, blank=True, on_delete=models.SET_NULL, related_name='items',
+                                  help_text='Tipo de trabajo con el que se generó el APU.')
+    resumen_alcance = models.TextField('Alcance', blank=True, help_text='Alcance confirmado al generarlo: lo leen la IA al modificarlo y quien lo reutiliza.')
 
     class Meta:
         ordering = ['codigo']
@@ -300,3 +313,117 @@ class ProyectoAPU(models.Model):
             self.perfil_efectivo()
         except PerfilInvalido as e:
             raise ValidationError({'ajustes': str(e)})
+
+
+class PlantillaAPU(models.Model):
+    """Tipo de trabajo con el que se genera un APU («Obras civiles», «Montaje mecánico y tuberías», «Mantenimiento»…).
+    Es de la plataforma (la edita el superusuario) y la usan todas las empresas. Cada plantilla tiene sus propios prompts
+    de IA (`PromptAPU`), porque lo que se mide y cómo se estima cambia según el tipo de trabajo."""
+    nombre = models.CharField('Nombre', max_length=80, unique=True)
+    descripcion = models.TextField('Descripción', blank=True,
+                                   help_text='Qué trabajos cubre; se muestra al elegirla en un APU nuevo.')
+    unidades_sugeridas = models.CharField('Unidades habituales', max_length=200, blank=True)
+    orden = models.PositiveIntegerField('Orden', default=0)
+    activo = models.BooleanField('Activa', default=True)
+
+    class Meta:
+        ordering = ['orden', 'nombre']
+        verbose_name = 'Plantilla de APU'
+        verbose_name_plural = 'Plantillas de APU'
+
+    def __str__(self):
+        return self.nombre
+
+    def prompt(self, paso):
+        """El prompt vigente de ese paso, o None si la plantilla aún no lo tiene."""
+        return self.prompts.filter(paso=paso, vigente=True).first()
+
+    def pasos_faltantes(self):
+        return [etiqueta for clave, etiqueta in PromptAPU.Paso.choices
+                if not self.prompts.filter(paso=clave, vigente=True).exists()]
+
+    def duplicar(self, nombre, usuario=None):
+        """Copia la plantilla con sus prompts vigentes (versión 1) para afinarla aparte."""
+        copia = PlantillaAPU.objects.create(nombre=nombre, descripcion=self.descripcion,
+                                            unidades_sugeridas=self.unidades_sugeridas,
+                                            orden=(PlantillaAPU.objects.aggregate(m=models.Max('orden'))['m'] or 0) + 1)
+        for p in self.prompts.filter(vigente=True):
+            PromptAPU.objects.create(plantilla=copia, paso=p.paso, rol=p.rol, criterios=p.criterios, reglas=p.reglas,
+                                     notas=p.notas, modelo=p.modelo, razonamiento=p.razonamiento, version=1, vigente=True,
+                                     editado_por=usuario, comentario=f'Copia de «{self.nombre}»')
+        return copia
+
+
+class PromptAPU(models.Model):
+    """Un prompt de IA de una plantilla, para un paso del generador, y el modelo con que se ejecuta. Cada guardado crea una
+    versión nueva (la anterior queda en el historial) y solo una por plantilla y paso está `vigente`.
+    El texto se arma con casillas: rol, criterios del tipo de trabajo, reglas de respuesta y notas. El formato de la
+    respuesta (JSON) lo fija el nodo «Esquema · …» de n8n, así que editar aquí no rompe la lectura."""
+
+    class Paso(models.TextChoices):
+        COHERENCIA = 'coherencia', 'Coherencia de la actividad'
+        CLASIFICACION = 'clasificacion', 'Clasificación'
+        MATERIALES = 'materiales', 'Materiales'
+        MANO_OBRA = 'mano_obra', 'Mano de obra'
+        EQUIPOS = 'equipos', 'Equipos'
+        VERIFICAR = 'verificar', 'Verificar esenciales'
+        MODIFICAR = 'modificar', 'Modificar con IA'
+        VERIFICAR_TITULO = 'verificar_titulo', 'Verificar título'
+        PRECIOS = 'precios', 'Precios estimados'
+
+    class Razonamiento(models.TextChoices):
+        NINGUNO = '', 'Sin razonamiento'
+        BAJO = 'low', 'Bajo'
+        MEDIO = 'medium', 'Medio'
+        ALTO = 'high', 'Alto'
+
+    plantilla = models.ForeignKey(PlantillaAPU, on_delete=models.CASCADE, related_name='prompts')
+    paso = models.CharField('Paso', max_length=20, choices=Paso.choices)
+    rol = models.TextField('Rol y tarea', blank=True, help_text='Quién es la IA y qué debe proponer en este paso.')
+    criterios = models.TextField('Criterios del tipo de trabajo', blank=True,
+                                 help_text='Cómo se mide, qué insumos son esenciales, rendimientos, desperdicios, cuándo preguntar.')
+    reglas = models.TextField('Reglas de respuesta', blank=True,
+                              help_text='Cómo preguntar, recomendar y responder. Cámbialas con cuidado: comunes a todos los tipos.')
+    notas = models.TextField('Notas adicionales', blank=True)
+    modelo = models.CharField('Modelo', max_length=80, blank=True, help_text='Modelo de OpenAI (de las tarifas).')
+    razonamiento = models.CharField('Razonamiento', max_length=10, blank=True, choices=Razonamiento.choices)
+    version = models.PositiveIntegerField(default=1)
+    vigente = models.BooleanField(default=True)
+    editado_por = models.ForeignKey('cuentas.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    editado_en = models.DateTimeField(auto_now_add=True)
+    comentario = models.CharField('Qué cambió', max_length=200, blank=True)
+
+    class Meta:
+        ordering = ['plantilla', 'paso', '-version']
+        verbose_name = 'Prompt de APU'
+        verbose_name_plural = 'Prompts de APU'
+        constraints = [
+            models.UniqueConstraint(fields=['plantilla', 'paso', 'version'], name='apu_prompt_version_unica'),
+            models.UniqueConstraint(fields=['plantilla', 'paso'], condition=Q(vigente=True), name='apu_prompt_un_vigente'),
+        ]
+
+    def __str__(self):
+        return f'{self.plantilla} · {self.get_paso_display()} v{self.version}'
+
+    CASILLAS = ('rol', 'criterios', 'reglas', 'notas')
+
+    @property
+    def texto(self):
+        """El prompt completo que se envía a n8n: las casillas con contenido, en orden."""
+        return '\n\n'.join(t.strip() for t in (getattr(self, c) for c in self.CASILLAS) if t and t.strip())
+
+    @property
+    def etiqueta(self):
+        """Para el registro de llamadas: qué versión y modelo respondieron."""
+        return f'{self.plantilla.nombre} · {self.get_paso_display()} v{self.version} · {self.modelo or "—"}'[:120]
+
+    def nueva_version(self, usuario=None, comentario='', **cambios):
+        """Guarda una versión nueva con los cambios y la deja vigente; la anterior queda en el historial."""
+        from django.db import transaction
+        with transaction.atomic():
+            ultima = PromptAPU.objects.filter(plantilla=self.plantilla, paso=self.paso).aggregate(m=models.Max('version'))['m']
+            PromptAPU.objects.filter(plantilla=self.plantilla, paso=self.paso, vigente=True).update(vigente=False)
+            datos = {c: getattr(self, c) for c in (*self.CASILLAS, 'modelo', 'razonamiento')}
+            datos.update(cambios)
+            return PromptAPU.objects.create(plantilla=self.plantilla, paso=self.paso, version=(ultima or 0) + 1,
+                                            vigente=True, editado_por=usuario, comentario=comentario[:200], **datos)

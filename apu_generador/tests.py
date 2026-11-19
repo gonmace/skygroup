@@ -8,14 +8,14 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from apu_catalogo import calculo
-from apu_catalogo.models import Insumo, ItemModelo, LineaComposicion, PerfilCalculo, PrecioInsumo, ProyectoAPU, Tipo
+from apu_catalogo.models import Insumo, ItemModelo, LineaComposicion, PerfilCalculo, PlantillaAPU, PrecioInsumo, PromptAPU, ProyectoAPU, Tipo
 from core.n8n import N8NError
 from cuentas.models import User
 from cuentas.roles import RolBase
 from cuentas.services import agregar_miembro, crear_empresa, rol_por_base
 from proyectos.models import Proyecto
 
-from . import asistente, creditos, ia
+from . import asistente, creditos, ia, views
 from .models import (APUBorrador, ConsumoAPU, LimiteAPU, LimiteEmpresaAPU, LlamadaIA, TarifaModeloIA)
 
 AJUSTES = dict(
@@ -31,7 +31,8 @@ DESCRIPCION = ('Construcción de una escuela de dos plantas en la ciudad de Tari
 LLAMAR = 'apu_generador.ia.n8n.llamar_webhook_seguro'
 MAX_SUGERENCIAS_PRUEBA = 3          # = apu_generador.views.MAX_SUGERENCIAS
 COHERENTE = {'coherente': True, 'sistema_constructivo': 'Mampostería', 'tipo_elemento': 'Muro',
-             'material_principal': 'Ladrillo', 'proceso_principal': 'Asentado', 'categoria': 'Obra gruesa'}
+             'material_principal': 'Ladrillo', 'proceso_principal': 'Asentado', 'categoria': 'Obra gruesa',
+             'resumen_alcance': 'Muro de ladrillo de 12 cm con mortero, suministro y ejecución, en obra de edificación.'}
 
 
 def propuesta_materiales():
@@ -65,6 +66,7 @@ class Base(TestCase):
         cls.proyecto_b = Proyecto.objects.create(empresa=cls.b, nombre='Otro', descripcion=DESCRIPCION)
         cls.perfil = PerfilCalculo.objects.get(empresa=None, nombre='Bolivia - estándar')
         cls.pa = ProyectoAPU.objects.create(proyecto=cls.proyecto, perfil=cls.perfil)
+        cls.plantilla = PlantillaAPU.objects.get(nombre='Obras civiles')   # la crea la migración de datos
 
     def setUp(self):
         cache.clear()
@@ -76,7 +78,7 @@ class Base(TestCase):
 
     def borrador(self, paso=1, **kw):
         base = dict(empresa=self.a, proyecto=self.proyecto, creado_por=self.coord, actividad='Muro de ladrillo',
-                    unidad='m2', descripcion='e=12 cm', paso=paso)
+                    unidad='m2', descripcion='e=12 cm', paso=paso, plantilla=self.plantilla)
         base.update(kw)
         return APUBorrador.objects.create(**base)
 
@@ -105,7 +107,7 @@ class Paso1Tests(Base):
     URL = '/tekon/apu/generar/'
 
     def datos(self, **kw):
-        d = {'proyecto': self.proyecto.pk, 'actividad': 'Muro de ladrillo 6H', 'unidad': 'm2', 'descripcion': 'e=12 cm', 'region': ''}
+        d = {'proyecto': self.proyecto.pk, 'plantilla': self.plantilla.pk, 'actividad': 'Muro de ladrillo 6H', 'unidad': 'm2', 'descripcion': 'Muro de ladrillo de 12 cm de espesor con mortero, unos 40 m2 en total', 'region': ''}
         d.update(kw)
         return d
 
@@ -120,17 +122,58 @@ class Paso1Tests(Base):
         self.assertEqual(enviado['proyecto']['descripcion'], DESCRIPCION)
         self.assertNotIn('pais', json.dumps(enviado).lower())          # ningún payload lleva país
 
+    def test_los_detalles_son_obligatorios_y_no_cobran_si_faltan(self):
+        with mock.patch(LLAMAR, return_value=COHERENTE) as ll:
+            for descripcion in ('', 'e=12 cm', 'Unas 14 hectáreas llanas'):                 # 0, 3 y 4 palabras: no alcanzan
+                r = self.json(self.URL, self.datos(descripcion=descripcion), self.coord)
+                self.assertEqual(r.status_code, 400)
+                self.assertIn('detalles de la actividad', r.json()['message'])
+        ll.assert_not_called()
+        self.assertFalse(APUBorrador.objects.exists())
+
+    def test_cinco_palabras_bastan_como_detalles(self):
+        with mock.patch(LLAMAR, return_value=COHERENTE):
+            r = self.json(self.URL, self.datos(descripcion='Unas 14 hectáreas de terreno llano'), self.coord)
+        self.assertEqual((r.status_code, r.json()['estado']), (200, 'ok'))
+
+    def test_el_item_se_ajusta_a_una_unidad_y_el_alcance_pasa_a_los_detalles(self):
+        respuesta = {**COHERENTE, 'actividad_ajustada': 'Levantamiento topográfico', 'alcance': '14 Ha'}
+        datos = self.datos(actividad='Levantamiento topográfico de 14 Ha', unidad='ha', descripcion='Se levantarán unas 14 hectáreas de terreno llano con estación total')
+        with mock.patch(LLAMAR, return_value=respuesta):
+            r = self.json(self.URL, datos, self.coord).json()
+        b = APUBorrador.objects.get()
+        self.assertEqual(r['estado'], 'ok')
+        self.assertEqual(b.actividad, 'Levantamiento topográfico')
+        self.assertIn('Alcance total: 14 Ha (el APU es por 1 ', b.descripcion)
+        self.assertIn('estación total', b.descripcion)                              # lo escrito por la persona se conserva
+        self.assertEqual(len(r['avisos']), 2)
+        self.assertEqual(asistente.aplicar_ajuste_paso1(b, respuesta), [])         # comprobar de nuevo no repite ni duplica
+        self.assertEqual(b.descripcion.count('Alcance total'), 1)
+
     def test_no_coherente_no_avanza_y_muestra_la_razon(self):
         with mock.patch(LLAMAR, return_value={'coherente': False, 'razon': 'Un muro no se mide en kg'}):
             r = self.json(self.URL, self.datos(), self.coord).json()
         self.assertEqual((r['estado'], r['razon']), ('no_coherente', 'Un muro no se mide en kg'))
         self.assertEqual(APUBorrador.objects.get().paso, 1)
 
-    def test_proyecto_poco_claro_pide_completar_la_descripcion(self):
-        with mock.patch(LLAMAR, return_value={'proyecto_claro': False, 'falta': 'No dice qué se construye'}):
-            r = self.json(self.URL, self.datos(), self.coord).json()
-        self.assertEqual((r['estado'], r['falta']), ('proyecto_poco_claro', 'No dice qué se construye'))
-        self.assertEqual(APUBorrador.objects.get().paso, 1)
+    def test_el_proyecto_y_su_descripcion_no_se_cuestionan(self):
+        """La descripción se valida una sola vez, al habilitar el proyecto: el paso 1 no la pide ni la revisa con la IA."""
+        corto = Proyecto.objects.create(empresa=self.a, nombre='Corto', descripcion='Una obra')
+        ProyectoAPU.objects.create(proyecto=corto, perfil=self.perfil)
+        with mock.patch(LLAMAR, return_value={**COHERENTE, 'proyecto_claro': False, 'falta': 'No dice qué se construye'}) as ll:
+            r = self.json(self.URL, self.datos(proyecto=corto.pk, proyecto_descripcion='Lo que sea que llegue del formulario'), self.coord)
+        self.assertEqual((r.status_code, r.json()['estado']), (200, 'ok'))
+        self.assertEqual(set(ll.call_args[0][1]['ia']), {'coherencia', 'clasificacion'})      # ya no se manda el prompt «proyecto claro»
+        self.assertEqual(ll.call_args[0][1]['proyecto']['descripcion'], 'Una obra')           # la IA recibe la descripción tal cual
+        corto.refresh_from_db()
+        self.assertEqual(corto.descripcion, 'Una obra')                                       # y el formulario no la modifica
+        self.assertEqual(APUBorrador.objects.get().paso, 2)
+
+    def test_la_pagina_del_paso_1_no_pide_la_descripcion_del_proyecto(self):
+        self.client.force_login(self.coord)
+        html = self.client.get(self.URL).content.decode()
+        self.assertNotIn('proyecto_descripcion', html)
+        self.assertNotIn('data-bloque-descripcion', html)
 
     def test_si_n8n_falla_el_borrador_queda_pendiente_en_el_paso_1(self):
         with mock.patch(LLAMAR, side_effect=N8NError('El servicio de IA tardó demasiado en responder.')):
@@ -147,18 +190,6 @@ class Paso1Tests(Base):
     def test_respuesta_invalida_de_n8n(self):
         with mock.patch(LLAMAR, return_value={'algo': 1}):
             self.assertEqual(self.json(self.URL, self.datos(), self.coord).status_code, 502)
-
-    def test_proyecto_sin_descripcion_la_exige_y_la_guarda_en_el_proyecto(self):
-        p = Proyecto.objects.create(empresa=self.a, nombre='Sin texto')
-        ProyectoAPU.objects.create(proyecto=p, perfil=self.perfil)
-        r = self.json(self.URL, self.datos(proyecto=p.pk), self.coord)
-        self.assertEqual(r.status_code, 400)
-        self.assertIn('15 palabras', r.json()['message'])
-        self.assertFalse(APUBorrador.objects.exists())
-        with mock.patch(LLAMAR, return_value=COHERENTE):
-            self.assertEqual(self.json(self.URL, self.datos(proyecto=p.pk, proyecto_descripcion=DESCRIPCION)).status_code, 200)
-        p.refresh_from_db()
-        self.assertEqual(p.descripcion, DESCRIPCION)
 
     def test_un_proyecto_sin_habilitar_no_se_puede_usar(self):
         p = Proyecto.objects.create(empresa=self.a, nombre='Sin habilitar', descripcion=DESCRIPCION)
@@ -218,6 +249,202 @@ class Paso1Tests(Base):
         self.assertFalse(ConsumoAPU.objects.exists())
 
 
+class AlcanceDelItemTests(Base):
+    """El paso 1 redacta el alcance del ítem (con preguntas si hace falta) y lo guarda sin mostrarlo: los pasos de insumos lo leen."""
+    URL = '/tekon/apu/generar/'
+    PREGUNTA = {'id': 'c1', 'tipo': 'opciones', 'pregunta': '¿Incluye el suministro del ladrillo?', 'motivo': 'Cambia los materiales',
+                'recomendada': 'si', 'por_que': 'Lo habitual',
+                'opciones': [{'clave': 'si', 'etiqueta': 'Suministro y ejecución'}, {'clave': 'no', 'etiqueta': 'Solo ejecución'}]}
+
+    def datos(self, **kw):
+        d = {'proyecto': self.proyecto.pk, 'plantilla': self.plantilla.pk, 'actividad': 'Muro de ladrillo 6H', 'unidad': 'm2',
+             'descripcion': 'Muro de ladrillo de 12 cm de espesor con mortero, unos 40 m2 en total'}
+        d.update(kw)
+        return d
+
+    def test_el_resumen_se_guarda_sin_mostrarse_y_viaja_a_los_pasos_de_insumos(self):
+        with mock.patch(LLAMAR, return_value={**COHERENTE, 'resumen_alcance': 'Muro de ladrillo con suministro y ejecución.'}):
+            r = self.json(self.URL, self.datos(), self.coord).json()
+        b = APUBorrador.objects.get()
+        self.assertEqual((r['estado'], b.paso, b.resumen_alcance), ('ok', 2, 'Muro de ladrillo con suministro y ejecución.'))
+        self.assertNotIn('resumen_alcance', r)                                    # la persona no lo ve
+        self.client.force_login(self.coord)
+        self.assertNotIn('Muro de ladrillo con suministro', self.client.get(f'/tekon/apu/borrador/{b.pk}/materiales/').content.decode())
+        with mock.patch(LLAMAR, return_value=propuesta_materiales()) as ll:
+            self.json(f'/tekon/apu/borrador/{b.pk}/materiales/proponer/', {}, self.coord)
+        self.assertEqual(ll.call_args[0][1]['resumen_alcance'], b.resumen_alcance)
+
+    def test_con_preguntas_el_borrador_sigue_en_el_paso_1(self):
+        with mock.patch(LLAMAR, return_value={**COHERENTE, 'consultas': [self.PREGUNTA]}) as ll:
+            r = self.json(self.URL, self.datos(), self.coord).json()
+        b = APUBorrador.objects.get()
+        self.assertEqual((r['estado'], b.paso, b.rondas['alcance']), ('consultas', 1, 1))
+        self.assertEqual(r['consultas'][0]['pregunta'], self.PREGUNTA['pregunta'])
+        self.assertEqual(ll.call_args[0][1]['ultima_ronda'], False)
+        self.assertFalse(ConsumoAPU.objects.exists())                       # preguntar no cobra
+        html = self.client.get(f'/tekon/apu/borrador/{b.pk}/actividad/').content.decode()
+        self.assertIn('Incluye el suministro', html)                         # al volver, las preguntas siguen abiertas
+
+    def test_las_respuestas_vuelven_a_n8n_y_se_comparten_con_los_pasos(self):
+        with mock.patch(LLAMAR, return_value={**COHERENTE, 'consultas': [self.PREGUNTA]}):
+            self.json(self.URL, self.datos(), self.coord)
+        b = APUBorrador.objects.get()
+        with mock.patch(LLAMAR, return_value={**COHERENTE, 'resumen_alcance': 'Solo ejecución.'}) as ll:
+            r = self.json(f'/tekon/apu/borrador/{b.pk}/actividad/', self.datos(respuestas={'c1': 'Solo ejecución'}), self.coord).json()
+        self.assertEqual(r['estado'], 'ok')
+        self.assertEqual(ll.call_args[0][1]['historial'], [{'pregunta': self.PREGUNTA['pregunta'], 'respuesta': 'Solo ejecución'}])
+        b.refresh_from_db()
+        self.assertEqual((b.paso, b.resumen_alcance), (2, 'Solo ejecución.'))
+        self.assertEqual(asistente.aclaraciones(b, 'materiales'), [{'pregunta': self.PREGUNTA['pregunta'], 'respuesta': 'Solo ejecución'}])
+
+    def test_en_la_ultima_ronda_ya_no_se_pregunta(self):
+        b = self.borrador(paso=1, rondas={'alcance': asistente.MAX_RONDAS_ALCANCE})
+        with mock.patch(LLAMAR, return_value={**COHERENTE, 'consultas': [self.PREGUNTA], 'resumen_alcance': 'Con supuestos.'}) as ll:
+            r = self.json(f'/tekon/apu/borrador/{b.pk}/actividad/', self.datos(), self.coord).json()
+        self.assertEqual(r['estado'], 'ok')
+        self.assertTrue(ll.call_args[0][1]['ultima_ronda'])
+        b.refresh_from_db()
+        self.assertEqual((b.paso, b.resumen_alcance), (2, 'Con supuestos.'))
+
+    def test_el_resumen_es_obligatorio_y_sin_el_no_se_avanza(self):
+        sin_resumen = {k: v for k, v in COHERENTE.items() if k != 'resumen_alcance'}
+        with mock.patch(LLAMAR, return_value=sin_resumen) as ll:
+            r = self.json(self.URL, self.datos(), self.coord)
+        self.assertEqual((r.status_code, ll.call_count), (502, 2))                  # se intentó dos veces
+        self.assertIn('alcance', r.json()['message'])
+        b = APUBorrador.objects.get()
+        self.assertEqual((b.paso, b.resumen_alcance), (1, ''))
+
+    def test_si_la_ia_deja_el_alcance_vacio_se_reintenta_una_vez(self):
+        sin_resumen = {k: v for k, v in COHERENTE.items() if k != 'resumen_alcance'}
+        with mock.patch(LLAMAR, side_effect=[sin_resumen, COHERENTE]) as ll:
+            r = self.json(self.URL, self.datos(), self.coord).json()
+        self.assertEqual((r['estado'], ll.call_count), ('ok', 2))
+        self.assertEqual(APUBorrador.objects.get().resumen_alcance, COHERENTE['resumen_alcance'])
+
+    def test_el_alcance_se_guarda_en_el_apu_y_la_modificacion_lo_usa_sin_el_proyecto(self):
+        b = self.borrador_en_paso5(resumen_alcance='Alcance del APU guardado.')
+        self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {}, self.coord)
+        item = ItemModelo.objects.get()
+        self.assertEqual(item.resumen_alcance, 'Alcance del APU guardado.')
+        nuevo = asistente.crear_borrador_reutilizado(item, item.proyecto, self.coord, self.a)
+        self.assertEqual(nuevo.resumen_alcance, 'Alcance del APU guardado.')
+        with mock.patch(LLAMAR, return_value={}) as ll, mock.patch('apu_generador.views.creditos.consumir'):
+            views._proponer_modificacion(mock.Mock(user=self.coord, empresa=self.a), nuevo, 'usa otro ladrillo')
+        enviado = ll.call_args[0][1]
+        self.assertEqual(enviado['resumen_alcance'], 'Alcance del APU guardado.')
+        self.assertNotIn('proyecto', enviado)
+
+    def test_un_apu_sin_alcance_modifica_con_el_proyecto_como_respaldo(self):
+        b = self.borrador(paso=5, resumen_alcance='')
+        with mock.patch(LLAMAR, return_value={}) as ll, mock.patch('apu_generador.views.creditos.consumir'):
+            views._proponer_modificacion(mock.Mock(user=self.coord, empresa=self.a), b, 'cambia algo')
+        self.assertIn(self.proyecto.nombre, ll.call_args[0][1]['resumen_alcance'])
+
+    def test_los_pasos_de_insumos_no_reciben_el_proyecto_ni_los_detalles(self):
+        b = self.borrador(paso=2, resumen_alcance='Alcance confirmado.')
+        with mock.patch(LLAMAR, return_value=propuesta_materiales()) as ll:
+            self.json(f'/tekon/apu/borrador/{b.pk}/materiales/proponer/', {}, self.coord)
+        enviado = ll.call_args[0][1]
+        self.assertEqual(enviado['resumen_alcance'], 'Alcance confirmado.')
+        self.assertTrue({'proyecto', 'descripcion'}.isdisjoint(enviado))
+
+    def test_no_hay_pantalla_ni_endpoint_para_revisar_el_alcance(self):
+        b = self.borrador(paso=2, resumen_alcance='Alcance interno.')
+        self.assertEqual(self.json(f'/tekon/apu/borrador/{b.pk}/alcance/', {'resumen_alcance': 'x'}, self.coord).status_code, 404)
+        html = self.client.get(f'/tekon/apu/borrador/{b.pk}/materiales/').content.decode()
+        self.assertNotIn('Alcance interno.', html)
+        self.assertNotIn('data-alcance', html)
+
+class PlantillasActualesTests(Base):
+    """El lanzamiento lleva las plantillas y prompts de desarrollo a producción sin pisar lo editado en la web."""
+
+    def datos(self):
+        from apu_catalogo.prompts_semilla import ACTUALES
+        return json.loads(ACTUALES.read_text(encoding='utf-8'))
+
+    def test_la_instantanea_cubre_todas_las_plantillas_y_pasos(self):
+        datos = self.datos()
+        self.assertEqual({d['nombre'] for d in datos}, {'Obras civiles', 'Montaje mecánico y tuberías', 'Eléctrica e instrumentación', 'Mantenimiento'})
+        pasos = {p for p, _ in PromptAPU.Paso.choices}
+        for d in datos:
+            self.assertEqual(set(d['prompts']), pasos, d['nombre'])
+            self.assertTrue(all(c['modelo'] and c['rol'] for c in d['prompts'].values()))
+
+    def test_crea_lo_que_falta_y_actualiza_la_carga_inicial_sin_editar(self):
+        from apu_catalogo.prompts_semilla import aplicar_actuales
+        PromptAPU.objects.filter(plantilla__nombre='Mantenimiento').delete()                 # base nueva: faltan los prompts
+        PlantillaAPU.objects.filter(nombre='Montaje mecánico y tuberías').delete()          # y una plantilla entera
+        civil = PromptAPU.objects.get(plantilla__nombre='Obras civiles', paso='materiales', vigente=True)
+        civil.modelo, civil.reglas = 'gpt-4.1-mini', 'cambiado'                              # carga inicial sin editar: se restaura
+        civil.save()
+        self.assertGreater(aplicar_actuales(PlantillaAPU, PromptAPU), 0)
+        for d in self.datos():
+            for paso, campos in d['prompts'].items():
+                p = PromptAPU.objects.get(plantilla__nombre=d['nombre'], paso=paso, vigente=True)
+                self.assertEqual({k: getattr(p, k) for k in campos}, campos, (d['nombre'], paso))
+        self.assertEqual(aplicar_actuales(PlantillaAPU, PromptAPU), 0)                      # idempotente
+
+    def test_no_pisa_un_prompt_editado_en_la_web(self):
+        from apu_catalogo.prompts_semilla import aplicar_actuales
+        p = PromptAPU.objects.get(plantilla__nombre='Obras civiles', paso='equipos', vigente=True)
+        p.vigente = False
+        p.save()
+        PromptAPU.objects.create(plantilla=p.plantilla, paso='equipos', rol='Editado en producción', modelo='gpt-5.1', version=2,
+                                 vigente=True, comentario='Ajuste')
+        aplicar_actuales(PlantillaAPU, PromptAPU)
+        self.assertEqual(PromptAPU.objects.get(plantilla=p.plantilla, paso='equipos', vigente=True).rol, 'Editado en producción')
+
+
+class AlcanceAprobadoTests(Base):
+    """Lo que el alcance aprobado ya define no se vuelve a preguntar en los insumos."""
+
+    def test_los_prompts_de_insumos_hablan_del_alcance_y_no_de_los_detalles(self):
+        from apu_catalogo.prompts_semilla import ACTUALES, PASOS_INSUMOS
+        for d in json.loads(ACTUALES.read_text(encoding='utf-8')):
+            for paso in PASOS_INSUMOS:
+                c = d['prompts'][paso]
+                texto = ' '.join((c['rol'], c['criterios'], c['reglas']))
+                self.assertNotIn('Detalles', texto, (d['nombre'], paso))
+                self.assertIn('LO YA DEFINIDO NO SE PREGUNTA', c['reglas'], (d['nombre'], paso))
+        for p in PromptAPU.objects.filter(vigente=True, paso__in=PASOS_INSUMOS):
+            self.assertNotIn('Detalles', f'{p.rol} {p.criterios} {p.reglas}', (p.plantilla.nombre, p.paso))
+
+    def test_sin_detalles_y_con_alcance_son_idempotentes_y_no_tocan_otros_pasos(self):
+        from apu_catalogo.prompts_semilla import adaptar_a_alcance, sin_detalles
+        antes = ('Rol', 'Si «Detalles» trae un total; pregunta si no consta en los «Detalles».', 'Regla 1')
+        una = adaptar_a_alcance('materiales', *antes)
+        self.assertIn('Si el «Alcance del ítem» trae', una[1])
+        self.assertIn('en el «Alcance del ítem».', una[1])
+        self.assertEqual(adaptar_a_alcance('materiales', *una), una)
+        self.assertEqual(sin_detalles('los «Detalles» lo pidan'), 'el «Alcance del ítem» lo pida')
+        self.assertEqual(adaptar_a_alcance('precios', *antes), antes)
+
+    def test_una_consulta_ya_respondida_no_se_repite_y_aplica_la_recomendada(self):
+        pregunta = '¿Incluye el suministro del ladrillo?'
+        consulta = {'id': 'c1', 'tipo': 'opciones', 'pregunta': pregunta, 'recomendada': 'solo',
+                    'opciones': [{'clave': 'todo', 'etiqueta': 'Todo', 'filas': [{'descripcion': 'Ladrillo', 'consulta': 'c1'}]},
+                                 {'clave': 'solo', 'etiqueta': 'Solo ejecución', 'filas': [{'descripcion': 'Mortero', 'consulta': 'c1'}]}]}
+        otra = {'id': 'c2', 'tipo': 'dato', 'pregunta': '¿Qué espesor tiene el muro?', 'recomendada': '', 'opciones': []}
+        propuesta = {'filas': [], 'consultas': [consulta, otra]}
+        # la respuesta vino del paso 1 (alcance), con otra mayúscula y sin signos
+        quitadas = asistente.sin_repetidas(propuesta, [{'pregunta': pregunta.upper(), 'respuesta': 'Solo ejecución'}], [])
+        self.assertEqual(quitadas, 1)
+        self.assertEqual([c['id'] for c in propuesta['consultas']], ['c2'])         # la pregunta nueva sigue
+        self.assertEqual([(f['descripcion'], f['consulta']) for f in propuesta['filas']], [('Mortero', '')])
+
+    def test_proponer_descarta_lo_ya_respondido_en_el_alcance(self):
+        pregunta = '¿Incluye el suministro del ladrillo?'
+        b = self.borrador(paso=2, resumen_alcance='Solo ejecución.',
+                          consultas={'alcance': {'historial': [{'pregunta': pregunta, 'respuesta': 'Solo ejecución'}]}})
+        crudo = {'filas': [{'descripcion': 'Mortero', 'unidad': 'm3', 'cantidad': '0.03'}],
+                 'consultas': [{'id': 'c1', 'tipo': 'dato', 'pregunta': pregunta, 'recomendada': 'x',
+                                'opciones': [{'clave': 'x', 'etiqueta': 'Solo ejecución'}]}]}
+        with mock.patch(LLAMAR, return_value=crudo):
+            r = self.json(f'/tekon/apu/borrador/{b.pk}/materiales/proponer/', {}, self.coord).json()
+        self.assertEqual((r['propuesta']['consultas'], len(r['propuesta']['filas'])), ([], 1))
+
+
 class PasosTests(Base):
     def url(self, b, accion='', slug='materiales'):
         return f'/tekon/apu/borrador/{b.pk}/{slug}/{accion}'
@@ -235,7 +462,8 @@ class PasosTests(Base):
         self.assertEqual(b.paso, 2)
         enviado = ll.call_args[0][1]
         self.assertEqual([c['codigo'] for c in enviado['catalogo']], ['MAT-001'])  # solo del tipo y de la empresa
-        self.assertEqual(enviado['proyecto']['nombre'], 'Escuela Tarija')
+        self.assertNotIn('proyecto', enviado)                                       # el alcance confirmado ya lo resume
+        self.assertNotIn('descripcion', enviado)
         self.assertFalse(ConsumoAPU.objects.exists())                               # proponer no cobra
 
     def test_guardar_solo_lo_marcado_crea_insumos_y_avanza(self):
@@ -460,21 +688,21 @@ class HabilitarTests(Base):
 
     def setUp(self):
         super().setUp()
-        self.nuevo = Proyecto.objects.create(empresa=self.a, nombre='Colegio Norte', descripcion='')
+        self.nuevo = Proyecto.objects.create(empresa=self.a, nombre='Colegio Norte', descripcion='Escuela de dos plantas con aulas y laboratorio')
 
     def datos(self, **kw):
-        d = {'proyecto': self.nuevo.pk, 'perfil': self.perfil.pk, 'descripcion': DESCRIPCION}
+        d = {'proyecto': self.nuevo.pk, 'perfil': self.perfil.pk}
         d.update(kw)
         return d
 
-    def test_habilitar_crea_el_perfil_propio_y_guarda_la_descripcion(self):
+    def test_habilitar_crea_el_perfil_propio_y_respeta_la_descripcion_del_proyecto(self):
         self.client.force_login(self.coord)
         r = self.client.post(self.URL, self.datos())
         self.assertRedirects(r, '/tekon/apu/generar/', fetch_redirect_response=False)
         pa = ProyectoAPU.objects.get(proyecto=self.nuevo)
         self.assertEqual((pa.perfil.empresa, pa.perfil.nombre), (self.a, self.perfil.nombre))    # copia de la plantilla, de la empresa
         self.nuevo.refresh_from_db()
-        self.assertEqual(self.nuevo.descripcion, DESCRIPCION)
+        self.assertEqual(self.nuevo.descripcion, 'Escuela de dos plantas con aulas y laboratorio')   # la del proyecto, sin tocarla
 
     def test_habilitar_guarda_la_region_de_precios_del_proyecto(self):
         self.client.force_login(self.coord)
@@ -489,12 +717,17 @@ class HabilitarTests(Base):
         self.client.post(self.URL, self.datos(proyecto=otro.pk))
         self.assertEqual(PerfilCalculo.objects.filter(empresa=self.a, nombre=self.perfil.nombre).count(), 1)
 
-    def test_exige_una_descripcion_suficiente_y_no_habilita_sin_ella(self):
+    def test_no_pide_ni_valida_la_descripcion_del_proyecto(self):
+        """El proyecto ya trae su descripción: habilitar no la pide, ni la exige, ni la modifica (aunque esté vacía o sea corta)."""
+        vacio = Proyecto.objects.create(empresa=self.a, nombre='Sin texto', descripcion='')
         self.client.force_login(self.coord)
-        r = self.client.post(self.URL, self.datos(descripcion='Una escuela'))
-        self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'al menos 15 palabras')
-        self.assertFalse(ProyectoAPU.objects.filter(proyecto=self.nuevo).exists())
+        html = self.client.get(self.URL).content.decode()
+        self.assertNotIn('name="descripcion"', html)
+        r = self.client.post(self.URL, self.datos(proyecto=vacio.pk, descripcion='basura que no debe guardarse'))
+        self.assertRedirects(r, '/tekon/apu/generar/', fetch_redirect_response=False)
+        self.assertTrue(ProyectoAPU.objects.filter(proyecto=vacio).exists())
+        vacio.refresh_from_db()
+        self.assertEqual(vacio.descripcion, '')
 
     def test_no_ofrece_ni_acepta_perfiles_o_proyectos_de_otra_empresa(self):
         ajeno = self.perfil.copiar_a(self.b)
@@ -539,6 +772,106 @@ class HabilitarTests(Base):
         r = self.json(f'/tekon/apu/lista/{item.pk}/reutilizar/', {'proyecto': self.nuevo.pk})
         self.assertEqual(r.status_code, 400)
         self.assertIn('habilitado', r.json()['message'])
+
+
+class PrecioDeProyectoTests(Base):
+    """Editar cantidad y precio en el resultado: el precio vale solo para el proyecto del borrador."""
+
+    def setUp(self):
+        super().setUp()
+        self.b = self.borrador_en_paso5()
+        self.url = f'/tekon/apu/borrador/{self.b.pk}/fila/'
+        self.albanil = Insumo.objects.get(codigo='MO-001')
+
+    def test_el_precio_editado_es_del_proyecto_y_no_toca_el_catalogo_ni_otros_proyectos(self):
+        r = self.json(self.url, {'tipo': 'mano_obra', 'indice': 0, 'precio': '25', 'moneda': 'bob'}, self.coord)
+        self.assertEqual(r.status_code, 200, r.content)
+        p = PrecioInsumo.objects.get(insumo=self.albanil, proyecto=self.proyecto)
+        self.assertEqual((p.precio, p.moneda, p.region), (D('25'), 'BOB', ''))
+        self.assertEqual(self.albanil.precio_vigente().precio, D('20'))                       # catálogo intacto
+        self.assertEqual(self.albanil.precio_vigente(proyecto=self.proyecto).precio, D('25'))
+        otro = Proyecto.objects.create(empresa=self.a, nombre='Otro', descripcion=DESCRIPCION)
+        self.assertEqual(self.albanil.precio_vigente(proyecto=otro).precio, D('20'))
+        fila = next(f for f in asistente.previsualizar(self.b)['filas'] if f['tipo_paso'] == 'mano_obra')
+        self.assertEqual((fila['precio'], fila['del_proyecto']), (D('25'), True))
+        self.assertContains(self.client.get(f'/tekon/apu/borrador/{self.b.pk}/resultado/'), 'Del proyecto')
+
+    def test_la_unidad_de_la_fila_se_cambia_y_convierte_cantidad_y_precios_sin_cambiar_el_costo(self):
+        madera = self.insumo('MAT-070', 'Madera para encofrado', unidad='m²', precio='100')
+        self.b.materiales = {'filas': [{'descripcion': 'Madera para encofrado', 'unidad': 'm²', 'cantidad': '2.5', 'desperdicio_pct': '5',
+                                        'insumo_id': madera.pk, 'check': True}]}
+        self.b.save()
+        otro = self.borrador(paso=3, materiales={'filas': [{'descripcion': 'Madera para encofrado', 'unidad': 'm²', 'cantidad': '1',
+                                                            'insumo_id': madera.pk, 'check': True}]})
+        r = self.json(self.url, {'tipo': 'materiales', 'indice': 0, 'cantidad': '2.5', 'desperdicio_pct': '5', 'unidad': 'pie2'}, self.coord)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertIn('pie²', r.json()['message'])
+        madera.refresh_from_db()
+        self.b.refresh_from_db()
+        otro.refresh_from_db()
+        self.assertEqual(madera.unidad, 'pie²')
+        fila = self.b.materiales['filas'][0]
+        self.assertEqual(fila['unidad'], 'pie²')
+        self.assertAlmostEqual(float(fila['cantidad']), 2.5 * 10.76391, places=3)
+        self.assertAlmostEqual(float(otro.materiales['filas'][0]['cantidad']), 10.76391, places=4)      # otros borradores pendientes también
+        self.assertAlmostEqual(float(madera.precio_vigente().precio), 100 / 10.76391, places=3)
+        self.assertEqual(fila['desperdicio_pct'], '5')                                                   # el desperdicio no se convierte
+
+    def test_la_unidad_de_la_fila_pide_el_factor_si_no_se_convierte_sola(self):
+        r = self.json(self.url, {'tipo': 'materiales', 'indice': 0, 'cantidad': '38', 'unidad': 'caja'}, self.coord)
+        self.assertEqual((r.status_code, r.json()['necesita_factor'], r.json()['unidad_nueva']), (400, True, 'caja'))
+        self.assertEqual(Insumo.objects.get(codigo='MAT-001').unidad, 'pza')
+        r = self.json(self.url, {'tipo': 'materiales', 'indice': 0, 'cantidad': '38', 'unidad': 'caja', 'factor': '0.01'}, self.coord)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.b.refresh_from_db()
+        self.assertEqual((self.b.materiales['filas'][0]['unidad'], self.b.materiales['filas'][0]['cantidad']), ('caja', '0.380000'))
+
+    def test_el_dialogo_de_la_fila_ofrece_la_unidad_de_medida(self):
+        self.client.force_login(self.coord)
+        html = self.client.get(f'/tekon/apu/borrador/{self.b.pk}/resultado/').content.decode()
+        self.assertIn('name="unidad"', html)
+        self.assertIn('data-bloque-factor', html)
+
+    def test_revisar_con_ia_solo_aparece_en_las_filas_con_precio_y_para_el_superusuario(self):
+        sin = self.insumo('MAT-050', 'Arena', unidad='m3')
+        self.b.materiales = {'filas': self.b.materiales['filas'] + [
+            {'descripcion': 'Arena', 'unidad': 'm3', 'cantidad': '0.1', 'insumo_id': sin.pk, 'check': True}]}
+        self.b.save()
+        self.client.force_login(self.coord)
+        self.assertNotIn('data-revisar-fila', self.client.get(f'/tekon/apu/borrador/{self.b.pk}/resultado/').content.decode())
+        r = self.json(f'/tekon/apu/borrador/{self.b.pk}/sugerir-precios/', {'insumo': self.albanil.pk})
+        self.assertEqual(r.status_code, 403)
+        self.client.force_login(self.su)
+        html = self.client.get(f'/tekon/apu/borrador/{self.b.pk}/resultado/').content.decode()
+        self.assertEqual(html.count('data-revisar-fila'), 3)      # ladrillo, albañil y mezcladora; la arena no tiene precio
+        self.assertNotIn('Revisar con IA Arena', html)
+
+    def test_editar_personas_recalcula_la_cantidad_de_mano_de_obra(self):
+        self.json(self.url, {'tipo': 'mano_obra', 'indice': 0, 'personas': '4'}, self.coord)
+        self.b.refresh_from_db()
+        self.assertEqual(D(self.b.mano_obra['filas'][0]['cantidad']), D('1'))                  # 4 × 2 h ÷ 8
+
+    def test_editar_cantidad_y_desperdicio_de_un_material(self):
+        r = self.json(self.url, {'tipo': 'materiales', 'indice': 0, 'cantidad': '40', 'desperdicio_pct': '8'}, self.coord)
+        self.assertEqual(r.status_code, 200)
+        self.b.refresh_from_db()
+        self.assertEqual((self.b.materiales['filas'][0]['cantidad'], self.b.materiales['filas'][0]['desperdicio_pct']), ('40', '8'))
+        for malo in ({'cantidad': '0'}, {'desperdicio_pct': '150'}, {}):
+            self.assertEqual(self.json(self.url, {'tipo': 'materiales', 'indice': 0, **malo}).status_code, 400)
+        self.assertEqual(self.json(self.url, {'tipo': 'materiales', 'indice': 9, 'cantidad': '1'}).status_code, 400)
+
+    def test_un_borrador_guardado_ya_no_se_edita(self):
+        self.json(f'/tekon/apu/borrador/{self.b.pk}/guardar-apu/', {}, self.coord)
+        self.assertEqual(self.json(self.url, {'tipo': 'materiales', 'indice': 0, 'cantidad': '1'}).status_code, 409)
+
+    def test_revisar_precio_de_una_fila_manda_solo_ese_insumo_con_su_precio_actual(self):
+        respuesta = {'precios': [{'id': self.albanil.pk, 'precio': 22, 'moneda': 'BOB', 'confianza': 'media', 'fuente': 'X'}]}
+        with mock.patch(LLAMAR, return_value=respuesta) as ll:
+            r = self.json(f'/tekon/apu/borrador/{self.b.pk}/sugerir-precios/', {'insumo': self.albanil.pk}, self.su).json()
+        enviado = ll.call_args[0][1]['insumos']
+        self.assertEqual([(i['id'], i['precio_actual'], i['moneda_actual']) for i in enviado], [(self.albanil.pk, '20', 'BOB')])
+        self.assertEqual(r['sugerencias'][str(self.albanil.pk)]['precio'], '22')
+        self.assertFalse(ConsumoAPU.objects.exists())
 
 
 class PreciosEstimadosTests(Base):
@@ -1355,6 +1688,7 @@ class MotivoDeMedicionTests(Base):
     def respuesta(self, codigo):
         return mock.Mock(status_code=codigo, **{'raise_for_status.return_value': None, 'json.return_value': {}})
 
+    @override_settings(N8N_API_URL='', N8N_API_KEY='')
     def test_sin_clave_la_medicion_esta_desactivada_y_lo_dice(self):
         ll = self.llamadas(1)
         self.assertEqual(ia.sincronizar_uso(ll), 0)
@@ -1421,12 +1755,12 @@ class CambiarProyectoEnElPaso1Tests(Base):
                                             descripcion='Colegio de tres plantas en la ciudad de Oruro con aulas, laboratorios y canchas deportivas para estudiantes.')
         ProyectoAPU.objects.create(proyecto=self.otro, perfil=self.perfil, region='Oruro')
         with mock.patch(LLAMAR, return_value={'coherente': False, 'razon': 'x'}):
-            self.json('/tekon/apu/generar/', {'proyecto': self.proyecto.pk, 'actividad': 'Muro', 'unidad': 'm2'}, self.coord)
+            self.json('/tekon/apu/generar/', {'proyecto': self.proyecto.pk, 'plantilla': self.plantilla.pk, 'actividad': 'Muro', 'unidad': 'm2', 'descripcion': 'Muro de ladrillo de 12 cm de espesor con mortero, unos 40 m2 en total'}, self.coord)
         self.borrador = APUBorrador.objects.get()
         self.url = f'/tekon/apu/borrador/{self.borrador.pk}/actividad/'
 
     def comprobar(self, **datos):
-        base = {'actividad': 'Muro', 'unidad': 'm2', 'descripcion': ''}
+        base = {'plantilla': self.plantilla.pk, 'actividad': 'Muro', 'unidad': 'm2', 'descripcion': 'Muro de ladrillo de 12 cm de espesor con mortero, unos 40 m2 en total'}
         base.update(datos)
         with mock.patch(LLAMAR, return_value=COHERENTE) as ll:
             r = self.json(self.url, base, self.coord)
@@ -1457,17 +1791,13 @@ class CambiarProyectoEnElPaso1Tests(Base):
         self.borrador.refresh_from_db()
         self.assertEqual(self.borrador.proyecto, self.proyecto)
 
-    def test_el_proyecto_nuevo_tambien_debe_tener_descripcion_suficiente(self):
+    def test_cambiar_a_un_proyecto_de_descripcion_corta_no_la_cuestiona(self):
         corto = Proyecto.objects.create(empresa=self.a, nombre='Corto', descripcion='Una obra')
         ProyectoAPU.objects.create(proyecto=corto, perfil=self.perfil)
         r, ll = self.comprobar(proyecto=corto.pk)
-        self.assertEqual(r.status_code, 400)
-        self.assertIn('15 palabras', r.json()['message'])
-        ll.assert_not_called()
-        r, ll = self.comprobar(proyecto=corto.pk, proyecto_descripcion=DESCRIPCION)
         self.assertEqual(r.json()['estado'], 'ok')
         corto.refresh_from_db()
-        self.assertEqual(corto.descripcion, DESCRIPCION)
+        self.assertEqual(corto.descripcion, 'Una obra')
 
     def test_la_pagina_del_borrador_deja_elegir_el_proyecto(self):
         self.client.force_login(self.coord)
@@ -1533,9 +1863,12 @@ class PreguntasConRecomendacionTests(Base):
         items = esquema['properties']['consultas']['items']
         self.assertIn('recomendada', items['required'])
         self.assertIn('por_que', items['required'])
-        for nombre in ('Prompt · Materiales', 'Prompt · Mano de obra', 'Prompt · Equipos'):
-            texto = next(n for n in wf['nodes'] if n['name'] == nombre)['parameters']['assignments']['assignments'][0]['value']
-            self.assertIn('RECOMENDAR SIEMPRE', texto, nombre)
+        # El texto del prompt ya no vive en n8n: llega en el payload (body.ia[tipo]) y sale de las plantillas.
+        valor = next(n for n in wf['nodes'] if n['name'] == 'Prompt · Insumos')['parameters']['assignments']['assignments'][0]['value']
+        self.assertIn('body.ia[', valor)
+        for plantilla in PlantillaAPU.objects.all():
+            for paso in ('materiales', 'mano_obra', 'equipos'):
+                self.assertIn('RECOMENDAR SIEMPRE', plantilla.prompt(paso).texto, f'{plantilla} · {paso}')
 
 
 class ProyectosResumenTests(Base):
@@ -1917,13 +2250,70 @@ class LineasFichaTests(Base):
         self.assertEqual((self.mat.cantidad, self.mat.desperdicio_pct), (D('40.5'), D('8')))
         self.assertGreater(calculo.analizar(self.item).total, antes)
 
-    def test_editar_el_precio_crea_uno_nuevo_en_la_region_del_proyecto_para_todos_los_apu(self):
+    def test_las_unidades_de_bolivia_y_sus_equivalencias(self):
+        from apu_catalogo import unidades
+        self.assertEqual((unidades.normalizar('pie2'), unidades.normalizar('pies cuadrados'), unidades.normalizar('ft3')), ('pie²', 'pie²', 'pie³'))
+        self.assertAlmostEqual(float(unidades.factor('m2', 'pie2')), 10.76391, places=4)
+        self.assertAlmostEqual(float(unidades.factor('pie²', 'm²')), 0.0929030, places=6)
+        self.assertIsNone(unidades.factor('m²', 'kg'))                       # otra magnitud: no se convierte sola
+        self.assertIsNone(unidades.factor('h', 'jor'))                       # depende de la jornada
+
+    def test_cambiar_la_unidad_convierte_cantidades_y_precios_sin_cambiar_el_costo(self):
+        ins = self.mat.insumo
+        ins.unidad = 'm²'                                                    # p. ej. la madera
+        ins.save()
+        otro = ItemModelo.objects.create(empresa=self.a, proyecto=self.proyecto, codigo='APU-099', descripcion='Otro', unidad='m2')
+        LineaComposicion.objects.create(item=otro, insumo=ins, cantidad=D('2'))
+        antes = calculo.analizar(self.item).grupos['MAT']
+        r = self.json(self.url, {'cantidad': '38', 'desperdicio_pct': '5', 'unidad': 'pie2'}, self.su)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('pie²', r.json()['message'])
+        ins.refresh_from_db()
+        self.mat.refresh_from_db()
+        self.assertEqual(ins.unidad, 'pie²')
+        self.assertAlmostEqual(float(self.mat.cantidad), 38 * 10.763910, places=3)      # 38 m² → pie²
+        self.assertAlmostEqual(float(LineaComposicion.objects.get(item=otro).cantidad), 2 * 10.763910, places=4)   # en todos los APU
+        self.assertAlmostEqual(float(PrecioInsumo.objects.get(insumo=ins).precio), 1.5 / 10.76391, places=3)
+        self.assertAlmostEqual(float(calculo.analizar(self.item).grupos['MAT']), float(antes), places=1)   # el costo no cambia
+
+    def test_una_unidad_que_no_se_convierte_sola_pide_el_factor(self):
+        r = self.json(self.url, {'cantidad': '38', 'unidad': 'caja'}, self.su)
+        self.assertEqual((r.status_code, r.json()['necesita_factor'], r.json()['unidad_nueva']), (400, True, 'caja'))
+        self.mat.insumo.refresh_from_db()
+        self.assertEqual(self.mat.insumo.unidad, 'pza')                       # nada cambió
+        r = self.json(self.url, {'cantidad': '38', 'unidad': 'caja', 'factor': '0,01'}, self.su)   # 1 pza = 0,01 caja (100 por caja)
+        self.assertEqual(r.status_code, 200)
+        self.mat.refresh_from_db()
+        self.mat.insumo.refresh_from_db()
+        self.assertEqual((self.mat.insumo.unidad, self.mat.cantidad), ('caja', D('0.38')))
+        self.assertEqual(self.json(self.url, {'cantidad': '1', 'unidad': 'm', 'factor': '0'}, self.su).status_code, 400)   # factor inválido
+
+    def test_sin_cambiar_la_unidad_todo_sigue_igual(self):
+        r = self.json(self.url, {'cantidad': '40', 'desperdicio_pct': '5', 'unidad': 'pza'}, self.su)
+        self.assertEqual(r.status_code, 200)
+        self.mat.refresh_from_db()
+        self.assertEqual(self.mat.cantidad, D('40'))
+
+    def test_el_catalogo_tambien_convierte_si_la_unidad_se_puede(self):
+        ins = self.mat.insumo
+        ins.unidad = 'm²'
+        ins.save()
+        self.client.force_login(self.su)
+        r = self.client.post(f'/tekon/apu/insumos/{ins.pk}/editar/', {'codigo': ins.codigo, 'descripcion': ins.descripcion, 'unidad': 'pie2',
+                                                                       'tipo': ins.tipo, 'activo': 'on'}, follow=True)
+        self.assertContains(r, 'se convirtieron')
+        self.mat.refresh_from_db()
+        ins.refresh_from_db()
+        self.assertEqual(ins.unidad, 'pie²')
+        self.assertAlmostEqual(float(self.mat.cantidad), 38 * 10.76391, places=3)
+
+    def test_editar_el_precio_en_la_ficha_vale_solo_para_el_proyecto(self):
         self.pa.region = 'Tarija'
         self.pa.save()
         r = self.json(self.url, {'cantidad': '38', 'desperdicio_pct': '5', 'precio': '2,25', 'moneda': 'bob'}, self.su)
         self.assertEqual(r.status_code, 200)
-        self.assertIn('todos los APU', r.json()['message'])
-        p = PrecioInsumo.objects.get(insumo=self.mat.insumo, region='Tarija')
+        self.assertIn('solo para', r.json()['message'])
+        p = PrecioInsumo.objects.get(insumo=self.mat.insumo, proyecto=self.proyecto)
         self.assertEqual((p.precio, p.moneda, p.estimado), (D('2.25'), 'BOB', False))
         self.assertEqual(PrecioInsumo.objects.filter(insumo=self.mat.insumo).count(), 2)          # el nacional anterior sigue ahí
         self.assertEqual(calculo.analizar(self.item).grupos['MAT'], D('38') * D('1.05') * D('2.25'))
@@ -1931,7 +2321,7 @@ class LineasFichaTests(Base):
     def test_un_precio_ya_estimado_deja_de_serlo_al_corregirlo(self):
         PrecioInsumo.objects.filter(insumo=self.mat.insumo).update(estimado=True)
         self.json(self.url, {'cantidad': '38', 'precio': '1.6', 'moneda': 'BOB'}, self.su)
-        self.assertFalse(PrecioInsumo.objects.filter(insumo=self.mat.insumo, region='').latest('fecha').estimado)
+        self.assertFalse(PrecioInsumo.objects.get(insumo=self.mat.insumo, proyecto=self.proyecto).estimado)
 
     def test_validaciones(self):
         for datos, texto in (({'cantidad': '0'}, 'mayor que cero'), ({'cantidad': 'abc'}, 'mayor que cero'),
@@ -2016,6 +2406,42 @@ class TokensTests(Base):
         filas = asistente.catalogo_items_para_ia(self.a, texto='Muro con mortero cementicio')
         self.assertEqual(len(filas), asistente.LIMITE_CATALOGO_ITEMS)
         self.assertEqual(filas[0]['codigo'], 'Z999')                                  # el más parecido va primero
+
+    def _guardado(self, actividad, unidad, rendimiento, **kw):
+        mo = {'filas': [{'descripcion': 'Topógrafo', 'personas': '1'}, {'descripcion': 'Ayudante', 'personas': '1'}], 'horas_jornada': '8'}
+        if rendimiento is not None:
+            mo['rendimiento'] = rendimiento
+        return APUBorrador.objects.create(empresa=kw.pop('empresa', self.a), plantilla=self.plantilla, proyecto=self.proyecto, actividad=actividad, unidad=unidad,
+                                          mano_obra=mo, guardado=kw.pop('guardado', True), **kw)
+
+    def test_las_referencias_de_mano_obra_salen_de_apu_parecidos_con_la_misma_unidad(self):
+        buena = self._guardado('Levantamiento topográfico', 'ha', '5')
+        self._guardado('Levantamiento topográfico del lote', 'ha', '7')
+        self._guardado('Levantamiento topográfico', 'm2', '9')                      # otra unidad: no es comparable
+        self._guardado('Pintura de muros', 'ha', '3')                               # actividad sin parecido
+        self._guardado('Levantamiento topográfico', 'ha', None)                     # sin rendimiento
+        self._guardado('Levantamiento topográfico', 'ha', '4', guardado=False)      # aún no es un APU de la empresa
+        self._guardado('Levantamiento topográfico', 'ha', '6', empresa=self.b)      # de otra empresa
+        refs = asistente.referencias_mano_obra(self.a, 'Levantamiento topográfico', 'Ha', 'terreno llano')
+        self.assertEqual(sorted(r['rendimiento'] for r in refs), ['5', '7'])
+        self.assertEqual(refs[0]['cuadrilla'], [{'oficio': 'Topógrafo', 'personas': '1'}, {'oficio': 'Ayudante', 'personas': '1'}])
+        self.assertEqual(asistente.referencias_mano_obra(self.a, 'Levantamiento topográfico', 'ha', excluir_pk=buena.pk)[0]['rendimiento'], '7')
+        self.assertEqual(asistente.referencias_mano_obra(self.a, 'Excavación', 'ha'), [])
+        self.assertEqual(asistente.referencias_mano_obra(self.a, '', ''), [])
+
+    def test_solo_mano_obra_recibe_las_referencias_en_el_payload(self):
+        self._guardado('Levantamiento topográfico', 'ha', '5')
+        b = APUBorrador.objects.create(empresa=self.a, plantilla=self.plantilla, proyecto=self.proyecto, actividad='Levantamiento topográfico', unidad='ha',
+                                       descripcion='Unas 14 hectáreas de terreno llano', creado_por=self.coord, paso=3)
+        self.client.force_login(self.coord)
+        enviados = {}
+        for slug in ('mano-obra', 'materiales'):
+            with mock.patch(LLAMAR, return_value={'filas': [], 'consultas': []}) as ll:
+                self.client.post('/tekon/apu/borrador/%d/%s/proponer/' % (b.pk, slug), '{}', content_type='application/json')
+            if ll.called:
+                enviados[slug] = ll.call_args[0][1].get('referencias_mano_obra')
+        self.assertEqual([r['rendimiento'] for r in enviados.get('mano-obra', [])], ['5'])
+        self.assertIn(enviados.get('materiales', []), ([], None))
 
     def _llamada_en(self, fecha):
         ll = LlamadaIA.objects.create(empresa=self.a, webhook='apu-insumos', uso={'gpt-5.1': {'entrada': 10, 'salida': 5}})
@@ -2195,3 +2621,231 @@ class CredencialN8nTests(Base):
         self.assertEqual(g.call_count, 2)                                                 # una prueba de A (rechazada) y la de B
         self.assertIn('Tekon: n8n rechazó la clave de la API', ia.ESTADO_MEDICION['motivo'])
         self.assertNotIn('Embol', ia.ESTADO_MEDICION['motivo'])
+
+
+class PlantillasDeTrabajoTests(Base):
+    """Cada APU se genera con un tipo de trabajo (plantilla): sus prompts y modelos viajan a n8n en `ia` y se editan en la web."""
+
+    def montaje(self):
+        return PlantillaAPU.objects.get(nombre='Montaje mecánico y tuberías')
+
+    def test_la_carga_inicial_trae_cuatro_tipos_con_todos_los_pasos_y_modelo(self):
+        self.assertEqual(PlantillaAPU.objects.count(), 4)
+        for t in PlantillaAPU.objects.all():
+            self.assertEqual(t.pasos_faltantes(), [], t.nombre)
+            self.assertFalse(t.prompts.filter(modelo='').exists(), t.nombre)
+        civil, montaje = self.plantilla.prompt('materiales'), self.montaje().prompt('materiales')
+        self.assertIn('encofrado', civil.texto.lower())
+        for t in PlantillaAPU.objects.exclude(pk=self.plantilla.pk):          # los criterios de un tipo no se mezclan con los de otro
+            for paso in ('materiales', 'mano_obra', 'equipos', 'coherencia'):
+                for palabra in ('encofrado', 'hormigón', 'muro'):
+                    self.assertNotIn(palabra, t.prompt(paso).texto.lower(), f'{t} · {paso}')
+        self.assertIn('montaje mecánico industrial', montaje.rol)
+        self.assertEqual(montaje.modelo, 'gpt-5.1')
+
+    def test_config_manda_prompt_modelo_y_razonamiento_de_cada_paso(self):
+        c = ia.config(self.plantilla, 'materiales', 'verificar')
+        self.assertEqual(set(c), {'materiales', 'verificar'})
+        self.assertEqual(c['materiales']['prompt'], self.plantilla.prompt('materiales').texto)
+        self.assertEqual((c['materiales']['modelo'], c['materiales']['razonamiento']), ('gpt-5.1', 'low'))
+        self.assertEqual((c['verificar']['modelo'], c['verificar']['razonamiento']), ('gpt-4.1-mini', ''))
+
+    def test_config_falla_con_mensaje_claro_si_falta_el_prompt_o_el_modelo(self):
+        with self.assertRaisesMessage(N8NError, 'Elige el tipo de trabajo'):
+            ia.config(None, 'materiales')
+        vacia = PlantillaAPU.objects.create(nombre='Vacía')
+        with self.assertRaisesMessage(N8NError, 'no tiene el prompt de «Materiales»'):
+            ia.config(vacia, 'materiales')
+        PromptAPU.objects.create(plantilla=vacia, paso='materiales', rol='x')
+        with self.assertRaisesMessage(N8NError, 'no tiene modelo'):
+            ia.config(vacia, 'materiales')
+
+    def test_el_paso_1_exige_el_tipo_de_trabajo_y_lo_guarda_en_el_borrador(self):
+        datos = {'proyecto': self.proyecto.pk, 'actividad': 'Montaje de tubería 6"', 'unidad': 'ml',
+                 'descripcion': 'Unos 300 ml de tubería de acero al carbono soldada, sobre soportes existentes, solo montaje'}
+        with mock.patch(LLAMAR, return_value=COHERENTE) as ll:
+            r = self.json('/tekon/apu/generar/', datos, self.coord)
+            self.assertEqual(r.status_code, 400)
+            self.assertIn('tipo de trabajo', r.json()['message'])
+            ll.assert_not_called()
+            r = self.json('/tekon/apu/generar/', {**datos, 'plantilla': self.montaje().pk}, self.coord)
+        self.assertEqual(r.json()['estado'], 'ok')
+        b = APUBorrador.objects.get()
+        self.assertEqual(b.plantilla, self.montaje())
+        ia_enviada = ll.call_args[0][1]['ia']
+        self.assertEqual(set(ia_enviada), {'coherencia', 'clasificacion'})
+        self.assertIn('montaje mecánico industrial', ia_enviada['coherencia']['prompt'])
+        self.assertIn('Montaje mecánico', LlamadaIA.objects.get().prompt_version)       # queda registrado con qué prompt se ejecutó
+
+    def test_una_plantilla_inactiva_no_se_puede_elegir(self):
+        self.montaje().prompts.all()   # existe
+        PlantillaAPU.objects.filter(pk=self.montaje().pk).update(activo=False)
+        datos = {'proyecto': self.proyecto.pk, 'plantilla': self.montaje().pk, 'actividad': 'Montaje', 'unidad': 'ml',
+                 'descripcion': 'Unos 300 ml de tubería de acero al carbono soldada, sobre soportes existentes, solo montaje'}
+        with mock.patch(LLAMAR, return_value=COHERENTE):
+            self.assertEqual(self.json('/tekon/apu/generar/', datos, self.coord).status_code, 400)
+
+    def test_proponer_manda_el_prompt_del_tipo_y_el_de_verificacion(self):
+        b = self.borrador(paso=3, plantilla=self.montaje(), clasificacion={'categoria': 'x'})
+        with mock.patch(LLAMAR, return_value=propuesta_materiales()) as ll:
+            self.json(f'/tekon/apu/borrador/{b.pk}/mano-obra/proponer/', {}, self.coord)
+        enviada = ll.call_args[0][1]['ia']
+        self.assertEqual(set(enviada), {'mano_obra', 'verificar'})
+        self.assertEqual(enviada['mano_obra']['prompt'], self.montaje().prompt('mano_obra').texto)
+        self.assertEqual(enviada['mano_obra']['modelo'], 'gpt-5-mini')
+
+    def test_sin_prompt_el_paso_se_detiene_con_un_aviso_y_sin_llamar_a_n8n(self):
+        self.montaje().prompt('materiales').nueva_version(self.su, 'x', rol='', criterios='', reglas='', notas='')
+        b = self.borrador(paso=2, plantilla=self.montaje(), clasificacion={'categoria': 'x'})
+        with mock.patch(LLAMAR) as ll:
+            r = self.json(f'/tekon/apu/borrador/{b.pk}/materiales/proponer/', {}, self.coord)
+        self.assertEqual(r.status_code, 502)
+        self.assertIn('no tiene el prompt de «Materiales»', r.json()['message'])
+        ll.assert_not_called()
+
+    def test_el_apu_guardado_conserva_su_tipo_de_trabajo(self):
+        b = self.borrador_en_paso5(plantilla=self.montaje())
+        self.json(f'/tekon/apu/borrador/{b.pk}/guardar-apu/', {'actividad': b.actividad}, self.coord)
+        self.assertEqual(ItemModelo.objects.get().plantilla, self.montaje())
+
+    def test_nueva_version_deja_una_sola_vigente_y_conserva_el_historial(self):
+        p1 = self.plantilla.prompt('precios')
+        p2 = p1.nueva_version(self.su, 'más estricto', notas='Redondea a 2 decimales', modelo='gpt-5-mini')
+        self.assertEqual((p2.version, p2.vigente, p2.modelo), (2, True, 'gpt-5-mini'))
+        p1.refresh_from_db()
+        self.assertFalse(p1.vigente)
+        self.assertEqual(self.plantilla.prompts.filter(paso='precios').count(), 2)
+        self.assertTrue(p2.texto.endswith('Redondea a 2 decimales'))
+        self.assertEqual(p2.rol, p1.rol)                                   # lo que no se tocó se conserva
+
+
+class PlantillasPantallaTests(Base):
+    """APU → Plantillas: solo el superusuario; cada guardado es una versión nueva."""
+
+    def url(self, *partes):
+        return '/tekon/apu/plantillas/' + ''.join(f'{p}/' for p in partes)
+
+    def test_solo_el_superusuario_entra(self):
+        for u in (self.coord, self.adm, self.ejec):
+            self.client.force_login(u)
+            self.assertEqual(self.client.get(self.url()).status_code, 403, u.email)
+            self.assertEqual(self.client.get(self.url(self.plantilla.pk)).status_code, 403, u.email)
+        self.client.force_login(self.su)
+        self.assertEqual(self.client.get(self.url()).status_code, 200)
+        r = self.client.get(self.url(self.plantilla.pk) + '?paso=materiales')
+        self.assertContains(r, 'Obras civiles')
+        self.assertContains(r, 'Rol y tarea')
+
+    def test_guardar_crea_una_version_nueva_y_sin_cambios_no(self):
+        p = self.plantilla.prompt('materiales')
+        datos = {'rol': p.rol, 'criterios': p.criterios + '\n- Criterio nuevo', 'reglas': p.reglas, 'notas': '',
+                 'modelo': 'gpt-5-mini', 'razonamiento': 'medium', 'comentario': 'probar mini'}
+        self.client.force_login(self.su)
+        r = self.client.post(self.url(self.plantilla.pk, 'materiales', 'guardar'), datos)
+        self.assertEqual(r.status_code, 302)
+        nueva = self.plantilla.prompt('materiales')
+        self.assertEqual((nueva.version, nueva.modelo, nueva.razonamiento, nueva.comentario, nueva.editado_por),
+                         (2, 'gpt-5-mini', 'medium', 'probar mini', self.su))
+        self.assertIn('Criterio nuevo', nueva.texto)
+        self.client.post(self.url(self.plantilla.pk, 'materiales', 'guardar'), datos)   # igual a lo vigente
+        self.assertEqual(self.plantilla.prompts.filter(paso='materiales').count(), 2)
+
+    def test_validaciones_del_guardado(self):
+        self.client.force_login(self.su)
+        base = {'rol': 'x', 'criterios': '', 'reglas': '', 'notas': '', 'modelo': 'gpt-5.1', 'razonamiento': 'low'}
+        url = self.url(self.plantilla.pk, 'materiales', 'guardar')
+        for malo in ({'rol': ''}, {'modelo': ''}, {'razonamiento': 'extremo'}):
+            self.client.post(url, {**base, **malo})
+        self.assertEqual(self.plantilla.prompts.filter(paso='materiales').count(), 1)    # nada se guardó
+        self.assertEqual(self.client.post(self.url(self.plantilla.pk, 'inventado', 'guardar'), base).status_code, 403)
+
+    def test_los_demas_no_pueden_guardar(self):
+        self.client.force_login(self.coord)
+        r = self.client.post(self.url(self.plantilla.pk, 'materiales', 'guardar'),
+                             {'rol': 'x', 'modelo': 'gpt-5.1', 'razonamiento': ''})
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(self.plantilla.prompts.filter(paso='materiales').count(), 1)
+
+    def test_restaurar_una_version_la_guarda_como_nueva(self):
+        v1 = self.plantilla.prompt('equipos')
+        v1.nueva_version(self.su, 'cambio', rol='Otro rol')
+        self.client.force_login(self.su)
+        self.client.post(self.url(self.plantilla.pk, 'restaurar', v1.pk))
+        vigente = self.plantilla.prompt('equipos')
+        self.assertEqual((vigente.version, vigente.rol, vigente.comentario), (3, v1.rol, 'Restaurada la versión 1'))
+        self.assertEqual(self.plantilla.prompts.filter(paso='equipos').count(), 3)
+
+    def test_crear_copiando_trae_los_prompts_vigentes(self):
+        self.client.force_login(self.su)
+        self.client.post(self.url('nueva'), {'nombre': 'Tuberías enterradas', 'copiar_de': self.plantilla.pk})
+        nueva = PlantillaAPU.objects.get(nombre='Tuberías enterradas')
+        self.assertEqual(nueva.pasos_faltantes(), [])
+        self.assertEqual(nueva.prompt('materiales').texto, self.plantilla.prompt('materiales').texto)
+        self.client.post(self.url('nueva'), {'nombre': 'Tuberías enterradas'})          # nombre repetido: no se duplica
+        self.assertEqual(PlantillaAPU.objects.filter(nombre='Tuberías enterradas').count(), 1)
+
+    def test_el_menu_la_muestra_solo_al_superusuario(self):
+        self.client.force_login(self.su)
+        self.assertContains(self.client.get('/tekon/apu/'), '/tekon/apu/plantillas/')
+        self.client.force_login(self.coord)
+        self.assertNotContains(self.client.get('/tekon/apu/'), '/tekon/apu/plantillas/')
+
+    def probar(self, paso='materiales', usuario=None, **kw):
+        datos = {'rol': 'Rol de prueba', 'criterios': 'Criterio de prueba', 'reglas': '', 'notas': '', 'modelo': 'gpt-5-mini',
+                 'razonamiento': 'high', 'proyecto': self.proyecto.pk, 'actividad': 'Muro de ladrillo', 'unidad': 'm2',
+                 'descripcion': 'Muro de ladrillo de 12 cm con mortero, unos 40 m2 en total'}
+        datos.update(kw)
+        return self.json(self.url(self.plantilla.pk, paso, 'probar'), datos, usuario or self.su)
+
+    def test_probar_usa_lo_del_formulario_sin_guardarlo_ni_cobrar(self):
+        with mock.patch(LLAMAR, return_value=propuesta_materiales()) as ll:
+            r = self.probar('materiales')
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertTrue(r.json()['respuesta']['filas'])
+        enviado = ll.call_args[0][1]
+        self.assertEqual(enviado['ia']['materiales']['prompt'], 'Rol de prueba\n\nCriterio de prueba')   # el texto sin guardar
+        self.assertEqual((enviado['ia']['materiales']['modelo'], enviado['ia']['materiales']['razonamiento']), ('gpt-5-mini', 'high'))
+        self.assertEqual(enviado['ia']['verificar']['prompt'], self.plantilla.prompt('verificar').texto)   # el resto, el vigente
+        self.assertTrue(enviado['ultima_ronda'])
+        self.assertEqual(self.plantilla.prompts.filter(paso='materiales').count(), 1)                  # nada se guardó
+        self.assertEqual(self.plantilla.prompt('materiales').modelo, 'gpt-5.1')
+        self.assertFalse(ConsumoAPU.objects.exists())                                                  # sin créditos
+        ll_reg = LlamadaIA.objects.get()
+        self.assertIn('PRUEBA', ll_reg.prompt_version)
+        self.assertFalse(APUBorrador.objects.exists())
+
+    def test_probar_el_paso_de_coherencia_manda_los_dos_prompts(self):
+        with mock.patch(LLAMAR, return_value=COHERENTE) as ll:
+            r = self.probar('clasificacion')
+        self.assertEqual(r.status_code, 200)
+        enviado = ll.call_args[0][1]
+        self.assertEqual(set(enviado['ia']), {'coherencia', 'clasificacion'})
+        self.assertEqual(enviado['ia']['clasificacion']['prompt'], 'Rol de prueba\n\nCriterio de prueba')
+        self.assertEqual(enviado['ia']['coherencia']['prompt'], self.plantilla.prompt('coherencia').texto)
+
+    def test_probar_valida_y_solo_lo_hace_el_superusuario(self):
+        with mock.patch(LLAMAR) as ll:
+            self.assertEqual(self.probar('materiales', usuario=self.coord).status_code, 403)
+            self.assertEqual(self.probar('materiales', actividad='').status_code, 400)
+            self.assertEqual(self.probar('materiales', proyecto=self.proyecto_b.pk).status_code, 400)   # proyecto de otra empresa
+            self.assertEqual(self.probar('materiales', modelo='').status_code, 400)
+            self.assertEqual(self.probar('materiales', rol='', criterios='').status_code, 400)
+            self.assertEqual(self.probar('precios').status_code, 400)                                    # necesita un APU real
+        ll.assert_not_called()
+
+    def test_si_n8n_falla_la_prueba_lo_dice(self):
+        with mock.patch(LLAMAR, side_effect=N8NError('n8n no responde')):
+            r = self.probar('equipos')
+        self.assertEqual((r.status_code, r.json()['message']), (502, 'n8n no responde'))
+
+    def test_probar_usa_los_borradores_de_los_pasos_que_acompanan(self):
+        otros = {'verificar': {'rol': 'Verificador borrador', 'criterios': '', 'reglas': '', 'notas': '', 'modelo': 'gpt-4.1-mini', 'razonamiento': ''}}
+        with mock.patch(LLAMAR, return_value=propuesta_materiales()) as ll:
+            r = self.probar('materiales', otros=otros)
+        self.assertEqual(r.status_code, 200, r.content)
+        enviado = ll.call_args[0][1]['ia']
+        self.assertEqual(enviado['verificar']['prompt'], 'Verificador borrador')
+        self.assertEqual(self.plantilla.prompt('verificar').version, 1)       # tampoco se guardó
+        with mock.patch(LLAMAR, return_value=propuesta_materiales()) as ll:
+            self.probar('materiales', otros={'verificar': {'rol': '', 'modelo': ''}})   # borrador vacío: vale el vigente
+        self.assertEqual(ll.call_args[0][1]['ia']['verificar']['prompt'], self.plantilla.prompt('verificar').texto)

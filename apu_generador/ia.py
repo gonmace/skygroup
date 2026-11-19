@@ -12,6 +12,8 @@ from django.conf import settings
 from core import n8n
 from core.n8n import N8NError
 
+from apu_catalogo.models import PromptAPU
+
 from .models import LlamadaIA, TarifaModeloIA
 
 logger = logging.getLogger(__name__)
@@ -30,11 +32,38 @@ def contexto_proyecto(proyecto):
             'region': proyecto.region or ''}
 
 
+def resumen_de_proyecto(proyecto):
+    """Respaldo de `resumen_alcance` para un APU anterior al alcance: lo único que se sabe es el proyecto."""
+    c = contexto_proyecto(proyecto)
+    lugar = ', '.join(x for x in (c['tipo'], c['ciudad']) if x)
+    return f"Proyecto «{c['nombre']}»{f' ({lugar})' if lugar else ''}: {c['descripcion']}".strip()
+
+
+def config(plantilla, *pasos):
+    """Prompt y modelo vigentes de cada paso de la plantilla, para el payload: {paso: {prompt, modelo, razonamiento,
+    version}}. n8n solo ejecuta: el texto y el modelo se editan en la web (APU → Plantillas). Si falta algo lanza
+    `N8NError` con un mensaje apto para mostrar (no hay prompt de respaldo en n8n)."""
+    if plantilla is None:
+        raise N8NError('Elige el tipo de trabajo (plantilla) del APU.')
+    salida = {}
+    for paso in pasos:
+        prompt = plantilla.prompt(paso)
+        nombre = dict(PromptAPU.Paso.choices).get(paso, paso)
+        if prompt is None or not prompt.texto:
+            raise N8NError(f'La plantilla «{plantilla.nombre}» no tiene el prompt de «{nombre}». Cárgalo en APU → Plantillas.')
+        if not prompt.modelo:
+            raise N8NError(f'El prompt de «{nombre}» de la plantilla «{plantilla.nombre}» no tiene modelo. Elígelo en APU → Plantillas.')
+        salida[paso] = {'prompt': prompt.texto, 'modelo': prompt.modelo, 'razonamiento': prompt.razonamiento,
+                        'version': prompt.etiqueta}
+    return salida
+
+
 def llamar(clave, payload, *, empresa, usuario=None, borrador=None, paso='', apu=None):
     """Llama al webhook `clave`, registra la `LlamadaIA` y devuelve la respuesta ya desempaquetada (un dict).
     Lanza `N8NError` con un mensaje apto para mostrar."""
     inicio = time.monotonic()
     ok, datos = True, {}
+    version = ' | '.join(c.get('version', '') for c in (payload.get('ia') or {}).values())[:300]
     try:
         datos = n8n.desempaquetar(n8n.llamar_webhook_seguro(n8n.webhook_url(WEBHOOKS[clave]), payload, timeout=TIMEOUT))
     except N8NError:
@@ -42,7 +71,7 @@ def llamar(clave, payload, *, empresa, usuario=None, borrador=None, paso='', apu
         raise
     finally:
         LlamadaIA.objects.create(
-            empresa=empresa, usuario=usuario, borrador=borrador, apu=apu, webhook=WEBHOOKS[clave], paso=paso, ok=ok,
+            empresa=empresa, usuario=usuario, borrador=borrador, apu=apu, webhook=WEBHOOKS[clave], paso=paso, ok=ok, prompt_version=version,
             ejecucion_id=str(datos.get('ejecucion_id') or ''), duracion_ms=int((time.monotonic() - inicio) * 1000))
     if not datos:
         raise N8NError('El servicio de IA no devolvió resultados. Inténtalo de nuevo.')

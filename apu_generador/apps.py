@@ -13,4 +13,5 @@ class ApuGeneradorConfig(AppConfig):
         registrar_item('apu', 'Pendientes', 'apu_generador:pendientes', 'clock', capacidad='apu.catalogo.manage', orden=25)
         registrar_item('apu', 'Usuarios', 'apu_generador:usuarios', 'users', capacidad='apu.ver', orden=70,
                        solo_admin=True)
+        registrar_item('apu', 'Plantillas', 'apu_generador:plantillas', 'layers', solo_superusuario=True, orden=75)
         registrar_item('apu', 'Consumo IA', 'apu_generador:consumo_ia', 'chart', solo_superusuario=True, orden=80)

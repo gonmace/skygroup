@@ -19,6 +19,9 @@ class APUBorrador(models.Model):
     creado = models.DateTimeField(auto_now_add=True)
     actualizado = models.DateTimeField(auto_now=True)
 
+    plantilla = models.ForeignKey('apu_catalogo.PlantillaAPU', null=True, blank=True, on_delete=models.SET_NULL,
+                                  related_name='+', help_text='Tipo de trabajo: decide los prompts de IA de cada paso.')
+
     # Paso 1
     actividad = models.CharField('Actividad', max_length=200)
     unidad = models.CharField('Unidad', max_length=20)
@@ -27,6 +30,7 @@ class APUBorrador(models.Model):
 
     # Lo confirmado en cada paso. `materiales`, `mano_obra` y `equipos` son {"filas": [...], ...}.
     clasificacion = models.JSONField(default=dict, blank=True)
+    resumen_alcance = models.TextField('Alcance del ítem', blank=True, help_text='Resumen del alcance que genera el paso 1 y que leen los pasos de insumos.')
     materiales = models.JSONField(default=dict, blank=True)
     mano_obra = models.JSONField(default=dict, blank=True)
     equipos = models.JSONField(default=dict, blank=True)
@@ -125,6 +129,8 @@ class LlamadaIA(models.Model):
                             related_name='llamadas_ia')
     webhook = models.CharField(max_length=40)
     paso = models.CharField(max_length=20, blank=True)
+    prompt_version = models.CharField(max_length=300, blank=True,
+                                      help_text='Plantilla, paso, versión y modelo del prompt con que se ejecutó.')
     ejecucion_id = models.CharField(max_length=40, blank=True)
     duracion_ms = models.PositiveIntegerField(default=0)
     ok = models.BooleanField(default=True)

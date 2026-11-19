@@ -42,18 +42,23 @@
     var msg = caja && caja.querySelector('[data-progreso-mensaje]');
     var pct = caja && caja.querySelector('[data-progreso-pct]');
     var barra = caja && caja.querySelector('[data-progreso-barra]');
+    if (barra) barra.style.transition = 'stroke-dashoffset .3s linear';   // por JS: un style en línea no pasa la CSP
     var timer = null;
     function pintar(valor, texto) {
-      if (barra) barra.value = valor;
+      if (barra) barra.style.strokeDashoffset = (276.46 * (1 - valor / 100)).toFixed(2);
+      if (caja) caja.style.setProperty('--giro', (valor * 3.6).toFixed(1) + 'deg');   // el giro de las órbitas sigue al porcentaje
       if (pct) pct.textContent = Math.round(valor) + ' %';
-      if (msg && texto) msg.textContent = texto;
+      if (msg && texto && msg.textContent !== texto) {
+        msg.textContent = texto; msg.classList.remove('prog-msg'); void msg.offsetWidth; msg.classList.add('prog-msg');
+      }
     }
     return {
       iniciar: function (mensajes, promedioMs) {
         if (!caja) return;
         mensajes = mensajes && mensajes.length ? mensajes : ['Trabajando en ello…'];
         var inicio = Date.now(), media = Math.max(5000, promedioMs || 40000);
-        caja.classList.remove('hidden');
+        if (caja.showPopover) { if (!caja.matches(':popover-open')) caja.showPopover(); }   // capa superior: al centro de la pantalla y sobre cualquier modal
+        else { document.body.appendChild(caja); caja.style.display = 'flex'; }
         pintar(2, mensajes[0]);
         clearInterval(timer);
         timer = setInterval(function () {
@@ -62,10 +67,11 @@
         }, 300);
       },
       terminar: function (ok) {
+        function cerrar() { if (caja.hidePopover && caja.matches(':popover-open')) caja.hidePopover(); caja.style.display = ''; }
         clearInterval(timer);
         if (!caja) return;
-        if (ok) { pintar(100, 'Listo.'); setTimeout(function () { caja.classList.add('hidden'); }, 350); }
-        else caja.classList.add('hidden');
+        if (ok) { pintar(100, 'Listo.'); setTimeout(cerrar, 350); }
+        else cerrar();
       }
     };
   }
@@ -84,17 +90,61 @@
     return d;
   }
 
+  // Paso 1: preguntas con que la IA cierra el alcance. Cada una trae su respuesta recomendada ya puesta; la persona la acepta o la cambia.
+  function pintarConsultasAlcance(zona, form, consultas) {
+    zona.innerHTML = '';
+    consultas.forEach(function (c) {
+      var rec = (c.opciones || []).filter(function (o) { return o.clave === c.recomendada; })[0] || (c.opciones || [])[0];
+      var el = document.createElement('div');
+      el.className = 'rounded-box border border-primary/30 bg-primary/5 p-4';
+      el.setAttribute('data-consulta-alcance', c.id);
+      var html = '<p class="font-medium">' + esc(c.pregunta) + '</p>' +
+        (c.motivo ? '<p class="mt-0.5 text-sm text-base-content/60">' + esc(c.motivo) + '</p>' : '') +
+        (c.por_que ? '<p class="mt-1 text-sm"><span class="font-medium text-primary-text">Recomendación:</span> ' + esc(c.por_que) + '</p>' : '') +
+        '<div class="mt-3 space-y-2">';
+      if (c.tipo === 'opciones') {
+        c.opciones.forEach(function (o) {
+          html += '<label class="flex cursor-pointer items-start gap-3 rounded-box border border-base-300 bg-base-100 p-3">' +
+            '<input type="radio" class="radio radio-primary radio-sm mt-0.5" name="ca-' + esc(c.id) + '" value="' + esc(o.etiqueta) + '"' + (rec && o.clave === rec.clave ? ' checked' : '') + '>' +
+            '<span class="min-w-0 flex-1 text-sm"><span class="font-medium">' + esc(o.etiqueta) + '</span>' +
+            (rec && o.clave === rec.clave ? ' <span class="badge badge-primary badge-soft badge-sm ml-1">Recomendado</span>' : '') + '</span></label>';
+        });
+      } else {
+        html += '<input class="input input-bordered input-sm w-full" name="ca-' + esc(c.id) + '" maxlength="300" value="' + esc(rec ? rec.etiqueta : '') + '" aria-label="' + esc(c.pregunta) + '">';
+      }
+      el.innerHTML = html + '</div>';
+      zona.appendChild(el);
+    });
+    var boton = form.querySelector('[type=submit]');
+    if (boton && consultas.length) boton.textContent = 'Responder y continuar';
+  }
+  function respuestasAlcance(zona) {
+    var resp = {};
+    zona.querySelectorAll('[data-consulta-alcance]').forEach(function (el) {
+      var id = el.getAttribute('data-consulta-alcance');
+      var r = el.querySelector('input[type=radio]:checked') || el.querySelector('input.input');
+      if (r && String(r.value).trim()) resp[id] = String(r.value).trim();
+    });
+    return resp;
+  }
+
   function iniciarFormAjax(form) {
     var progreso = Progreso(form);
     var mensajes = (form.getAttribute('data-mensajes') || '').split('|').filter(Boolean);
     var promedio = parseInt(form.getAttribute('data-promedio') || '0', 10);
     var urlRepetir = form.getAttribute('data-url-repetir');   // paso 1: ya existe el borrador → se vuelve a comprobar ahí
     var alerta = form.querySelector('[data-aviso-ia]');
+    var zonaAlcance = form.querySelector('[data-consultas-alcance]');
+
+    var abiertas = leerJson('apu-consultas-alcance');
+    if (!Array.isArray(abiertas)) abiertas = [];
+    if (zonaAlcance && abiertas.length) pintarConsultasAlcance(zonaAlcance, form, abiertas);
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       if (alerta) alerta.classList.add('hidden');
       var destino = form.getAttribute('data-url') || form.getAttribute('action') || window.location.href;
       var datos = valoresForm(form);   // ANTES de bloquear: un campo deshabilitado no se envía
+      if (zonaAlcance) { var resp = respuestasAlcance(zonaAlcance); if (Object.keys(resp).length) datos.respuestas = resp; }
       bloquear(form, true);
       progreso.iniciar(mensajes, promedio);
       post(destino, datos).then(function (res) {
@@ -107,13 +157,16 @@
           if (b && !res.ok) b.textContent = 'Reintentar';
         }
         if (!res.ok) { avisar(d.message, 'error'); return; }
-        if (d.estado === 'proyecto_poco_claro' || d.estado === 'no_coherente') {
-          if (alerta) { alerta.querySelector('[data-aviso-texto]').textContent = d.falta || d.razon || d.message; alerta.classList.remove('hidden'); }
+        if (d.estado === 'no_coherente') {   // la actividad no cuadra: se explica y se vuelve a comprobar (el proyecto no se cuestiona)
+          if (alerta) { alerta.querySelector('[data-aviso-texto]').textContent = d.razon || d.message; alerta.classList.remove('hidden'); }
           avisar(d.message, 'warning');
-          var area = form.querySelector('[data-proyecto-descripcion]');
-          if (d.estado === 'proyecto_poco_claro' && area) { area.closest('[data-bloque-descripcion]').classList.remove('hidden'); area.focus(); }
           var boton = form.querySelector('[type=submit]');
           if (boton) boton.textContent = 'Comprobar de nuevo';
+          return;
+        }
+        if (d.estado === 'consultas' && zonaAlcance) {   // falta un dato del alcance: se pregunta y el paso 1 sigue abierto
+          pintarConsultasAlcance(zonaAlcance, form, d.consultas || []);
+          avisar(d.message, 'info');
           return;
         }
         avisar(d.message, 'success');
@@ -123,22 +176,30 @@
     });
   }
 
-  // Paso 1: según el proyecto elegido se pide su perfil de cálculo y/o su descripción.
+  // Paso 1: tipo de trabajo (plantilla) en un control segmentado que escribe su valor en un campo oculto.
+  document.querySelectorAll('[data-plantillas]').forEach(function (caja) {
+    var campo = caja.querySelector('input[name=plantilla]'), texto = caja.querySelector('[data-plantilla-texto]');
+    caja.querySelectorAll('button[data-plantilla]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        campo.value = b.dataset.plantilla;
+        caja.querySelectorAll('button[data-plantilla]').forEach(function (o) { o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
+        if (texto) texto.textContent = b.dataset.descripcion || '';
+      });
+    });
+  });
+
+  // Paso 1: según el proyecto elegido se propone su perfil de cálculo y se muestra la región de sus precios.
   function iniciarActividad(raiz) {
     var info = leerJson('apu-info-proyectos') || {};
     var sel = raiz.querySelector('[name=proyecto]');
-    var desc = raiz.querySelector('[data-bloque-descripcion]');
-    var area = raiz.querySelector('[data-proyecto-descripcion]');
     var perfil = raiz.querySelector('[data-perfil]');
     var filtro = raiz.querySelector('[data-filtro-proyecto]');
-    function actualizar() {   // el perfil se propone con el del proyecto (editable); la descripción se pide si no alcanza
+    function actualizar() {   // el perfil se propone con el del proyecto (editable)
       var p = info[sel.value];
       var reg = raiz.querySelector('[data-region-actual]');
       if (reg) reg.textContent = p ? 'Precios de: ' + (p.region || 'nacionales') + ' (se define al habilitar el proyecto)' : '';
-      if (!p) { desc.classList.add('hidden'); return; }
+      if (!p) return;
       if (perfil && p.perfil_id && !perfil.dataset.tocado) perfil.value = String(p.perfil_id);
-      desc.classList.toggle('hidden', !!p.descripcion_ok);
-      if (area && !p.descripcion_ok && !area.value) area.value = p.descripcion;
     }
     if (perfil) perfil.addEventListener('change', function () { perfil.dataset.tocado = '1'; });
     if (filtro) filtro.addEventListener('input', function () {
@@ -167,8 +228,10 @@
     var porClave = {};
     catalogo.forEach(function (c) { porClave[c.descripcion.trim().toLowerCase()] = c; });
 
-    var filas = [], consultas = [], decisiones = {}, usadas = estado.usadas || 0;
+    var filas = [], consultas = [], decisiones = {}, otras = {}, usadas = estado.usadas || 0;   // otras: respuesta escrita a una consulta de opciones
     var errorInicial = false;
+    var bloquesResultado = raiz.querySelectorAll('[data-resultados]');   // tabla, rendimiento y acciones: salen DESPUÉS de las preguntas
+    function mostrarResultados(si) { Array.prototype.forEach.call(bloquesResultado, function (b) { b.classList.toggle('hidden', !si); }); }
 
     var MENSAJES = {
       materiales: ['Leyendo la descripción del proyecto…', 'Revisando el catálogo de materiales de la empresa…',
@@ -191,7 +254,7 @@
     function cargarPropuesta(p) {
       consultas = p.consultas || [];
       filas = (p.filas || []).map(clonar);
-      decisiones = {};
+      decisiones = {}; otras = {};
       consultas.forEach(function (c) {
         if (c.tipo === 'opciones') {
           var op = c.opciones.filter(function (o) { return o.clave === c.recomendada; })[0] || c.opciones[0];
@@ -207,6 +270,7 @@
         if (p.rendimiento && inRend && !inRend.value) inRend.value = p.rendimiento;
         if (p.horas_jornada && inHoras && !inHoras.value) inHoras.value = p.horas_jornada;
       }
+      mostrarResultados(!consultas.length);   // con preguntas pendientes solo se ven las preguntas
       pintarConsultas(); pintarTabla();
     }
 
@@ -235,7 +299,7 @@
           '<div class="mt-3 space-y-2">';
         if (c.tipo === 'opciones') {
           c.opciones.forEach(function (o) {
-            var marcada = decisiones[c.id] === o.clave;
+            var marcada = otras[c.id] === undefined && decisiones[c.id] === o.clave;
             html += '<label class="flex cursor-pointer items-start gap-3 rounded-box border bg-base-100 p-3 ' + (marcada ? 'border-primary' : 'border-base-300') + '">' +
               '<input type="radio" class="radio radio-primary radio-sm mt-0.5" name="c-' + esc(c.id) + '" value="' + esc(o.clave) + '"' + (marcada ? ' checked' : '') + '>' +
               '<span class="min-w-0 flex-1 text-sm"><span class="font-medium">' + esc(o.etiqueta) + '</span>' +
@@ -244,6 +308,14 @@
               ((o.filas || []).length ? '<span class="mt-0.5 block text-xs text-base-content/60">' + o.filas.map(function (f) { return esc(f.descripcion); }).join(' · ') + '</span>' : '') +
               '</span></label>';
           });
+          var esOtra = otras[c.id] !== undefined;
+          html += '<label class="flex cursor-pointer items-start gap-3 rounded-box border bg-base-100 p-3 ' + (esOtra ? 'border-primary' : 'border-base-300') + '">' +
+            '<input type="radio" class="radio radio-primary radio-sm mt-0.5" name="c-' + esc(c.id) + '" value="__otra__"' + (esOtra ? ' checked' : '') + '>' +
+            '<span class="min-w-0 flex-1 text-sm"><span class="font-medium">Otra respuesta</span>' +
+            '<span class="mt-0.5 block text-xs text-base-content/60">Ninguna de las anteriores: escribe lo que corresponde.</span>' +
+            (esOtra ? '<textarea class="textarea textarea-bordered mt-2 w-full text-sm" rows="2" data-otra="' + esc(c.id) + '" placeholder="Tu respuesta">' + esc(otras[c.id]) + '</textarea>' +
+              '<button type="button" class="btn btn-primary btn-sm mt-2" data-accion="enviar-otra">Enviar a la IA</button>' : '') +
+            '</span></label>';
         } else {
           hayDatos = true;
           (c.opciones || []).length && (html += '<div class="flex flex-wrap gap-2">' + c.opciones.map(function (o) {
@@ -251,7 +323,7 @@
             return '<button type="button" class="btn btn-xs ' + (rec ? 'btn-primary' : 'btn-ghost') + '" data-sugerencia="' + esc(c.id) + '" data-valor="' + esc(o.etiqueta) + '">' +
               esc(o.etiqueta) + (rec ? ' <span class="opacity-70">· Recomendado</span>' : '') + '</button>';
           }).join('') + '</div>');
-          html += '<textarea class="textarea textarea-bordered w-full text-sm" rows="2" data-respuesta="' + esc(c.id) + '" placeholder="Tu respuesta">' + esc(decisiones[c.id] || '') + '</textarea>';
+          html += '<textarea class="textarea textarea-bordered w-full text-sm" rows="2" data-respuesta="' + esc(c.id) + '" placeholder="Elige una sugerencia o escribe tu propia respuesta">' + esc(decisiones[c.id] || '') + '</textarea>';
         }
         html += '</div></div></div>';
         el.innerHTML = html;
@@ -262,6 +334,12 @@
         b.className = 'flex justify-end';
         b.innerHTML = '<button type="button" class="btn btn-primary btn-sm" data-accion="responder">Enviar respuestas a la IA</button>';
         zonaConsultas.appendChild(b);
+      } else if (consultas.length && bloquesResultado.length && bloquesResultado[0].classList.contains('hidden')) {
+        // solo preguntas de opciones (ya traen la recomendada marcada): al confirmarlas aparece la tabla
+        var c2 = document.createElement('div');
+        c2.className = 'flex justify-end';
+        c2.innerHTML = '<button type="button" class="btn btn-primary btn-sm" data-accion="ver-propuesta">Continuar con estas respuestas</button>';
+        zonaConsultas.appendChild(c2);
       }
     }
 
@@ -340,12 +418,22 @@
         if (e.target.type !== 'radio') return;
         var id = e.target.name.replace(/^c-/, '');
         var c = consultas.filter(function (x) { return x.id === id; })[0];
+        if (e.target.value === '__otra__') {   // la persona escribe su propia respuesta: se quitan las filas de esa consulta
+          otras[id] = otras[id] || ''; decisiones[id] = otras[id];
+          filas = filas.filter(function (f) { return f.consulta !== id; });
+          pintarConsultas(); pintarTabla();
+          var area = zonaConsultas.querySelector('[data-otra="' + id + '"]'); if (area) area.focus();
+          return;
+        }
         var op = c.opciones.filter(function (o) { return o.clave === e.target.value; })[0];
+        delete otras[id];
         decisiones[id] = op.clave; aplicarOpcion(c, op); pintarConsultas(); pintarTabla();
       });
       zonaConsultas.addEventListener('input', function (e) {
         var id = e.target.getAttribute('data-respuesta');
         if (id) decisiones[id] = e.target.value;
+        var otra = e.target.getAttribute('data-otra');
+        if (otra) { otras[otra] = e.target.value; decisiones[otra] = e.target.value; }
       });
       zonaConsultas.addEventListener('click', function (e) {
         var s = e.target.closest('[data-sugerencia]');
@@ -353,13 +441,29 @@
           var area = zonaConsultas.querySelector('[data-respuesta="' + s.getAttribute('data-sugerencia') + '"]');
           area.value = s.getAttribute('data-valor'); decisiones[s.getAttribute('data-sugerencia')] = area.value; return;
         }
+        if (e.target.closest('[data-accion=enviar-otra]')) {
+          var vacia = Object.keys(otras).some(function (k) { return !String(otras[k]).trim(); });
+          if (vacia) { avisar('Escribe tu respuesta antes de enviarla a la IA.', 'warning'); return; }
+          proponer(true); return;
+        }
+        if (e.target.closest('[data-accion=ver-propuesta]')) {
+          var pendiente = Object.keys(otras).some(function (k) { return !String(otras[k]).trim(); });
+          if (pendiente) { avisar('Escribe tu respuesta, o elige una de las opciones.', 'warning'); return; }
+          if (Object.keys(otras).length) { proponer(true); return; }   // si escribió una respuesta propia, la IA rehace la propuesta con ella
+          mostrarResultados(true); pintarConsultas();
+          var tabla = raiz.querySelector('[data-tabla]'); if (tabla) tabla.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return;
+        }
         if (e.target.closest('[data-accion=responder]')) proponer(true);
       });
     }
 
     function respuestasEscritas() {
       var r = {};
-      consultas.forEach(function (c) { if (c.tipo === 'dato' && String(decisiones[c.id] || '').trim()) r[c.id] = decisiones[c.id].trim(); });
+      consultas.forEach(function (c) {
+        if (c.tipo === 'dato' && String(decisiones[c.id] || '').trim()) r[c.id] = decisiones[c.id].trim();
+        if (c.tipo === 'opciones' && otras[c.id] !== undefined && String(otras[c.id]).trim()) r[c.id] = String(otras[c.id]).trim();   // «Otra respuesta»
+      });
       return r;
     }
 
@@ -372,7 +476,7 @@
         bloquear(raiz, false);
         progreso.terminar(res.ok);
         if (res.status === 409 && res.data.continuar_url) { window.location.href = res.data.continuar_url; return; }
-        if (!res.ok) { errorInicial = !filas.length; avisar(res.data.message, 'error'); pintarTabla(); actualizarContador(); return; }
+        if (!res.ok) { errorInicial = !filas.length; mostrarResultados(true); avisar(res.data.message, 'error'); pintarTabla(); actualizarContador(); return; }
         usadas = res.data.usadas;
         estado.respuestas = respuestas;
         errorInicial = false;
@@ -404,7 +508,7 @@
     });
 
     if (estado.propuesta) cargarPropuesta(estado.propuesta);
-    else { pintarTabla(); proponer(false); }
+    else { mostrarResultados(false); pintarTabla(); proponer(false); }   // la tabla aparece cuando llega la propuesta (y tras las preguntas)
   }
 
   // ── Paso 5: precios, guardar el APU y modificar con IA ───────────────────────────────────────────────────────────
@@ -458,6 +562,108 @@
         caja.setAttribute('data-fuente-sug', s.fuente);
       });
     }
+    // ── Editar o revisar con IA una fila: el precio que se cambia vale solo para este proyecto ──
+    var dlgEd = document.getElementById('apu-editar-fila'), dlgRev = document.getElementById('apu-revisar-fila');
+    var filaActual = null, sugerenciaFila = null;
+    function mostrar(el, si) { if (el) el.classList.toggle('hidden', !si); }
+    function abrirEdicion(tr) {
+      if (!dlgEd || !tr) return;
+      filaActual = tr;
+      var d = tr.dataset, f = dlgEd.querySelector('form'), el = f.elements;
+      var mo = d.tipo === 'mano_obra', sub = !d.insumoId;
+      f.querySelector('[data-titulo]').textContent = 'Editar «' + d.nombre + '»';
+      f.querySelector('[data-unidad]').textContent = d.unidad ? '(' + d.unidad + ')' : '';
+      el.cantidad.value = d.cantidad; el.personas.value = d.personas || ''; el.desperdicio_pct.value = d.desperdicio || '';
+      el.precio.value = d.precioActual || ''; el.moneda.value = d.monedaActual || '';
+      mostrar(f.querySelector('[data-campo=cantidad]'), !mo);
+      mostrar(f.querySelector('[data-campo=unidad]'), !mo && !sub);      // la hora de mano de obra no se convierte: depende de la jornada
+      el.unidad.value = d.unidad || ''; el.factor.value = '';
+      var bf = f.querySelector('[data-bloque-factor]'); bf.classList.add('hidden'); bf.classList.remove('flex');
+      mostrar(f.querySelector('[data-campo=mo]'), mo);
+      mostrar(f.querySelector('[data-campo=desperdicio]'), d.tipo === 'materiales' && !sub);
+      mostrar(f.querySelector('[data-campo=precio]'), !sub && !!d.precioActual);   // sin precio se carga en la propia fila
+      dlgEd.showModal();
+    }
+    function abrirRevision(tr) {
+      if (!dlgRev || !tr) return;
+      filaActual = tr; sugerenciaFila = null;
+      var d = tr.dataset;
+      dlgRev.querySelector('[data-titulo]').textContent = 'Revisar «' + d.nombre + '» con IA';
+      mostrar(dlgRev.querySelector('[data-bloque-precio]'), !!d.insumoId);
+      var res = dlgRev.querySelector('[data-resultado-precio]'); res.innerHTML = ''; mostrar(res, false);
+      var cant = d.tipo === 'mano_obra' ? (d.personas || '?') + ' persona(s), ' + d.cantidad + ' h por unidad' : d.cantidad + ' ' + (d.unidad || '');
+      dlgRev.querySelector('[data-instruccion]').value = 'Revisa la cantidad de «' + d.nombre + '» (' + cant + ') frente al alcance del APU y corrígela solo si no es coherente.';
+      dlgRev.showModal();
+    }
+    if (dlgEd) {
+      var enviarEdicion = function (f, datos) {
+        bloquear(f, true);
+        post(cfg.url_fila, datos).then(function (res) {
+          bloquear(f, false);
+          if (!res.ok && res.data.necesita_factor) {   // unidad que no se convierte sola: se pide el factor
+            f.querySelector('[data-factor-de]').textContent = res.data.unidad_actual;
+            f.querySelector('[data-factor-a]').textContent = res.data.unidad_nueva;
+            var bf = f.querySelector('[data-bloque-factor]'); bf.classList.remove('hidden'); bf.classList.add('flex');
+            avisar(res.data.message, 'warning'); f.elements.factor.focus();
+            return;
+          }
+          if (!res.ok) { avisar(res.data.message, 'error'); return; }
+          dlgEd.close(); avisar(res.data.message, 'success'); refrescar();
+        });
+      };
+      dlgEd.querySelector('form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var f = e.target, el = f.elements, d = filaActual.dataset;
+        var datos = { tipo: d.tipo, indice: d.indice, cantidad: el.cantidad.value, personas: el.personas.value, rendimiento: el.rendimiento.value, desperdicio_pct: el.desperdicio_pct.value };
+        if (!f.querySelector('[data-campo=precio]').classList.contains('hidden') && el.precio.value !== (d.precioActual || '')) { datos.precio = el.precio.value; datos.moneda = el.moneda.value; }
+        if (d.tipo === 'mano_obra') delete datos.cantidad; else { delete datos.personas; delete datos.rendimiento; }
+        var nueva = el.unidad.value.trim();
+        var cambia = !f.querySelector('[data-campo=unidad]').classList.contains('hidden') && nueva && nueva !== (d.unidad || '');
+        if (!cambia) { enviarEdicion(f, datos); return; }
+        datos.unidad = nueva; datos.factor = el.factor.value;
+        window.confirmarUI('La unidad de «' + d.nombre + '» pasará de «' + d.unidad + '» a «' + nueva + '» en el catálogo y en todos los APU que lo usan: ' +
+          'las cantidades y los precios se convertirán para que el costo no cambie.', { titulo: 'Cambiar la unidad', aceptar: 'Convertir' })
+          .then(function (ok) { if (ok) enviarEdicion(f, datos); });
+      });
+    }
+    if (dlgRev) {
+      dlgRev.querySelector('[data-revisar-precio]').addEventListener('click', function () {
+        var d = filaActual.dataset, res = dlgRev.querySelector('[data-resultado-precio]');
+        bloquear(dlgRev, true);
+        post(cfg.url_sugerir, { insumo: d.insumoId }).then(function (r) {
+          bloquear(dlgRev, false);
+          if (!r.ok) { avisar(r.data.message, 'error'); return; }
+          var s = (r.data.sugerencias || {})[d.insumoId];
+          if (!s) { avisar('La IA no devolvió un precio para este insumo.', 'warning'); return; }
+          sugerenciaFila = s;
+          res.innerHTML = '<span>Sugerido: <strong class="tabular-nums">' + esc(s.precio) + ' ' + esc(s.moneda) + '</strong></span> ' +
+            '<span class="badge badge-soft badge-sm ' + (CONFIANZA[s.confianza] || 'badge-ghost') + '">confianza ' + esc(s.confianza) + '</span> ' +
+            '<button type="button" class="btn btn-primary btn-xs" data-usar-precio-fila>Usar en este proyecto</button>' +
+            '<span class="block text-xs text-base-content/60">' + esc(s.fuente) + (s.nota ? ' · ' + esc(s.nota) : '') + '</span>';
+          mostrar(res, true);
+        });
+      });
+      dlgRev.querySelector('[data-resultado-precio]').addEventListener('click', function (e) {
+        if (!e.target.closest('[data-usar-precio-fila]') || !sugerenciaFila) return;
+        var d = filaActual.dataset;
+        post(cfg.url_fila, { tipo: d.tipo, indice: d.indice, precio: sugerenciaFila.precio, moneda: sugerenciaFila.moneda, estimado: true, fuente: sugerenciaFila.fuente }).then(function (r) {
+          if (!r.ok) { avisar(r.data.message, 'error'); return; }
+          dlgRev.close(); avisar(r.data.message, 'success'); refrescar();
+        });
+      });
+      dlgRev.querySelector('[data-revisar-cantidad]').addEventListener('click', function () {
+        var texto = dlgRev.querySelector('[data-instruccion]').value.trim();
+        if (texto.length < 5) { avisar('Escribe qué quieres que revise la IA.', 'error'); return; }
+        bloquear(dlgRev, true);
+        progreso.iniciar(['Leyendo la composición actual…', 'Comparando con el alcance…', 'Verificando los cambios…'], 45000);
+        post(cfg.url_modificar, { instruccion: texto }).then(function (r) {
+          bloquear(dlgRev, false); progreso.terminar(r.ok);
+          if (!r.ok) { avisar(r.data.message, 'error'); return; }
+          if (r.data.sin_cambios) { dlgRev.close(); avisar(r.data.message, 'info'); return; }
+          window.location.href = r.data.continuar_url;
+        });
+      });
+    }
     raiz.addEventListener('input', function (e) {   // si la persona corrige el valor, ya no es el de la IA
       if (!e.target.matches('[data-precio]')) return;
       var fila = e.target.closest('[data-precio-fila]'), caja = fila.querySelector('[data-sugerencia]');
@@ -500,6 +706,10 @@
         });
         return;
       }
+      var ed = e.target.closest('[data-editar-fila]');
+      if (ed) { abrirEdicion(ed.closest('tr[data-fila]')); return; }
+      var rv = e.target.closest('[data-revisar-fila]');
+      if (rv) { abrirRevision(rv.closest('tr[data-fila]')); return; }
       if (e.target.closest('[data-accion=guardar-apu]')) {
         window.confirmarUI('Se guardará el APU en el proyecto y se descontará 1 crédito (si aún no se cobró).', { titulo: 'Guardar APU', aceptar: 'Guardar APU' }).then(function (ok) {
           if (!ok) return;
@@ -532,6 +742,10 @@
       form.elements.precio.value = d.precio || '';
       form.elements.moneda.value = d.moneda || '';
       form.querySelector('[data-bloque-precio]').classList.toggle('hidden', esSub);
+      form.querySelector('[data-bloque-unidad]').classList.toggle('hidden', esSub);
+      form.elements.unidad.value = esSub ? '' : (d.unidad || '');
+      form.elements.factor.value = '';
+      form.querySelector('[data-bloque-factor]').classList.add('hidden');
       var ins = form.querySelector('[data-enlace-insumo]'), sub = form.querySelector('[data-enlace-sub]');
       ins.classList.toggle('hidden', esSub || !d.urlInsumo); if (d.urlInsumo) ins.href = d.urlInsumo;
       sub.classList.toggle('hidden', !esSub); if (esSub) sub.href = d.subitem;
@@ -550,12 +764,32 @@
       try { sessionStorage.setItem('apu-aviso', res.data.message); } catch (err) { /* sin storage */ }
       window.location.reload();
     }
+    function guardarLinea() {
+      var el = form.elements;
+      var datos = { cantidad: el.cantidad.value, desperdicio_pct: el.desperdicio_pct.value, precio: el.precio.value, moneda: el.moneda.value,
+        unidad: el.unidad.value, factor: el.factor.value };
+      bloquear(form, true);
+      post(fila.dataset.url, datos).then(function (res) {
+        bloquear(form, false);
+        if (!res.ok && res.data.necesita_factor) {   // unidad que no se convierte sola: se pide el factor
+          form.querySelector('[data-factor-de]').textContent = res.data.unidad_actual;
+          form.querySelector('[data-factor-a]').textContent = res.data.unidad_nueva;
+          form.querySelector('[data-bloque-factor]').classList.remove('hidden');
+          form.querySelector('[data-bloque-factor]').classList.add('flex');
+          avisar(res.data.message, 'warning');
+          el.factor.focus();
+          return;
+        }
+        terminado(res);
+      });
+    }
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      var el = form.elements;
-      bloquear(form, true);
-      post(fila.dataset.url, { cantidad: el.cantidad.value, desperdicio_pct: el.desperdicio_pct.value, precio: el.precio.value, moneda: el.moneda.value })
-        .then(function (res) { bloquear(form, false); terminado(res); });
+      var cambia = !fila.dataset.subitem && form.elements.unidad.value.trim() && form.elements.unidad.value.trim() !== (fila.dataset.unidad || '');
+      if (!cambia) { guardarLinea(); return; }
+      window.confirmarUI('La unidad de «' + fila.dataset.nombre + '» pasará de «' + fila.dataset.unidad + '» a «' + form.elements.unidad.value.trim() +
+        '» en todos los APU que lo usan: sus cantidades y precios se convertirán para que el costo no cambie.',
+        { titulo: 'Cambiar la unidad', aceptar: 'Convertir' }).then(function (ok) { if (ok) guardarLinea(); });
     });
     form.querySelector('[data-quitar-linea]').addEventListener('click', function () {
       window.confirmarUI('«' + fila.dataset.nombre + '» dejará de formar parte de este APU. El insumo y su precio no se borran.', { titulo: 'Quitar del APU', aceptar: 'Quitar', tipo: 'peligro' })

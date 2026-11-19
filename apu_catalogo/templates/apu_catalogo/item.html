@@ -159,6 +159,7 @@
 {% endif %}
 
 {% if puede_generar %}
+{% lista_unidades %}
 <dialog id="apu-editar-linea" class="modal">
   <div class="modal-box">
     <form class="space-y-4" data-editar-form>
@@ -172,6 +173,13 @@
         <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Desperdicio (%)</span>
           <input name="desperdicio_pct" inputmode="decimal" class="input input-bordered input-sm w-full tabular-nums"></label>
       </div>
+      <div data-bloque-unidad class="space-y-2 rounded-box bg-base-200/60 p-3">
+        <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Unidad del insumo</span>
+          <input name="unidad" maxlength="20" list="apu-unidades" autocomplete="off" class="input input-bordered input-sm w-full" placeholder="m², pie², kg…"></label>
+        <label class="hidden items-center gap-2 text-sm" data-bloque-factor>1 <strong data-factor-de></strong> =
+          <input name="factor" inputmode="decimal" class="input input-bordered input-sm w-28 tabular-nums" aria-label="Factor de conversión"> <strong data-factor-a></strong></label>
+        <p class="text-xs text-base-content/60">Si la cambias (p. ej. la madera de m² a pie²), la cantidad y los precios se convierten solos para que el costo no cambie, en <strong>todos los APU que usan este insumo</strong>. Lo que escribas arriba va en la unidad actual.</p>
+      </div>
       <div data-bloque-precio class="space-y-1 rounded-box bg-base-200/60 p-3">
         <div class="grid gap-3 sm:grid-cols-[1fr_6rem]">
           <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Precio del insumo</span>
@@ -182,7 +190,7 @@
         <p class="text-xs text-base-content/60">Se guarda como el precio de {% if region %}«{{ region }}»{% else %}precios nacionales{% endif %} desde hoy y lo ven <strong>todos los APU que usan este insumo</strong>.</p>
       </div>
       <p class="flex flex-wrap gap-x-4 text-sm">
-        <a class="link hidden" data-enlace-insumo href="#">Editar nombre y unidad del insumo</a>
+        <a class="link hidden" data-enlace-insumo href="#">Abrir el insumo en el catálogo</a>
         <a class="link hidden" data-enlace-sub href="#">Abrir el sub-análisis</a>
       </p>
       <div class="modal-action items-center justify-between">
@@ -231,4 +239,4 @@
 {% endif %}
 {% endif %}
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=7" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=10" defer></script>{% endblock %}

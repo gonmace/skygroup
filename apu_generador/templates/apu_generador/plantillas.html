@@ -1,0 +1,47 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block page_title %}Plantillas · APU{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div class="flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <a href="{% url 'apu_catalogo:inicio' %}" class="inline-flex items-center gap-1 text-sm text-base-content/60 hover:text-base-content">{% include "components/icon.html" with name="chevron-left" cls="size-4" %} APU</a>
+    <h1 class="mt-1 text-2xl font-semibold">Plantillas de APU</h1>
+    <p class="mt-1 max-w-3xl text-sm text-base-content/60">Cada APU se genera con un <strong>tipo de trabajo</strong> (obras civiles, montaje, mantenimiento…). Cada plantilla tiene sus propios prompts y el modelo de cada paso de la IA: se afinan aquí, sin tocar n8n. Los usan todas las empresas.</p>
+  </div>
+</div>
+
+<section class="table-card">
+  <table class="table">
+    <thead><tr><th>Plantilla</th><th>Prompts</th><th class="text-right">APU generados</th><th>Estado</th></tr></thead>
+    <tbody>
+    {% for f in filas %}
+      <tr class="hover">
+        <td><a class="link link-hover font-medium" href="{% url 'apu_generador:plantilla' f.t.pk %}">{{ f.t.nombre }}</a>
+          <p class="max-w-xl text-xs text-base-content/60">{{ f.t.descripcion }}</p></td>
+        <td class="tabular-nums">{{ f.pasos }} de {{ total_pasos }}{% if f.faltan %}<p class="text-xs text-warning" title="{{ f.faltan|join:', ' }}">Faltan: {{ f.faltan|join:', ' }}</p>{% endif %}</td>
+        <td class="text-right tabular-nums">{{ f.apus }}</td>
+        <td>{% if f.t.activo %}<span class="badge badge-soft badge-success">{% include "components/icon.html" with name="check" cls="size-3.5" %} Activa</span>{% else %}<span class="badge badge-soft">Inactiva</span>{% endif %}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="py-8 text-center text-sm text-base-content/60">Aún no hay plantillas.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card bg-base-100"><form method="post" action="{% url 'apu_generador:plantilla_nueva' %}" class="card-body gap-4 p-5">
+  {% csrf_token %}
+  <div>
+    <h2 class="font-semibold">Nueva plantilla</h2>
+    <p class="mt-0.5 text-sm text-base-content/60">Lo más práctico es copiar una existente y ajustar sus criterios al nuevo tipo de trabajo.</p>
+  </div>
+  <div class="grid gap-4 sm:grid-cols-2">
+    <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Nombre <span class="text-error" aria-hidden="true">*</span></span>
+      <input name="nombre" maxlength="80" required class="input input-bordered input-sm w-full" placeholder="Ej.: Tuberías enterradas"></label>
+    <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Copiar los prompts de</span>
+      <select name="copiar_de" class="select select-bordered select-sm w-full"><option value="">Ninguna (empieza vacía)</option>{% for t in copiables %}<option value="{{ t.pk }}">{{ t.nombre }}</option>{% endfor %}</select></label>
+  </div>
+  <div class="flex justify-end"><button class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="plus" cls="size-4" %} Crear plantilla</button></div>
+</form></section>
+{% endblock %}

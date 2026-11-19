@@ -27,7 +27,7 @@
             {
               "id": "de94c29d-29f1-4299-9f2d-9b77c2b9e627",
               "name": "system_prompt",
-              "value": "Eres un especialista en costos de construcción. Tu tarea es ESTIMAR precios de referencia de insumos para un análisis de precios unitarios (APU). Usa la búsqueda web para encontrar precios de mercado recientes en la ciudad o región indicada (tiendas, distribuidores, listas de precios, cámaras o publicaciones del sector). Si no hay datos locales, usa los de la región o país más cercano y ajústalos con criterio.\n\nIMPORTANTE: son RECOMENDACIONES que una persona revisará, no precios oficiales. Por eso:\n- Da un solo valor por insumo, redondeado de forma razonable, en la moneda pedida y por la MISMA unidad del insumo.\n- Materiales: precio de compra por unidad. Mano de obra (unidad «h»): costo por hora de ese oficio (jornal ÷ horas de jornada), sin cargas sociales salvo que sea la práctica habitual de la zona. Equipos (unidad «h»): costo horario de alquiler u operación.\n- «confianza»: «alta» si encontraste referencias locales recientes y coherentes; «media» si son de otra zona o poco recientes; «baja» si es una estimación con poca información.\n- «fuente»: dónde lo encontraste (nombre del sitio o tienda) o «estimación» si no hay referencia directa. «nota»: una frase corta con el supuesto o la advertencia (p. ej. «sin IVA», «precio por mayor»).\n- Nunca inventes cifras exactas con falsa precisión. Si no puedes estimar un insumo, omítelo.\nResponde SOLO con el JSON pedido; «id» es el identificador que recibiste.",
+              "value": "={{ $('Webhook').item.json.body.ia.precios.prompt }}",
               "type": "string"
             }
           ]
@@ -43,14 +43,15 @@
         240,
         300
       ],
-      "notes": "Aquí vive el prompt de sistema. Edita el texto para mejorar el comportamiento de la IA."
+      "notes": "El texto de este prompt ya no se edita aquí: lo manda skygroup en body.ia.precios.prompt (APU → Plantillas).",
+      "notesInFlow": false
     },
     {
       "parameters": {
         "model": {
           "__rl": true,
-          "mode": "list",
-          "value": "gpt-5.1"
+          "mode": "id",
+          "value": "={{ $('Webhook').first().json.body.ia.precios.modelo }}"
         },
         "builtInTools": {
           "webSearch": {
@@ -58,7 +59,7 @@
           }
         },
         "options": {
-          "reasoningEffort": "low"
+          "reasoningEffort": "={{ $('Webhook').first().json.body.ia.precios.razonamiento }}"
         }
       },
       "id": "888a25d6-28df-4a94-a8f1-59a9584488c7",
@@ -74,7 +75,8 @@
           "id": "W8XaJvGwacT4HUqW",
           "name": "OpenAI account"
         }
-      }
+      },
+      "notes": "El modelo y el razonamiento llegan en body.ia.precios (se eligen en APU → Plantillas)."
     },
     {
       "parameters": {
@@ -94,7 +96,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Moneda: {{ $('Webhook').item.json.body.moneda }}\nCiudad o región de los precios: {{ $('Webhook').item.json.body.region }}\nProyecto: {{ $('Webhook').item.json.body.proyecto.nombre }} ({{ $('Webhook').item.json.body.proyecto.tipo }}, {{ $('Webhook').item.json.body.proyecto.ciudad }})\nFecha de hoy: {{ $('Webhook').item.json.body.fecha }}\nInsumos a estimar (id, descripcion, unidad, tipo): {{ JSON.stringify($('Webhook').item.json.body.insumos) }}",
+        "text": "=Moneda: {{ $('Webhook').item.json.body.moneda }}\nCiudad o región de los precios: {{ $('Webhook').item.json.body.region }}\nFecha de hoy: {{ $('Webhook').item.json.body.fecha }}\nInsumos a estimar (id, descripcion, unidad, tipo; si trae precio_actual y moneda_actual, es una REVISIÓN: di en la nota si ese precio es razonable y propón el tuyo): {{ JSON.stringify($('Webhook').item.json.body.insumos) }}",
         "hasOutputParser": true,
         "options": {
           "systemMessage": "={{ $json.system_prompt }}"

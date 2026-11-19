@@ -26,6 +26,7 @@ class Fila:
     sin_precio: bool = False
     subitem: bool = False
     estimado: bool = False
+    del_proyecto: bool = False   # el precio es propio del proyecto (no del catálogo)
     pct: Decimal = CERO          # % del costo directo (se calcula en Analisis.secciones)
 
 
@@ -94,7 +95,7 @@ def perfil_del_proyecto(proyecto):
     return pa.perfil_efectivo() if pa else None
 
 
-def _sumar(item, region, fecha, acumulado, filas, sin_precio, factor=UNO, vistos=(), todos=None):
+def _sumar(item, region, fecha, acumulado, filas, sin_precio, factor=UNO, vistos=(), todos=None, proyecto=None):
     if item.pk in vistos:
         return
     for linea in item.lineas.select_related('insumo', 'subitem').all():
@@ -103,7 +104,7 @@ def _sumar(item, region, fecha, acumulado, filas, sin_precio, factor=UNO, vistos
             sub = linea.subitem
             local = {t: CERO for t in Tipo.values}
             _sumar(sub, region, fecha, local, [], sin_precio, cantidad * (UNO + linea.desperdicio_pct / 100),
-                   vistos + (item.pk,), todos)
+                   vistos + (item.pk,), todos, proyecto)
             for t, v in local.items():
                 acumulado[t] += v
             if factor == UNO:
@@ -113,7 +114,7 @@ def _sumar(item, region, fecha, acumulado, filas, sin_precio, factor=UNO, vistos
         insumo = linea.insumo
         if todos is not None:
             todos.add(insumo.pk)
-        precio = insumo.precio_vigente(region, fecha)
+        precio = insumo.precio_vigente(region, fecha, proyecto)
         efectiva = cantidad * (UNO + linea.desperdicio_pct / 100)
         if precio is None:
             costo, valor, moneda = CERO, None, ''
@@ -126,7 +127,8 @@ def _sumar(item, region, fecha, acumulado, filas, sin_precio, factor=UNO, vistos
         if factor == UNO:
             filas.append(Fila(linea, insumo.descripcion, insumo.unidad, insumo.tipo, linea.cantidad,
                               linea.desperdicio_pct, valor, moneda, costo, sin_precio=precio is None,
-                              estimado=bool(precio and precio.estimado)))
+                              estimado=bool(precio and precio.estimado),
+                              del_proyecto=bool(precio and precio.proyecto_id)))
 
 
 def analizar(item, region=None, fecha=None, perfil=None):
@@ -139,7 +141,7 @@ def analizar(item, region=None, fecha=None, perfil=None):
         region = pa.region if pa else ''
     acumulado = {t: CERO for t in Tipo.values}
     filas, sin_precio, todos = [], [], set()
-    _sumar(item, region or '', fecha, acumulado, filas, sin_precio, todos=todos)
+    _sumar(item, region or '', fecha, acumulado, filas, sin_precio, todos=todos, proyecto=item.proyecto)
     analisis = Analisis(filas=filas, grupos=acumulado, sin_precio=sin_precio, perfil=perfil, n_insumos=len(todos),
                         moneda=perfil['moneda'] if perfil else '')
     if perfil:
@@ -147,11 +149,11 @@ def analizar(item, region=None, fecha=None, perfil=None):
     return analisis
 
 
-def grupos_de(item, region=None, fecha=None, factor=UNO):
+def grupos_de(item, region=None, fecha=None, factor=UNO, proyecto=None):
     """Totales por grupo de UNA unidad de `item` (× `factor`) y los insumos sin precio. Sirve para los sub-ítems."""
     acumulado = {t: CERO for t in Tipo.values}
     sin_precio = []
-    _sumar(item, region or '', fecha, acumulado, [], sin_precio, factor)
+    _sumar(item, region or '', fecha, acumulado, [], sin_precio, factor, proyecto=proyecto)
     return acumulado, sin_precio
 
 

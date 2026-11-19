@@ -1,9 +1,2 @@
-{# Spinner + barra con porcentaje + mensaje de lo que hace la IA. Lo anima static/js/apu-generador.js (Progreso). #}
-<div data-progreso class="hidden rounded-box border border-primary/20 bg-primary/5 p-4" role="status" aria-live="polite">
-  <div class="flex items-center gap-3">
-    {% include "components/spinner.html" with size="md" cls="text-primary" %}
-    <p class="min-w-0 flex-1 text-sm font-medium" data-progreso-mensaje>Trabajando…</p>
-    <span class="font-mono text-sm tabular-nums text-base-content/70" data-progreso-pct>0 %</span>
-  </div>
-  <progress class="progress progress-primary mt-3 w-full" value="0" max="100" data-progreso-barra></progress>
-</div>
+{# Progreso de la IA del generador de APU: usa el componente reutilizable. #}
+{% include "components/progreso.html" with titulo="Asistente de APU" %}

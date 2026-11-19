@@ -44,10 +44,13 @@
 
     <div class="table-card">
       <table class="table">
-        <thead><tr><th>Insumo</th><th>Tipo</th><th class="text-right">Cantidad</th><th class="text-right">Precio</th><th class="text-right">Costo</th></tr></thead>
+        <thead><tr><th>Insumo</th><th>Tipo</th><th class="text-right">Cantidad</th><th class="text-right">Precio</th><th class="text-right">Costo</th><th class="text-right"><span class="sr-only">Acciones</span></th></tr></thead>
         <tbody>
         {% for f in prev.filas %}
-          <tr {% if f.sin_precio %}data-precio-fila data-insumo="{{ f.insumo.pk }}" class="bg-warning/10"{% endif %}>
+          <tr {% if f.sin_precio %}data-precio-fila data-insumo="{{ f.insumo.pk }}" class="bg-warning/10"{% endif %}
+              data-fila data-tipo="{{ f.tipo_paso }}" data-indice="{{ f.indice }}" data-insumo-id="{{ f.insumo.pk|default:'' }}" data-nombre="{% if f.subitem %}{{ f.subitem }}{% else %}{{ f.insumo.descripcion }}{% endif %}"
+              data-unidad="{% if f.insumo %}{% if f.tipo_paso == 'mano_obra' %}h{% else %}{{ f.insumo.unidad }}{% endif %}{% endif %}" data-cantidad="{{ f.cantidad }}" data-personas="{{ f.personas|default:'' }}"
+              data-desperdicio="{{ f.desperdicio_pct|default:'' }}" data-precio-actual="{% if f.precio is not None %}{{ f.precio|numlimpio }}{% endif %}" data-moneda-actual="{{ f.moneda|default:prev.moneda }}">
             <td>{% if f.subitem %}{{ f.subitem }} <span class="badge badge-ghost badge-sm">Sub-análisis</span>{% else %}{{ f.insumo.descripcion }} <span class="font-mono text-xs text-base-content/50">{{ f.insumo.codigo }}</span>{% endif %}</td>
             <td>{% if f.subitem %}—{% else %}<span class="inline-flex items-center gap-1.5">{% if f.insumo.tipo == 'MAT' %}{% include "components/icon.html" with name="ladrillos" cls="size-4 text-base-content/50" %}{% elif f.insumo.tipo == 'MO' %}{% include "components/icon.html" with name="obrero" cls="size-4 text-base-content/50" %}{% else %}{% include "components/icon.html" with name="excavadora" cls="size-4 text-base-content/50" %}{% endif %}{{ f.insumo.get_tipo_display }}</span>{% endif %}</td>
             <td class="text-right tabular-nums">{{ f.cantidad }} {% if f.insumo %}{% if f.tipo_paso == 'mano_obra' %}h{% else %}{{ f.insumo.unidad }}{% endif %}{% endif %}{% if f.desperdicio_pct and f.desperdicio_pct != '0' and f.desperdicio_pct != '0.00' %}<span class="text-xs text-base-content/50"> +{{ f.desperdicio_pct }} %</span>{% endif %}</td>
@@ -61,9 +64,13 @@
               <div class="mt-1 hidden text-left text-xs" data-sugerencia></div>
             </td>
             {% else %}
-            <td class="text-right tabular-nums">{% if f.precio is not None %}{{ f.precio|numlimpio }} {{ f.moneda }}{% if f.estimado %} <span class="badge badge-info badge-soft badge-sm" title="Estimado por IA: confírmalo con un precio real">Estimado</span>{% endif %}{% else %}—{% endif %}</td>
+            <td class="text-right tabular-nums">{% if f.precio is not None %}{{ f.precio|numlimpio }} {{ f.moneda }}{% if f.del_proyecto %} <span class="badge badge-soft badge-sm" title="Este precio vale solo para este proyecto">Del proyecto</span>{% endif %}{% if f.estimado %} <span class="badge badge-info badge-soft badge-sm" title="Estimado por IA: confírmalo con un precio real">Estimado</span>{% endif %}{% else %}—{% endif %}</td>
             <td class="text-right tabular-nums">{{ f.costo|floatformat:2 }}</td>
             {% endif %}
+            <td class="whitespace-nowrap text-right">
+              <button type="button" class="btn btn-ghost btn-xs btn-square" data-editar-fila title="Editar cantidad y precio" aria-label="Editar {{ f.insumo.descripcion|default:f.subitem }}">{% include "components/icon.html" with name="pencil" cls="size-5 icono-editar" %}</button>
+              {% if f.precio is not None and user.is_superuser %}<button type="button" class="btn btn-ghost btn-xs btn-square" data-revisar-fila title="Revisar con IA" aria-label="Revisar con IA {{ f.insumo.descripcion }}">{% include "components/icon.html" with name="sparkles" cls="size-5" %}</button>{% endif %}
+            </td>
           </tr>
         {% endfor %}
         </tbody>
@@ -113,6 +120,56 @@
   </div>
   <form method="dialog" class="modal-backdrop"><button aria-label="Cerrar">cerrar</button></form>
 </dialog>
-<script type="application/json" id="apu-cfg">{"hoy": "{{ hoy }}", "region": "{{ borrador.region|escapejs }}", "url_precio": "{% url 'apu_generador:precio' borrador.pk %}", "url_guardar": "{% url 'apu_generador:guardar_apu' borrador.pk %}", "url_sugerir": "{% url 'apu_generador:sugerir_precios' borrador.pk %}"}</script>
+
+{% lista_unidades %}
+<dialog id="apu-editar-fila" class="modal">
+  <div class="modal-box">
+    <form data-editar-fila-form class="space-y-4">
+      <h3 class="text-lg font-semibold" data-titulo>Editar</h3>
+      <p class="text-sm text-base-content/60">El precio que cambies vale solo para este proyecto. La unidad de medida es del insumo: al cambiarla se convierte en el catálogo y en todos los APU que lo usan (el costo no cambia).</p>
+      <label class="flex flex-col gap-1" data-campo="cantidad"><span class="text-sm font-semibold">Cantidad por unidad <span class="font-normal text-base-content/60" data-unidad></span></span>
+        <input name="cantidad" inputmode="decimal" class="input input-bordered input-sm w-full"></label>
+      <div class="space-y-2" data-campo="unidad">
+        <label class="flex flex-col gap-1"><span class="text-sm font-semibold">Unidad de medida</span>
+          <input name="unidad" maxlength="20" list="apu-unidades" autocomplete="off" class="input input-bordered input-sm w-full" placeholder="m², pie², kg…"></label>
+        <label class="hidden items-center gap-2 text-sm" data-bloque-factor>1 <strong data-factor-de></strong> =
+          <input name="factor" inputmode="decimal" class="input input-bordered input-sm w-28" aria-label="Factor de conversión"> <strong data-factor-a></strong></label>
+        <p class="text-xs text-base-content/60">Si la cambias (p. ej. la madera de m² a pie²), la cantidad y los precios se convierten solos y el costo no cambia. Lo que escribas en cantidad y precio va en la unidad actual.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-3" data-campo="mo">
+        <label class="flex flex-col gap-1"><span class="text-sm font-semibold">Personas</span><input name="personas" inputmode="decimal" class="input input-bordered input-sm w-full"></label>
+        <label class="flex flex-col gap-1"><span class="text-sm font-semibold">Rendimiento (u/jornada)</span><input name="rendimiento" inputmode="decimal" class="input input-bordered input-sm w-full" value="{{ borrador.mano_obra.rendimiento }}"></label>
+      </div>
+      <label class="flex flex-col gap-1" data-campo="desperdicio"><span class="text-sm font-semibold">Desperdicio (%)</span><input name="desperdicio_pct" inputmode="decimal" class="input input-bordered input-sm w-full"></label>
+      <div class="grid grid-cols-3 gap-3" data-campo="precio">
+        <label class="col-span-2 flex flex-col gap-1"><span class="text-sm font-semibold">Precio (solo de este proyecto)</span><input name="precio" inputmode="decimal" class="input input-bordered input-sm w-full"></label>
+        <label class="flex flex-col gap-1"><span class="text-sm font-semibold">Moneda</span><input name="moneda" maxlength="3" class="input input-bordered input-sm w-full uppercase"></label>
+      </div>
+      <div class="modal-action"><button type="button" class="btn btn-ghost btn-sm" data-cerrar-modal>Cancelar</button><button type="submit" class="btn btn-primary btn-sm">Guardar</button></div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button aria-label="Cerrar">cerrar</button></form>
+</dialog>
+
+<dialog id="apu-revisar-fila" class="modal">
+  <div class="modal-box space-y-4">
+    <h3 class="text-lg font-semibold" data-titulo>Revisar con IA</h3>
+    <section class="space-y-2" data-bloque-precio>
+      <h4 class="font-medium">Precio</h4>
+      <p class="text-sm text-base-content/60">La IA busca un precio de referencia y lo compara con el actual. No cuesta crédito.</p>
+      <button type="button" class="btn btn-sm btn-ghost gap-1" data-revisar-precio>{% include "components/icon.html" with name="sparkles" cls="size-4" %} Revisar precio</button>
+      <div class="hidden text-sm" data-resultado-precio></div>
+    </section>
+    <section class="space-y-2">
+      <h4 class="font-medium">Cantidad</h4>
+      <p class="text-sm text-base-content/60">La IA revisa la cantidad frente al alcance y propone cambios que tú eliges. Cuesta 1 crédito.</p>
+      <textarea rows="3" class="textarea textarea-bordered w-full text-sm" data-instruccion></textarea>
+      <button type="button" class="btn btn-sm btn-ghost gap-1" data-revisar-cantidad>{% include "components/icon.html" with name="sparkles" cls="size-4" %} Revisar cantidad (1 crédito)</button>
+    </section>
+    <div class="modal-action"><button type="button" class="btn btn-ghost btn-sm" data-cerrar-modal>Cerrar</button></div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button aria-label="Cerrar">cerrar</button></form>
+</dialog>
+<script type="application/json" id="apu-cfg">{"hoy": "{{ hoy }}", "region": "{{ borrador.region|escapejs }}", "url_precio": "{% url 'apu_generador:precio' borrador.pk %}", "url_guardar": "{% url 'apu_generador:guardar_apu' borrador.pk %}", "url_sugerir": "{% url 'apu_generador:sugerir_precios' borrador.pk %}", "url_fila": "{% url 'apu_generador:fila' borrador.pk %}", "url_modificar": "{% url 'apu_generador:modificar' borrador.pk %}"}</script>
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=7" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=15" defer></script>{% endblock %}

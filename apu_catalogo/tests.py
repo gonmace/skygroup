@@ -438,6 +438,74 @@ class EditorVistasTests(Base):
 
 
 @override_settings(**AJUSTES)
+class SinPasoProyectoClaroTests(Base):
+    """El proyecto y su descripción se dan por correctos: no hay paso de IA que los cuestione."""
+
+    def test_no_existe_el_paso_ni_sus_prompts_y_la_coherencia_lo_deja_claro(self):
+        from .models import PlantillaAPU, PromptAPU
+        self.assertNotIn('proyecto_claro', dict(PromptAPU.Paso.choices))
+        self.assertFalse(PromptAPU.objects.filter(paso='proyecto_claro').exists())
+        plantillas = list(PlantillaAPU.objects.all())
+        self.assertTrue(plantillas)
+        for pl in plantillas:
+            self.assertIn('no la cuestiones', pl.prompt('coherencia').texto, pl.nombre)
+
+
+@override_settings(**AJUSTES)
+class EliminarInsumosEnBloqueTests(Base):
+    """Seleccionar y eliminar insumos en bloque: solo el superusuario; lo que usa un APU se protege."""
+    URL = '/tekon/apu/insumos/eliminar-varios/'
+
+    def setUp(self):
+        super().setUp()
+        self.su = User.objects.create_superuser('su@example.com', 'x')
+        self.m = [Insumo.objects.create(empresa=self.a, codigo=f'M-{i:02d}', descripcion=f'Material {i}', unidad='kg', tipo=Tipo.MATERIAL) for i in range(5)]
+        self.mo = Insumo.objects.create(empresa=self.a, codigo='MO-01', descripcion='Peón', unidad='h', tipo=Tipo.MANO_OBRA)
+        self.ajeno = Insumo.objects.create(empresa=self.b, codigo='M-01', descripcion='De otra empresa', unidad='kg', tipo=Tipo.MATERIAL)
+
+    def test_solo_el_superusuario_ve_las_casillas_y_puede_eliminar(self):
+        for u in (self.coord, self.obs):
+            self.client.force_login(u)
+            self.assertNotContains(self.client.get('/tekon/apu/insumos/'), 'data-bulk')
+            self.assertEqual(self.client.post(self.URL, {'ids': [self.m[0].pk]}).status_code, 403)
+        self.assertEqual(Insumo.objects.filter(empresa=self.a).count(), 6)
+        self.client.force_login(self.su)
+        self.assertContains(self.client.get('/tekon/apu/insumos/'), 'data-bulk')
+
+    def test_elimina_solo_los_marcados_y_de_su_empresa(self):
+        self.client.force_login(self.su)
+        r = self.client.post(self.URL, {'ids': [self.m[0].pk, self.m[1].pk, self.ajeno.pk]})
+        self.assertRedirects(r, '/tekon/apu/insumos/')
+        self.assertEqual(Insumo.objects.filter(empresa=self.a).count(), 4)
+        self.assertTrue(Insumo.objects.filter(pk=self.ajeno.pk).exists())            # el de otra empresa no se toca
+
+    def test_todos_respeta_el_filtro_y_no_toca_otras_empresas(self):
+        self.client.force_login(self.su)
+        r = self.client.post(self.URL, {'todos': '1', 'tipo': Tipo.MATERIAL})
+        self.assertRedirects(r, '/tekon/apu/insumos/?tipo=%s' % Tipo.MATERIAL)
+        self.assertEqual(list(Insumo.objects.filter(empresa=self.a)), [self.mo])      # quedó solo la mano de obra
+        self.assertTrue(Insumo.objects.filter(pk=self.ajeno.pk).exists())
+        self.client.post(self.URL, {'todos': '1'})
+        self.assertFalse(Insumo.objects.filter(empresa=self.a).exists())
+
+    def test_sin_seleccion_no_borra_nada(self):
+        self.client.force_login(self.su)
+        self.client.post(self.URL, {})
+        self.assertEqual(Insumo.objects.filter(empresa=self.a).count(), 6)
+
+    def test_un_insumo_usado_por_un_apu_se_protege(self):
+        item = ItemModelo.objects.create(empresa=self.a, codigo='APU-1', descripcion='Muro', unidad='m2')
+        LineaComposicion.objects.create(item=item, insumo=self.m[0], cantidad=D('1'))
+        self.client.force_login(self.su)
+        self.client.post(self.URL, {'todos': '1'})
+        self.assertEqual(list(Insumo.objects.filter(empresa=self.a)), [self.m[0]])    # el usado queda; el resto se eliminó
+
+    def test_solo_post(self):
+        self.client.force_login(self.su)
+        self.assertEqual(self.client.get(self.URL).status_code, 405)
+
+
+@override_settings(**AJUSTES)
 class SoloAdministradoresTests(Base):
     """APU está cerrado a quien no administra: ve «Próximamente» (página y respuestas AJAX)."""
 

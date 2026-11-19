@@ -5,7 +5,7 @@
 <div>
   <a href="{% url 'apu_catalogo:proyectos' %}" class="inline-flex items-center gap-1 text-sm text-base-content/60 hover:text-base-content">{% include "components/icon.html" with name="chevron-left" cls="size-4" %} Proyectos con APU</a>
   <h1 class="mt-1 text-2xl font-semibold">Habilitar un proyecto para APU</h1>
-  <p class="mt-1 max-w-3xl text-sm text-base-content/60">Es el primer paso: elige el proyecto, el perfil de cálculo con el que se calculan todos sus APU y una breve descripción de la obra, que la IA usa para ajustar cada actividad.</p>
+  <p class="mt-1 max-w-3xl text-sm text-base-content/60">Es el primer paso: elige el proyecto, el perfil de cálculo con el que se calculan todos sus APU y la región de sus precios. La IA usa la descripción que el proyecto ya tiene, tal cual.</p>
 </div>
 
 {% if not pendientes %}
@@ -36,9 +36,6 @@
       <label class="flex flex-col gap-1 sm:col-span-2"><span class="text-xs font-medium text-base-content/70">Región o ciudad de los precios</span>
         <input name="region" maxlength="80" value="{{ region }}" class="input input-bordered input-sm w-full" placeholder="Ej.: Tarija. Vacío = precios nacionales">
         <span class="text-xs text-base-content/50">Se usan los precios vigentes de esa región para todos los APU del proyecto; si un insumo no tiene precio allí, se usa el nacional.</span></label>
-      <label class="flex flex-col gap-1 sm:col-span-2"><span class="text-xs font-medium text-base-content/70">Descripción del proyecto <span class="text-error" aria-hidden="true">*</span></span>
-        <textarea name="descripcion" rows="4" required class="textarea textarea-bordered w-full text-sm" placeholder="Describe brevemente qué se construye, dónde y para qué.">{{ descripcion }}</textarea>
-        <span class="text-xs text-base-content/50">Mínimo {{ minimo }} palabras. Se guarda en el proyecto y la IA la usa en todos sus APU.</span></label>
     </div>
     <div class="flex justify-end"><button class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="check" cls="size-4" %} Habilitar proyecto</button></div>
   </div>

@@ -137,13 +137,23 @@ el APU solo se enlaza al proyecto por FK (`ItemModelo.proyecto`).
   perfiles, incidencias por proyecto `ProyectoAPU`, base de APU) y `apu_generador` (asistente con IA, créditos, consumo).
 - **Se entra desde el módulo APU** (menú lateral), no desde el proyecto. **Primer paso: habilitar un proyecto para APU**
   (APU → Proyectos → Habilitar, solo quien gestiona perfiles): se elige su perfil de cálculo —siempre uno de la empresa; una
-  plantilla se copia—, la región de sus precios (`ProyectoAPU.region`, editable en Incidencias) y su descripción (≥15 palabras). El generador y «reutilizar» solo trabajan con proyectos
+  plantilla se copia—, y la región de sus precios (`ProyectoAPU.region`, editable en Incidencias). La descripción del proyecto es la que ya tiene: no se pide ni se valida al habilitar ni en el generador, y la IA nunca la cuestiona. El generador y «reutilizar» solo trabajan con proyectos
   habilitados (`ProyectoAPU`); sin ninguno, «Nuevo APU» lleva a habilitar. Todo APU pertenece a un proyecto; la base de APU
   se reutiliza en otros proyectos (copia con `origen`) y se puede modificar con un prompt.
-- **La IA vive SOLO en n8n** (`n8n/workflows/APU_*.json`, ver su README): Django arma el payload, llama con
+- **Plantillas de trabajo y prompts editables** (`PlantillaAPU`, `PromptAPU`; **APU → Plantillas**, solo superusuario): un APU
+  no se genera con un prompt «para todo». Se elige un **tipo de trabajo** (obras civiles, montaje mecánico y tuberías,
+  eléctrica e instrumentación, mantenimiento…) en el paso 1, y cada plantilla tiene el prompt y el **modelo** (OpenAI, de
+  `TarifaModeloIA`; razonamiento) de cada paso. El prompt se arma con casillas (rol, criterios del tipo de trabajo, reglas
+  de respuesta, notas); cada guardado es una versión nueva (historial, restaurar) y el editor trae un **banco de pruebas**
+  (corre el paso con lo del formulario sin guardar ni cobrar). Django manda `ia.<paso> = {prompt, modelo, razonamiento}` en
+  el payload (`apu_generador.ia.config`); sin prompt o modelo el paso se detiene con un aviso, no hay respaldo en n8n. Los
+  prompts son genéricos **dentro de su tipo de trabajo** (nunca reglas para una actividad concreta). `APUBorrador.plantilla`
+  e `ItemModelo.plantilla` guardan con cuál se generó; `LlamadaIA.prompt_version` con qué versión y modelo. La carga inicial
+  está en `apu_catalogo/prompts_semilla.py` (idempotente; parte de `semilla/prompts_base.json`).
+- **La IA vive SOLO en n8n** (`n8n/workflows/APU_*.json`, ver su README): Django arma el payload (con el prompt y el modelo de la plantilla), llama con
   `core.n8n.llamar_webhook_seguro` (vía `apu_generador/ia.py`), normaliza y guarda. Nada de SDKs de LLM ni prompts en
-  Python. Los workflows se construyen con **nodos nativos editables** (sin nodos Code; prompts en nodos «Prompt · …» de
-  Edit Fields; sticky notes) en el n8n de desarrollo (Docker) y luego se migran a producción. Modelo: API de OpenAI.
+  Python. Los workflows se construyen con **nodos nativos editables** (sin nodos Code; el nodo «Prompt · …» de Edit
+  Fields solo lee `body.ia.<paso>`; sticky notes) en el n8n de desarrollo (Docker) y luego se migran a producción. Modelo: API de OpenAI.
 - **Generador** (`apu_generador`): borrador `APUBorrador` que guarda el paso; cada paso tiene un endpoint «proponer»
   (llama a n8n, no guarda) y otro «guardar» (solo lo marcado). **Sin vuelta atrás**: un paso guardado queda cerrado
   (409) y su URL redirige al paso actual. Si se corta, queda en *Pendientes*.

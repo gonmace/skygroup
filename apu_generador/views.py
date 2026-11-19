@@ -11,7 +11,7 @@ from django.views.decorators.http import require_POST
 
 from apu_catalogo import calculo, categorias as cats, unidades
 from apu_catalogo.acceso import acceso_apu, es_admin_o_super
-from apu_catalogo.models import ItemModelo, PerfilCalculo, ProyectoAPU
+from apu_catalogo.models import ItemModelo, PerfilCalculo, PlantillaAPU, ProyectoAPU
 from core.n8n import N8NError
 from cuentas.capacidades import tiene_capacidad
 from proyectos.models import Proyecto
@@ -90,37 +90,83 @@ def _info_proyectos(empresa):
     perfiles, perfil_ids = {pa.proyecto_id: pa.perfil.nombre for pa in pas}, {pa.proyecto_id: pa.perfil_id for pa in pas}
     regiones = {pa.proyecto_id: pa.region for pa in pas}
     for p in _habilitados(empresa):
-        info[p.pk] = {'perfil': perfiles.get(p.pk, ''), 'perfil_id': perfil_ids.get(p.pk, ''), 'region': regiones.get(p.pk, ''), 'descripcion_ok': asistente.descripcion_suficiente(p),
-                      'descripcion': p.descripcion or ''}
+        info[p.pk] = {'perfil': perfiles.get(p.pk, ''), 'perfil_id': perfil_ids.get(p.pk, ''), 'region': regiones.get(p.pk, '')}
     return info
 
 
+def _registrar_respuestas_alcance(borrador, datos):
+    """Las respuestas a las preguntas con que la IA cierra el alcance (paso 1) pasan al historial que se le devuelve."""
+    respuestas = {str(k): str(v).strip() for k, v in (datos.get('respuestas') or {}).items() if str(v).strip()}
+    guardado = (borrador.consultas or {}).get('alcance') or {}
+    historial = list(guardado.get('historial') or [])
+    for c in (guardado.get('propuesta') or {}).get('consultas', []):
+        if c['id'] in respuestas:
+            historial.append({'pregunta': c['pregunta'], 'respuesta': respuestas[c['id']]})
+    if respuestas:
+        borrador.consultas = {**(borrador.consultas or {}), 'alcance': {**guardado, 'propuesta': {}, 'historial': historial}}
+
+
+def consultas_abiertas_alcance(borrador):
+    """Preguntas de alcance sin responder de un borrador que sigue en el paso 1 (para mostrarlas al volver)."""
+    if borrador is None or borrador.paso > 1:
+        return []
+    return ((borrador.consultas or {}).get('alcance') or {}).get('propuesta', {}).get('consultas', [])
+
+
+def ultima_o_sin_preguntas(datos, ultima):
+    """La respuesta ya trae preguntas de alcance que se van a mostrar (y entonces el resumen aún puede venir vacío)."""
+    return not ultima and bool(ia.normalizar_consultas(datos.get('consultas')))
+
+
 def _correr_coherencia(request, borrador):
-    """Llama a `apu-coherencia` y deja el borrador en el paso 2 si todo está claro y es coherente."""
+    """Llama a `apu-coherencia` y deja el borrador en el paso 2 si la actividad es coherente y el alcance quedó claro. El proyecto y su
+    descripción se dan por correctos (se validan al habilitar el proyecto): la IA solo revisa la actividad. Si falta un dato para
+    definir el alcance, la IA pregunta (hasta `MAX_RONDAS_ALCANCE` rondas) y el borrador sigue en el paso 1."""
+    guardado = (borrador.consultas or {}).get('alcance') or {}
+    usadas = int((borrador.rondas or {}).get('alcance', 0))
+    ultima = usadas >= asistente.MAX_RONDAS_ALCANCE
     payload = {'actividad': borrador.actividad, 'unidad': borrador.unidad, 'descripcion': borrador.descripcion,
                'region': borrador.region, 'proyecto': ia.contexto_proyecto(borrador.proyecto),
-               'categorias': cats.para_ia(request.empresa)}
+               'categorias': cats.para_ia(request.empresa),
+               'historial': guardado.get('historial') or [], 'ultima_ronda': ultima}
     base = {'borrador_id': borrador.pk, 'continuar_url': _url_paso(borrador)}
     try:
-        datos = ia.llamar('coherencia', payload, empresa=request.empresa, usuario=request.user, borrador=borrador,
-                          paso='coherencia')
+        payload['ia'] = ia.config(borrador.plantilla, 'coherencia', 'clasificacion')
+        for intento in range(2):   # a veces la IA da por buena la actividad pero deja el alcance vacío: se reintenta una vez
+            datos = ia.llamar('coherencia', payload, empresa=request.empresa, usuario=request.user, borrador=borrador,
+                              paso='coherencia')
+            sin_alcance = (datos.get('coherente') is True and not ultima_o_sin_preguntas(datos, ultima)
+                           and not str(datos.get('resumen_alcance') or '').strip())
+            if not sin_alcance:
+                break
     except N8NError as e:
         return _json(False, str(e), 502, **base)
-    if datos.get('proyecto_claro') is False:
-        falta = str(datos.get('falta') or 'Describe mejor qué se construye, dónde y para qué.')
-        return _json(True, 'La descripción del proyecto no es suficiente para generar el APU.', estado='proyecto_poco_claro',
-                     falta=falta, **base)
     if datos.get('coherente') is False:
         razon = str(datos.get('razon') or 'La actividad no es coherente con la descripción.')
         return _json(True, razon, estado='no_coherente', razon=razon, **base)
     if datos.get('coherente') is not True:
         return _json(False, 'El servicio de IA devolvió una respuesta inválida. Inténtalo de nuevo.', 502, **base)
+    consultas = [] if ultima else ia.normalizar_consultas(datos.get('consultas'))[:3]
+    if consultas:   # falta un dato que cambia el alcance: se pregunta y el borrador sigue en el paso 1
+        borrador.consultas = {**(borrador.consultas or {}), 'alcance': {**guardado, 'propuesta': {'consultas': consultas}}}
+        borrador.rondas = {**(borrador.rondas or {}), 'alcance': usadas + 1}
+        borrador.save(update_fields=['consultas', 'rondas', 'actualizado'])
+        return _json(True, 'Para definir bien el alcance necesito que respondas unas preguntas.', estado='consultas',
+                     consultas=consultas, **base)
     claves = ('sistema_constructivo', 'tipo_elemento', 'material_principal', 'proceso_principal', 'categoria')
     borrador.clasificacion = {k: str(datos.get(k) or '')[:200] for k in claves}
+    borrador.resumen_alcance = str(datos.get('resumen_alcance') or '').strip()[:2000]
+    if guardado:
+        borrador.consultas = {**(borrador.consultas or {}), 'alcance': {**guardado, 'propuesta': {}}}
+    avisos = asistente.aplicar_ajuste_paso1(borrador, datos)
+    if not borrador.resumen_alcance:   # el alcance es obligatorio: los pasos de insumos leen solo este resumen (no se muestra)
+        return _json(False, 'La IA no redactó el alcance del ítem. Inténtalo de nuevo.', 502, **base)
     borrador.paso = 2
-    borrador.save(update_fields=['clasificacion', 'paso', 'actualizado'])
+    borrador.save(update_fields=['actividad', 'descripcion', 'clasificacion', 'resumen_alcance', 'consultas', 'paso', 'actualizado'])
+    for aviso in avisos:
+        messages.info(request, aviso)    # la página se recarga al pasar al paso 2: el toast sale desde los mensajes de Django
     base['continuar_url'] = _url_paso(borrador)
-    return _json(True, 'La actividad es coherente. Continuamos con los materiales.', estado='ok', **base)
+    return _json(True, 'La actividad es coherente. Continuamos con los materiales.', estado='ok', avisos=avisos, **base)
 
 
 def _validar_actividad(datos):
@@ -129,17 +175,26 @@ def _validar_actividad(datos):
         raise ErrorPaso('Indica la actividad y su unidad.')
     if len(actividad) > 200:
         raise ErrorPaso('La actividad no puede superar los 200 caracteres.')
-    return {'actividad': actividad, 'unidad': unidades.normalizar(unidad)[:20], 'descripcion': str(datos.get('descripcion') or '').strip()}
+    descripcion = str(datos.get('descripcion') or '').strip()
+    if not asistente.detalles_suficientes(descripcion):
+        raise ErrorPaso(f'Escribe los detalles de la actividad (al menos {asistente.MIN_PALABRAS_DETALLES} palabras): '
+                        f'la cantidad total a ejecutar, el método y las condiciones. El APU sale por 1 {unidades.normalizar(unidad)[:20]}; '
+                        'esos datos sirven para dimensionar los insumos.')
+    return {'actividad': actividad, 'unidad': unidades.normalizar(unidad)[:20], 'descripcion': descripcion}
 
 
-def _completar_proyecto(request, proyecto, datos):
-    """La descripción del proyecto debe ser suficiente: si no lo es, se pide aquí y se guarda en el proyecto."""
-    if not asistente.descripcion_suficiente(proyecto):
-        proyecto.descripcion = str(datos.get('proyecto_descripcion') or '').strip()
-        if not asistente.descripcion_suficiente(proyecto):
-            raise ErrorPaso(f'Describe brevemente el proyecto (al menos {asistente.MIN_PALABRAS_DESCRIPCION} palabras): '
-                            'qué se construye, dónde y para qué. La IA la usa para ajustar cada APU.')
-        proyecto.save(update_fields=['descripcion'])
+def _plantillas():
+    return PlantillaAPU.objects.filter(activo=True)
+
+
+def _plantilla(datos, actual=None):
+    """El tipo de trabajo elegido en el paso 1 (obligatorio). Al corregir un borrador sigue valiendo la ya elegida
+    aunque se haya desactivado."""
+    pk = str(datos.get('plantilla') or '').strip()
+    plantilla = (_plantillas() | PlantillaAPU.objects.filter(pk=getattr(actual, 'pk', 0))).filter(pk=pk or 0).first()
+    if plantilla is None:
+        raise ErrorPaso('Elige el tipo de trabajo del APU (obras civiles, montaje, mantenimiento…): decide con qué criterios trabaja la IA.')
+    return plantilla
 
 
 def _sin_proyectos_habilitados(request):
@@ -166,15 +221,16 @@ def nuevo(request):
             return _json(False, 'Elige un proyecto habilitado para APU. Si no lo ves, habilítalo primero en APU → Proyectos.', 400)
         try:
             campos = _validar_actividad(datos)
-            _completar_proyecto(request, proyecto, datos)
+            plantilla = _plantilla(datos)
         except ErrorPaso as e:
             return _json(False, str(e), 400)
         borrador = APUBorrador.objects.create(empresa=empresa, proyecto=proyecto, creado_por=request.user, paso=1,
-                                              region=proyecto.apu.region, **campos)
+                                              region=proyecto.apu.region, plantilla=plantilla, **campos)
         return _correr_coherencia(request, borrador)
-    inicial = {'proyecto': request.GET.get('proyecto', '')}
+    inicial = {'proyecto': request.GET.get('proyecto', ''), 'plantilla': request.GET.get('plantilla', '')}
     return render(request, 'apu_generador/actividad.html', {
         **_contexto_base(request), 'proyectos': _habilitados(empresa), 'info_proyectos': _info_proyectos(empresa),
+        'plantillas': _plantillas(), 'consultas_alcance': [],
         'inicial': inicial, 'promedio_ms': _promedio_ms(empresa, 'apu-coherencia')})
 
 
@@ -192,13 +248,15 @@ def actividad(request, pk):
             return _json(False, 'Elige un proyecto habilitado para APU. Si no lo ves, habilítalo primero en APU → Proyectos.', 400)
         try:
             campos = _validar_actividad(datos)
-            _completar_proyecto(request, proyecto, datos)
+            plantilla = _plantilla(datos, borrador.plantilla)
         except ErrorPaso as e:
             return _json(False, str(e), 400)
         for k, v in campos.items():
             setattr(borrador, k, v)
+        borrador.plantilla = plantilla
         borrador.proyecto = proyecto
         borrador.region = proyecto.apu.region
+        _registrar_respuestas_alcance(borrador, datos)
         borrador.save()
         return _correr_coherencia(request, borrador)
     empresa = request.empresa
@@ -206,8 +264,9 @@ def actividad(request, pk):
     if borrador.proyecto not in proyectos:
         proyectos.append(borrador.proyecto)
     return render(request, 'apu_generador/actividad.html', {
-        **_contexto_base(request, borrador), 'proyectos': proyectos,
-        'info_proyectos': _info_proyectos(empresa), 'inicial': {'proyecto': borrador.proyecto_id}, 'promedio_ms': _promedio_ms(empresa, 'apu-coherencia')})
+        **_contexto_base(request, borrador), 'proyectos': proyectos, 'plantillas': _plantillas(),
+        'info_proyectos': _info_proyectos(empresa), 'consultas_alcance': consultas_abiertas_alcance(borrador),
+        'inicial': {'proyecto': borrador.proyecto_id, 'plantilla': borrador.plantilla_id}, 'promedio_ms': _promedio_ms(empresa, 'apu-coherencia')})
 
 
 # ── Pasos 2 a 4: propuesta de la IA y guardado ────────────────────────────────
@@ -263,23 +322,30 @@ def proponer(request, pk, slug):
     confirmado = {t: [{'descripcion': f['descripcion'], 'unidad': f['unidad'], 'cantidad': f.get('cantidad') or f.get('personas')}
                       for f in borrador.filas(t)] for t in ia.TIPOS_INSUMO if t != tipo and borrador.filas(t)}
     payload = {
-        'tipo': tipo, 'actividad': borrador.actividad, 'unidad': borrador.unidad, 'descripcion': borrador.descripcion,
-        'region': borrador.region, 'proyecto': ia.contexto_proyecto(borrador.proyecto),
+        # el proyecto y los detalles ya van resumidos en el alcance confirmado: no se vuelven a mandar
+        'tipo': tipo, 'actividad': borrador.actividad, 'unidad': borrador.unidad, 'region': borrador.region,
+        'resumen_alcance': borrador.resumen_alcance,
         'clasificacion': borrador.clasificacion, 'confirmado': confirmado,
         'catalogo': asistente.catalogo_para_ia(request.empresa, tipo, f'{borrador.actividad} {borrador.descripcion}'),
         # los sub-análisis solo los usa el prompt de materiales: en mano de obra y equipos no se mandan
         'catalogo_items': (asistente.catalogo_items_para_ia(request.empresa, borrador.apu_guardado_id,
                                                             f'{borrador.actividad} {borrador.descripcion}')
                            if tipo == 'materiales' else []),
+        # el rendimiento y la cuadrilla de APU parecidos que la empresa ya guardó: ancla para no adivinar el rendimiento
+        'referencias_mano_obra': (asistente.referencias_mano_obra(request.empresa, borrador.actividad, borrador.unidad,
+                                                                 borrador.descripcion, excluir_pk=borrador.pk)
+                                  if tipo == 'mano_obra' else []),
         'decisiones_previas': asistente.decisiones_previas(request.empresa, borrador.pk),
         'aclaraciones': asistente.aclaraciones(borrador, tipo),
         'historial': historial, 'ultima_ronda': usadas >= asistente.MAX_REPETICIONES,
     }
     try:
+        payload['ia'] = ia.config(borrador.plantilla, tipo, 'verificar')
         crudo = ia.llamar('insumos', payload, empresa=request.empresa, usuario=request.user, borrador=borrador, paso=tipo)
     except N8NError as e:
         return _json(False, str(e), 502)
     propuesta = ia.normalizar_propuesta(crudo, tipo)
+    asistente.sin_repetidas(propuesta, payload['aclaraciones'], historial)    # lo ya respondido (alcance incluido) no se vuelve a preguntar
     if not propuesta['filas'] and not propuesta['consultas'] and not any(o['filas'] for c in propuesta['consultas'] for o in c['opciones']):
         return _json(False, 'La IA no propuso nada para este paso. Inténtalo de nuevo o agrega las filas a mano.', 502)
     borrador.consultas = {**(borrador.consultas or {}),
@@ -324,6 +390,7 @@ def resultado(request, pk):
 
 MAX_SUGERENCIAS = 3          # veces que se puede pedir sugerencias de precio por borrador
 MAX_INSUMOS_SUGERENCIA = 40
+MAX_REVISIONES_PRECIO = 10   # revisiones de precio de una fila por borrador
 
 
 @acceso_apu('apu.catalogo.manage')
@@ -334,27 +401,45 @@ def sugerir_precios(request, pk):
     borrador = _borrador(request, pk)
     if borrador.paso < 5:
         return _json(False, 'Termina los pasos anteriores primero.', 409, continuar_url=_url_paso(borrador))
-    usadas = int((borrador.rondas or {}).get('precios', 0))
-    if usadas >= MAX_SUGERENCIAS and not request.user.is_superuser:   # el superusuario no tiene tope
-        return _json(False, 'Ya pediste sugerencias de precio varias veces para este APU. Carga los que faltan a mano.', 429)
+    insumo_pk = str(_datos(request).get('insumo') or '').strip()   # «Revisar con IA» de una fila: solo ese insumo, aunque ya tenga precio
+    if insumo_pk and not request.user.is_superuser:   # revisar un precio ya cargado gasta tokens: solo el superusuario
+        return _json(False, 'Un precio que ya tiene valor se edita a mano. La revisión con IA es solo del superusuario.', 403)
+    clave = 'revisar_precio' if insumo_pk else 'precios'
+    tope = MAX_REVISIONES_PRECIO if insumo_pk else MAX_SUGERENCIAS
+    usadas = int((borrador.rondas or {}).get(clave, 0))
+    if usadas >= tope and not request.user.is_superuser:   # el superusuario no tiene tope
+        return _json(False, 'Ya pediste revisiones de precio varias veces para este APU. Edita el precio a mano.' if insumo_pk else
+                     'Ya pediste sugerencias de precio varias veces para este APU. Carga los que faltan a mano.', 429)
     prev = asistente.previsualizar(borrador)
-    faltan = prev['sin_precio'][:MAX_INSUMOS_SUGERENCIA]
+    actual = {}
+    if insumo_pk:
+        fila = next((f for f in prev['filas'] if f['insumo'] is not None and str(f['insumo'].pk) == insumo_pk), None)
+        if fila is None:
+            return _json(False, 'Ese insumo ya no forma parte del APU.', 404)
+        faltan = [fila['insumo']]
+        if fila['precio'] is not None:
+            actual = {'precio_actual': format(fila['precio'].normalize(), 'f'), 'moneda_actual': fila['moneda']}
+    else:
+        faltan = prev['sin_precio'][:MAX_INSUMOS_SUGERENCIA]
     if not faltan:
         return _json(False, 'Todos los insumos de este APU ya tienen precio.', 400)
     pa = ProyectoAPU.objects.filter(proyecto=borrador.proyecto).select_related('perfil').first()
     moneda = pa.perfil.moneda if pa else ''
     payload = {'moneda': moneda, 'region': borrador.region or borrador.proyecto.ciudad or borrador.proyecto.region or '',
-               'fecha': date.today().isoformat(), 'proyecto': ia.contexto_proyecto(borrador.proyecto),
-               'insumos': [{'id': i.pk, 'descripcion': i.descripcion, 'unidad': i.unidad, 'tipo': i.tipo} for i in faltan]}
+               'fecha': date.today().isoformat(),
+               'insumos': [{'id': i.pk, 'descripcion': i.descripcion, 'unidad': i.unidad, 'tipo': i.tipo, **actual} for i in faltan]}
     try:
+        payload['ia'] = ia.config(borrador.plantilla, 'precios')
         crudo = ia.llamar('precios', payload, empresa=request.empresa, usuario=request.user, borrador=borrador, paso='precios')
     except N8NError as e:
         return _json(False, str(e), 502)
     sugerencias = ia.normalizar_precios(crudo, {i.pk for i in faltan}, moneda)
     if not sugerencias:
         return _json(False, 'La IA no pudo estimar esos precios. Cárgalos a mano.', 502)
-    borrador.rondas = {**(borrador.rondas or {}), 'precios': usadas + 1}
+    borrador.rondas = {**(borrador.rondas or {}), clave: usadas + 1}
     borrador.save(update_fields=['rondas', 'actualizado'])
+    if insumo_pk:
+        return _json(True, 'La IA revisó el precio. Es una recomendación: úsala solo si te convence.', sugerencias=sugerencias)
     return _json(True, f'La IA estimó {len(sugerencias)} de {len(faltan)} precio(s). Son recomendaciones: revísalas antes de usarlas.',
                  sugerencias=sugerencias)
 
@@ -372,6 +457,23 @@ def precio(request, pk):
     except (ErrorPaso, ValueError) as e:
         return _json(False, str(e) if isinstance(e, ErrorPaso) else 'La fecha no es válida.', 400)
     return _json(True, f'Se guardó el precio de «{obj.insumo.descripcion}».')
+
+
+@acceso_apu('apu.catalogo.manage')
+@require_POST
+def fila(request, pk):
+    """Corrige cantidad y precio de una fila en el resultado. El precio vale solo para el proyecto del borrador."""
+    borrador = _borrador(request, pk)
+    if borrador.paso < 5 or borrador.guardado:
+        return _json(False, 'Este APU ya no se puede editar aquí.', 409, continuar_url=_url_paso(borrador))
+    d = _datos(request)
+    try:
+        mensaje = asistente.editar_fila(borrador, str(d.get('tipo') or ''), d.get('indice'), d)
+    except asistente.NecesitaFactor as e:
+        return _json(False, str(e), 400, necesita_factor=True, unidad_actual=e.actual, unidad_nueva=e.nueva)
+    except ErrorPaso as e:
+        return _json(False, str(e), 400)
+    return _json(True, mensaje)
 
 
 @acceso_apu('apu.catalogo.manage')
@@ -448,13 +550,15 @@ def _proponer_modificacion(request, borrador, instruccion):
         creditos.consumir(request.user, request.empresa, ConsumoAPU.Tipo.MODIFICAR, referencia)
     except creditos.SinCreditos as e:
         return str(e), 402
-    payload = {'instruccion': instruccion, 'actividad': borrador.actividad, 'unidad': borrador.unidad,
-               'proyecto': ia.contexto_proyecto(borrador.proyecto),
+    # el alcance resume la obra y el trabajo; un APU anterior al alcance (sin resumen) manda el proyecto como único contexto
+    resumen = borrador.resumen_alcance or ia.resumen_de_proyecto(borrador.proyecto)
+    payload = {'instruccion': instruccion, 'actividad': borrador.actividad, 'unidad': borrador.unidad, 'resumen_alcance': resumen,
                'apu': {t: ({**getattr(borrador, t)} if getattr(borrador, t) else {'filas': []}) for t in ia.TIPOS_INSUMO},
                'catalogo': {t: asistente.catalogo_para_ia(request.empresa, t) for t in ia.TIPOS_INSUMO},
                'catalogo_items': asistente.catalogo_items_para_ia(request.empresa, borrador.apu_guardado_id,
                                                                   f'{borrador.actividad} {instruccion}')}
     try:
+        payload['ia'] = ia.config(borrador.plantilla, 'modificar', 'verificar_titulo')
         crudo = ia.llamar('modificar', payload, empresa=request.empresa, usuario=request.user, borrador=borrador,
                           paso='modificar')
     except N8NError as e:

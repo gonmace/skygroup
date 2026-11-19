@@ -1,0 +1,142 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block page_title %}{{ plantilla.nombre }} · Plantillas APU{% endblock %}
+{% block wrap_class %}space-y-6{% endblock %}
+{% block content_main %}
+<div class="flex flex-wrap items-start justify-between gap-4">
+  <div class="min-w-0">
+    <a href="{% url 'apu_generador:plantillas' %}" class="inline-flex items-center gap-1 text-sm text-base-content/60 hover:text-base-content">{% include "components/icon.html" with name="chevron-left" cls="size-4" %} Plantillas</a>
+    <h1 class="mt-1 text-2xl font-semibold">{{ plantilla.nombre }}</h1>
+    <p class="mt-0.5 max-w-3xl text-sm text-base-content/60">{{ plantilla.descripcion|default:"Sin descripción." }}</p>
+  </div>
+</div>
+
+<details class="card bg-base-100">
+  <summary class="cursor-pointer px-5 py-3 text-sm font-medium">Datos de la plantilla</summary>
+  <form method="post" action="{% url 'apu_generador:plantilla_datos' plantilla.pk %}" class="card-body gap-4 border-t border-base-300 p-5">
+    {% csrf_token %}
+    <div class="grid gap-4 sm:grid-cols-2">
+      <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Nombre</span>
+        <input name="nombre" maxlength="80" required value="{{ plantilla.nombre }}" class="input input-bordered input-sm w-full"></label>
+      <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Unidades habituales</span>
+        <input name="unidades_sugeridas" maxlength="200" value="{{ plantilla.unidades_sugeridas }}" class="input input-bordered input-sm w-full"></label>
+      <label class="flex flex-col gap-1 sm:col-span-2"><span class="text-xs font-medium text-base-content/70">Descripción (se muestra al elegir el tipo de trabajo)</span>
+        <textarea name="descripcion" rows="2" class="textarea textarea-bordered w-full text-sm">{{ plantilla.descripcion }}</textarea></label>
+      <label class="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="activo" value="1" class="checkbox checkbox-sm" {% if plantilla.activo %}checked{% endif %}> Activa (se puede elegir en un APU nuevo)</label>
+    </div>
+    <div class="flex justify-end"><button class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="check" cls="size-4" %} Guardar datos</button></div>
+  </form>
+</details>
+
+<nav aria-label="Pasos de la IA" class="segmentado">
+  {% for clave, nombre, tiene in tabs %}<a href="?paso={{ clave }}" {% if clave == paso %}aria-current="page"{% endif %}>{{ nombre }}{% if not tiene %} <span class="text-warning" title="Sin prompt" aria-label="Sin prompt">●</span>{% endif %}</a>{% endfor %}
+</nav>
+
+<div class="grid gap-6 lg:grid-cols-3">
+  <form method="post" action="{% url 'apu_generador:prompt_guardar' plantilla.pk paso %}" id="prompt-form" class="card bg-base-100 lg:col-span-2" data-plantilla-form data-plantilla-id="{{ plantilla.pk }}" data-paso="{{ paso }}">
+    {% csrf_token %}
+    <div class="card-body gap-4 p-5">
+      <div>
+        <h2 class="font-semibold">{{ paso_nombre }}{% if vigente %} <span class="badge badge-soft badge-info align-middle">v{{ vigente.version }} vigente</span>{% endif %}</h2>
+        <p class="mt-0.5 text-sm text-base-content/60"><strong>Lo que recibe la IA junto con este prompt:</strong> {{ recibe }}</p>
+      </div>
+      <div role="alert" class="alert alert-info alert-soft hidden items-start justify-between gap-3 text-sm" data-borrador-aviso>
+        <span>Hay cambios <strong>sin guardar</strong> en este paso. Se conservan si cambias de pestaña y la prueba los usa.</span>
+        <button type="button" class="btn btn-ghost btn-xs" data-borrador-descartar>Descartar cambios</button>
+      </div>
+      <p class="text-xs text-base-content/60">Los nombres de variables y campos (lo que va entre « » y los que llevan guion bajo, como <span class="text-[var(--mod-ink,var(--color-primary))]">ultima_ronda</span>) se resaltan en color.</p>
+      {% if viendo_antigua %}<div role="alert" class="alert alert-warning alert-soft text-sm">{% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}<span>Estás viendo la <strong>versión {{ mostrado.version }}</strong>, que no es la vigente. Si guardas, se crea una versión nueva con este contenido.</span></div>{% endif %}
+      {% if not vigente and not mostrado %}<div role="alert" class="alert alert-warning alert-soft text-sm">{% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}<span>Esta plantilla aún no tiene el prompt de «{{ paso_nombre }}»: mientras no lo tenga, los APU que la usen se detendrán en este paso.</span></div>{% endif %}
+
+      <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Rol y tarea</span>
+        <textarea name="rol" data-resaltar rows="3" class="textarea textarea-bordered w-full text-sm">{{ mostrado.rol }}</textarea>
+        <span class="text-xs text-base-content/50">Quién es la IA y qué debe proponer en este paso.</span></label>
+      <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Criterios del tipo de trabajo</span>
+        <textarea name="criterios" data-resaltar rows="14" class="textarea textarea-bordered w-full font-mono text-xs leading-relaxed">{{ mostrado.criterios }}</textarea>
+        <span class="text-xs text-base-content/50">Lo que cambia según el trabajo: cómo se mide, insumos esenciales, rendimientos, desperdicios, cuándo preguntar y los datos mínimos que definen la actividad.</span></label>
+      <details {% if mostrado.reglas and not viendo_antigua %}{% else %}open{% endif %}>
+        <summary class="cursor-pointer text-xs font-medium text-base-content/70">Reglas de respuesta (comunes a todos los tipos; cámbialas con cuidado)</summary>
+        <textarea name="reglas" data-resaltar rows="14" class="textarea textarea-bordered mt-1 w-full font-mono text-xs leading-relaxed">{{ mostrado.reglas }}</textarea>
+        <span class="text-xs text-base-content/50">Cómo preguntar, recomendar y responder. El formato JSON de la respuesta lo fija n8n (nodo «Esquema · …»), así que editar aquí no rompe su lectura.</span>
+      </details>
+      <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Notas adicionales</span>
+        <textarea name="notas" data-resaltar rows="2" class="textarea textarea-bordered w-full text-sm">{{ mostrado.notas }}</textarea>
+        <span class="text-xs text-base-content/50">Ajustes rápidos para probar sin tocar el resto; se agregan al final del prompt.</span></label>
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Modelo (OpenAI) <span class="text-error" aria-hidden="true">*</span></span>
+          <select name="modelo" required class="select select-bordered select-sm w-full">
+            {% for valor, etiqueta in modelos %}<option value="{{ valor }}" {% if mostrado.modelo == valor %}selected{% endif %}>{{ etiqueta }}</option>{% endfor %}
+          </select>
+          <span class="text-xs text-base-content/50">Se listan los modelos con tarifa (Consumo IA → Verificar tarifas) para poder costear cada llamada.</span></label>
+        <div class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70" id="razon-etq">Razonamiento</span>
+          <select name="razonamiento" aria-labelledby="razon-etq" class="select select-bordered select-sm w-full">
+            {% for valor, etiqueta in razonamientos %}<option value="{{ valor }}" {% if mostrado.razonamiento == valor %}selected{% endif %}>{{ etiqueta }}</option>{% endfor %}
+          </select>
+          <span class="text-xs text-base-content/50">Más razonamiento = más calidad, más tokens y más tiempo. Los modelos que no razonan lo ignoran.</span></div>
+      </div>
+    </div>
+  </form>
+
+  <section class="card bg-base-100 lg:col-span-2" data-probar data-url="{% url 'apu_generador:prompt_probar' plantilla.pk paso %}">
+    <div class="card-body gap-4 p-5">
+      <div>
+        <h2 class="font-semibold">Probar este paso</h2>
+        <p class="mt-0.5 text-sm text-base-content/60">Corre la IA con lo que hay arriba <strong>sin guardarlo</strong> (texto, modelo y razonamiento del formulario). No guarda insumos ni cobra créditos; la llamada queda en Consumo IA con sus tokens y costo. Cambia el modelo y vuelve a probar para compararlos.</p>
+      </div>
+      {% if se_prueba %}
+      <div class="grid gap-4 sm:grid-cols-2">
+        <label class="flex flex-col gap-1 sm:col-span-2"><span class="text-xs font-medium text-base-content/70">Proyecto (da el contexto y el catálogo)</span>
+          <select data-prueba="proyecto" class="select select-bordered select-sm w-full"><option value="">Elige un proyecto…</option>{% for p in proyectos %}<option value="{{ p.pk }}">{{ p.nombre }}</option>{% endfor %}</select></label>
+        <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Actividad</span>
+          <input data-prueba="actividad" maxlength="200" class="input input-bordered input-sm w-full" placeholder="Ej.: Montaje de tubería de 6 pulgadas"></label>
+        <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Unidad</span>
+          <input data-prueba="unidad" maxlength="20" class="input input-bordered input-sm w-full" placeholder="ml, kg, pza…"></label>
+        <label class="flex flex-col gap-1 sm:col-span-2"><span class="text-xs font-medium text-base-content/70">Detalles de la actividad</span>
+          <textarea data-prueba="descripcion" rows="3" class="textarea textarea-bordered w-full text-sm" placeholder="Cantidad total, especificaciones, método, condiciones…"></textarea></label>
+        {% if paso == 'materiales' or paso == 'mano_obra' or paso == 'equipos' or paso == 'verificar' %}<label class="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" data-prueba="sin_preguntas" class="checkbox checkbox-sm" checked> Pedir la propuesta completa, sin preguntas (como en la última ronda)</label>{% endif %}
+      </div>
+      <div class="flex justify-end"><button type="button" class="btn btn-primary btn-sm gap-1" data-probar-boton>{% include "components/icon.html" with name="sparkles" cls="size-4" %} Probar con este prompt</button></div>
+      <div class="space-y-3" data-resultados aria-live="polite"></div>
+      {% else %}
+      <p class="text-sm text-base-content/60">Este paso solo se puede probar desde un APU real, porque necesita su composición o sus insumos.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card bg-base-100 lg:col-span-2">
+    <div class="card-body gap-3 p-5">
+      <div>
+        <h2 class="font-semibold">Guardar</h2>
+        <p class="mt-0.5 text-sm text-base-content/60">Cuando la prueba te convenza, guarda el prompt como versión nueva: desde ese momento lo usan los APU nuevos.</p>
+      </div>
+      <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">¿Qué cambiaste? (opcional)</span>
+        <input form="prompt-form" name="comentario" maxlength="200" class="input input-bordered input-sm w-full" placeholder="Ej.: pedir el rendimiento en HH por pulgada-diámetro"></label>
+      <div class="flex justify-end"><button form="prompt-form" class="btn btn-primary btn-sm gap-1">{% include "components/icon.html" with name="check" cls="size-4" %} Guardar como versión nueva</button></div>
+    </div>
+  </section>
+
+  <aside class="space-y-4 lg:row-span-3 lg:col-start-3 lg:row-start-1">
+    <section class="card bg-base-100"><div class="card-body gap-2 p-5">
+      <h2 class="font-semibold">Historial</h2>
+      <p class="text-xs text-base-content/60">Cada guardado crea una versión; restaurar una anterior también (el historial no se reescribe).</p>
+      <ul class="divide-y divide-base-300 text-sm">
+        {% for v in historial %}
+        <li class="flex items-start justify-between gap-2 py-2">
+          <div class="min-w-0"><p class="font-medium">v{{ v.version }}{% if v.vigente %} <span class="badge badge-soft badge-success badge-sm">vigente</span>{% endif %}</p>
+            <p class="truncate text-xs text-base-content/60" title="{{ v.comentario }}">{{ v.comentario|default:"Sin comentario" }}</p>
+            <p class="text-xs text-base-content/50">{{ v.editado_en|date:"d/m/Y H:i" }}{% if v.editado_por %} · {{ v.editado_por }}{% endif %} · {{ v.modelo|default:"—" }}</p></div>
+          <div class="flex shrink-0 items-center gap-1">
+            <a class="btn btn-ghost btn-square btn-xs icono-ver" href="?paso={{ paso }}&version={{ v.version }}" title="Ver la versión {{ v.version }}" aria-label="Ver la versión {{ v.version }}">{% include "components/icon.html" with name="eye" cls="size-4" %}</a>
+            {% if not v.vigente %}<form method="post" action="{% url 'apu_generador:prompt_restaurar' plantilla.pk v.pk %}" data-confirmar="¿Restaurar la versión {{ v.version }}? Se guarda como una versión nueva y la usan los APU nuevos.">{% csrf_token %}
+              <button class="btn btn-ghost btn-square btn-xs" title="Restaurar la versión {{ v.version }}" aria-label="Restaurar la versión {{ v.version }}">{% include "components/icon.html" with name="copy" cls="size-4" %}</button></form>{% endif %}
+          </div>
+        </li>
+        {% empty %}<li class="py-3 text-sm text-base-content/60">Aún no hay versiones de este paso.</li>{% endfor %}
+      </ul>
+    </div></section>
+    {% if faltan %}<section class="card bg-base-100"><div class="card-body gap-1 p-5"><h2 class="font-semibold">Pasos sin prompt</h2><p class="text-sm text-base-content/60">{{ faltan|join:", " }}</p></div></section>{% endif %}
+  </aside>
+</div>
+{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-plantillas.js' %}?v=3" defer></script>{% endblock %}

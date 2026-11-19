@@ -8,11 +8,11 @@
 <section class="card bg-base-100" data-apu-pagina="actividad">
   <form class="card-body gap-5 p-5" data-apu-form data-url="{% if borrador %}{% url 'apu_generador:actividad' borrador.pk %}{% else %}{% url 'apu_generador:nuevo' %}{% endif %}"
         data-url-repetir="{% url 'apu_generador:actividad' 0 %}" data-promedio="{{ promedio_ms }}"
-        data-mensajes="Revisando la descripción del proyecto…|Comprobando que la actividad es coherente…|Clasificando la actividad…">
+        data-mensajes="Comprobando que la actividad es coherente…|Clasificando la actividad…">
     {% csrf_token %}
     <div>
       <h2 class="font-semibold">Actividad</h2>
-      <p class="mt-0.5 text-sm text-base-content/60">Indica qué actividad quieres analizar. La IA usa la descripción del proyecto para ajustar cada APU a lo que se construye.</p>
+      <p class="mt-0.5 text-sm text-base-content/60">Indica qué actividad quieres analizar. La IA toma la descripción del proyecto como correcta y la usa para ajustar cada APU a lo que se construye.</p>
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2">
@@ -26,13 +26,14 @@
         <span class="text-xs text-base-content/50">¿No ves tu proyecto? <a class="link" href="{% url 'apu_catalogo:proyectos' %}">Habilítalo en APU → Proyectos</a>.</span>
       </label>
 
-      <div class="hidden sm:col-span-2" data-bloque-descripcion>
-        <label class="flex flex-col gap-1">
-          <span class="text-xs font-medium text-base-content/70">Descripción del proyecto <span class="text-error" aria-hidden="true">*</span></span>
-          <textarea name="proyecto_descripcion" rows="3" class="textarea textarea-bordered w-full text-sm" data-proyecto-descripcion
-                    placeholder="Describe brevemente qué se construye, dónde y para qué."></textarea>
-          <span class="text-xs text-base-content/50">Se guarda en el proyecto y la IA la usa en todos sus APU. Mínimo 15 palabras.</span>
-        </label>
+      <div class="flex flex-col gap-1.5 sm:col-span-2" data-plantillas>
+        <span class="text-xs font-medium text-base-content/70" id="apu-plantilla-etq">Tipo de trabajo <span class="text-error" aria-hidden="true">*</span></span>
+        <input type="hidden" name="plantilla" value="{{ inicial.plantilla }}" required>
+        <div class="segmentado" role="group" aria-labelledby="apu-plantilla-etq">
+          {% for t in plantillas %}<button type="button" data-plantilla="{{ t.pk }}" data-descripcion="{{ t.descripcion }}" aria-pressed="{% if inicial.plantilla|stringformat:'s' == t.pk|stringformat:'s' %}true{% else %}false{% endif %}">{{ t.nombre }}</button>{% endfor %}
+        </div>
+        <span class="text-xs text-base-content/50" data-plantilla-texto>{% for t in plantillas %}{% if inicial.plantilla|stringformat:'s' == t.pk|stringformat:'s' %}{{ t.descripcion }}{% endif %}{% empty %}No hay tipos de trabajo activos: pídele al superusuario que cree uno en APU → Plantillas.{% endfor %}</span>
+        {% if not inicial.plantilla %}<span class="text-xs text-base-content/50">Elige el que mejor describa la actividad: la IA usa criterios, rendimientos y modelo propios de cada tipo.</span>{% endif %}
       </div>
 
       <label class="flex flex-col gap-1 sm:col-span-2">
@@ -47,8 +48,9 @@
       </label>
       <p class="flex items-end pb-1 text-xs text-base-content/50" data-region-actual></p>
       <label class="flex flex-col gap-1 sm:col-span-2">
-        <span class="text-xs font-medium text-base-content/70">Detalles de la actividad (opcional)</span>
-        <textarea name="descripcion" rows="3" class="textarea textarea-bordered w-full text-sm" placeholder="Especificaciones, espesores, dosificaciones, condiciones de la obra…">{{ borrador.descripcion }}</textarea>
+        <span class="text-xs font-medium text-base-content/70">Detalles de la actividad <span class="text-error" aria-hidden="true">*</span></span>
+        <textarea name="descripcion" rows="3" required class="textarea textarea-bordered w-full text-sm" placeholder="Cantidad total a ejecutar, especificaciones, método, condiciones de la obra…">{{ borrador.descripcion }}</textarea>
+        <span class="text-xs text-base-content/50">El ítem se calcula por <strong>1 unidad</strong> (la que elegiste). Indica aquí cuánto se va a ejecutar en total (p. ej. «unas 14 ha») y cómo: sirve para dimensionar cuadrilla y equipos, no cambia el ítem. Mínimo 5 palabras.</span>
       </label>
     </div>
 
@@ -56,6 +58,8 @@
       {% include "components/icon.html" with name="help" cls="size-5 shrink-0" %}
       <span data-aviso-texto></span>
     </div>
+
+    <div class="space-y-3" data-consultas-alcance></div>
 
     {% include "apu_generador/_progreso.html" %}
 
@@ -66,5 +70,6 @@
   </form>
 </section>
 {{ info_proyectos|json_script:"apu-info-proyectos" }}
+{{ consultas_alcance|json_script:"apu-consultas-alcance" }}
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=7" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=15" defer></script>{% endblock %}

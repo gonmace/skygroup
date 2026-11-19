@@ -648,3 +648,36 @@ li:is(.row-concluido, .row-parcial, .row-vacio) {
 .table tbody tr.fila-estado > td { background: color-mix(in oklab, var(--e) 6%, var(--color-base-100)); border-top-color: color-mix(in oklab, var(--e) 18%, transparent); }
 .table tbody tr.fila-estado > td:first-child { box-shadow: inset 4px 0 0 var(--e); }
 .table tbody tr.fila-estado:hover > td { background: color-mix(in oklab, var(--e) 12%, var(--color-base-100)); }
+
+/* Progreso de la IA: capa en la capa superior del navegador (popover) para quedar al centro de la pantalla y por encima de cualquier modal.
+   Órbitas que giran según el % (--giro) y anillo de avance. Componente: templates/components/progreso.html. */
+.prog-capa { position: fixed; inset: 0; margin: 0; width: 100vw; height: 100vh; max-width: none; max-height: none; border: 0; padding: 1rem; overflow: hidden;
+  background: color-mix(in oklab, var(--color-base-content) 50%, transparent); backdrop-filter: blur(6px); color: var(--color-base-content); }
+.prog-capa:popover-open { display: flex; align-items: center; justify-content: center; }
+.prog-capa::backdrop { background: transparent; }
+.prog-caja { display: flex; width: 100%; max-width: 22rem; flex-direction: column; align-items: center; gap: 1.25rem; padding: 2rem 1.5rem; text-align: center;
+  border-radius: 1.5rem; border: 1px solid color-mix(in oklab, var(--color-primary) 30%, transparent); background: var(--color-base-100); box-shadow: 0 25px 50px -12px rgb(0 0 0 / .35); }
+.prog-escena { position: relative; width: 11rem; height: 11rem; }
+.prog-halo { position: absolute; inset: 1.25rem; border-radius: 9999px; background: radial-gradient(circle, color-mix(in oklab, var(--color-primary) 35%, transparent), transparent 70%); animation: prog-late 2.2s ease-in-out infinite; }
+.prog-orbita { position: absolute; inset: 0.3rem; border-radius: 9999px; border: 1.5px dotted color-mix(in oklab, var(--color-primary) 40%, transparent); transform: rotate(calc(var(--giro, 0deg) * -2)); transition: transform .3s linear; }
+.prog-orbita::after { content: ""; position: absolute; top: -4px; left: calc(50% - 4px); width: 8px; height: 8px; border-radius: 9999px; background: color-mix(in oklab, var(--color-primary) 60%, var(--color-base-content)); box-shadow: 0 0 8px 1px var(--color-primary); }
+.prog-cabeza { inset: 2.33rem; border: 0; transform: rotate(var(--giro, 0deg)); }   /* coincide con el anillo: el punto es la punta del avance */
+.prog-cabeza::after { top: -7px; left: calc(50% - 7px); width: 14px; height: 14px; background: var(--color-primary); box-shadow: 0 0 14px 3px var(--color-primary); }
+.prog-anillo { position: absolute; inset: 1.9rem; width: calc(100% - 3.8rem); height: calc(100% - 3.8rem); transform: rotate(-90deg); }
+.prog-nucleo { position: absolute; inset: 3.4rem; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 9999px; background: var(--color-base-100); box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-primary) 30%, transparent), 0 4px 18px color-mix(in oklab, var(--color-primary) 30%, transparent); }
+.prog-chispa { color: var(--color-primary); animation: prog-late 1.6s ease-in-out infinite; }
+.prog-msg { animation: prog-aparece .35s ease both; }
+@keyframes prog-late { 50% { transform: scale(1.12); opacity: .75; } }
+@keyframes prog-aparece { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .prog-halo, .prog-chispa, .prog-msg { animation: none; } .prog-orbita { transition: none; } }
+
+/* Editor de prompts (APU → Plantillas): los nombres de variables («filas», ultima_ronda…) van en otro color. Un <textarea> no
+   admite colorear parte de su texto: se dibuja una copia encima (`.resaltado-eco`, sin eventos) y el texto real se vuelve
+   transparente (el cursor y la selección siguen siendo los del textarea). */
+.resaltado-caja { position: relative; display: block; }
+.resaltado-eco {
+  position: absolute; top: 0; left: 0; bottom: 0; right: 0; z-index: 1; overflow: hidden; pointer-events: none;
+  white-space: pre-wrap; overflow-wrap: break-word; border-style: solid; border-color: transparent; color: var(--color-base-content);
+}
+.resaltado-ta { color: transparent !important; caret-color: var(--color-base-content); }
+.resaltado-eco .var-ia { color: var(--mod-ink, var(--color-primary)); }

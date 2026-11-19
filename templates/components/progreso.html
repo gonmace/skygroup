@@ -1,0 +1,23 @@
+{# Componente reutilizable: progreso de una operación larga, centrado en la pantalla. En la capa superior (popover): queda al centro y sobre cualquier modal. Los puntos giran según el porcentaje + anillo de avance + núcleo con %. Uso: {% include "components/progreso.html" with titulo="Asistente de APU" %}. Lo anima Progreso() de static/js/apu-generador.js (busca [data-progreso]); para otro módulo reutiliza ese JS o replica pintar(valor, texto). #}
+<div data-progreso popover="manual" class="prog-capa" role="status" aria-live="polite">
+  <div class="prog-caja">
+    <div class="prog-escena">
+      <span class="prog-halo"></span>
+      <span class="prog-orbita"></span>
+      <svg viewBox="0 0 100 100" class="prog-anillo" aria-hidden="true">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="6" class="text-primary/15"></circle>
+        <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" class="text-primary"
+                stroke-dasharray="276.46" stroke-dashoffset="276.46" data-progreso-barra></circle>
+      </svg>
+      <span class="prog-orbita prog-cabeza"></span>
+      <div class="prog-nucleo">
+        <span class="prog-chispa">{% include "components/icon.html" with name="sparkles" cls="size-5" %}</span>
+        <span class="font-mono text-lg font-semibold tabular-nums leading-tight" data-progreso-pct>0 %</span>
+      </div>
+    </div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-widest text-primary">{{ titulo|default:"Procesando" }}</p>
+      <p class="prog-msg mt-1 min-h-10 text-sm font-medium" data-progreso-mensaje>Trabajando…</p>
+    </div>
+  </div>
+</div>

@@ -25,143 +25,9 @@
         "assignments": {
           "assignments": [
             {
-              "id": "9aa917e9-8040-447e-b03d-f75bd0203134",
-              "name": "system_prompt",
-              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción.\n\nTu tarea es decidir si la descripción del proyecto alcanza para analizar actividades de obra: debe permitir entender qué se construye, de qué tipo de obra se trata y para qué sirve. No exijas detalles técnicos finos ni planos.\n\nSi falta información esencial, responde proyecto_claro=false y, en «falta», indica en una frase corta qué debería agregar la persona (por ejemplo: «Indica qué se construye y para qué se usará»).\nSi alcanza, responde proyecto_claro=true y deja «falta» vacío.\nResponde SOLO con el JSON pedido.",
-              "type": "string"
-            }
-          ]
-        },
-        "includeOtherFields": true,
-        "options": {}
-      },
-      "id": "1ae9c852-7721-4d58-8715-d4a789512714",
-      "name": "Prompt · Proyecto claro",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        240,
-        300
-      ],
-      "notes": "Aquí vive el prompt de sistema. Edita el texto para mejorar el comportamiento de la IA."
-    },
-    {
-      "parameters": {
-        "model": {
-          "__rl": true,
-          "mode": "list",
-          "value": "gpt-5-mini"
-        },
-        "builtInTools": {},
-        "options": {},
-        "responsesApiEnabled": false
-      },
-      "id": "f64e50ef-25b7-40bf-b5c3-bdb1fba32004",
-      "name": "Modelo mini",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.3,
-      "position": [
-        420,
-        520
-      ],
-      "credentials": {
-        "openAiApi": {
-          "id": "W8XaJvGwacT4HUqW",
-          "name": "OpenAI account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "schemaType": "manual",
-        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"proyecto_claro\": {\n      \"type\": \"boolean\"\n    },\n    \"falta\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"proyecto_claro\",\n    \"falta\"\n  ]\n}"
-      },
-      "id": "0321a5ee-7799-4ed3-9fa5-55e557b3acb0",
-      "name": "Esquema · Proyecto claro",
-      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
-      "typeVersion": 1.3,
-      "position": [
-        560,
-        520
-      ],
-      "notes": "Esquema de lo que devuelve la IA. Si lo cambias, revisa también apu_generador/ia.py."
-    },
-    {
-      "parameters": {
-        "promptType": "define",
-        "text": "=Proyecto: {{ $('Webhook').item.json.body.proyecto.nombre }} ({{ $('Webhook').item.json.body.proyecto.tipo }}, {{ $('Webhook').item.json.body.proyecto.ciudad }})\nDescripción del proyecto: {{ $('Webhook').item.json.body.proyecto.descripcion }}",
-        "hasOutputParser": true,
-        "options": {
-          "systemMessage": "={{ $json.system_prompt }}"
-        }
-      },
-      "id": "220d0602-5d66-4db4-8262-53946e336a16",
-      "name": "Agente · Proyecto claro",
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "typeVersion": 3.1,
-      "position": [
-        480,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "ab618e42-a353-49b5-be30-e8a7f9c6c475",
-              "leftValue": "={{ $json.output.proyecto_claro }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "0530f04a-cb1b-4e0c-accf-d8fefac2d8f7",
-      "name": "¿Proyecto claro?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        760,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ { \"proyecto_claro\": false, \"falta\": $json.output.falta, \"ejecucion_id\": $execution.id } }}",
-        "options": {}
-      },
-      "id": "847d97b1-6b3e-4523-baf6-cd55ad430d12",
-      "name": "Responder · Proyecto poco claro",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.4,
-      "position": [
-        1000,
-        480
-      ],
-      "notes": "Devuelve el JSON a skygroup. `ejecucion_id` permite medir los tokens de esta ejecución."
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
               "id": "6fab2bd1-3a5d-4104-91e4-24771788c87a",
               "name": "system_prompt",
-              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción.\n\nVerifica si la actividad, su unidad de medida y sus detalles son coherentes entre sí y con el proyecto, para poder elaborar su APU. Ejemplos de incoherencia: una unidad que no corresponde (un muro medido en kg), o una actividad que no pertenece a una obra como la descrita. No hagas mayores análisis.\n\nResponde SOLO con el JSON pedido: coherente (true/false) y, si no lo es, «razon» con una frase corta y clara que ayude a corregirla (si es coherente, deja «razon» vacío).",
+              "value": "={{ $('Webhook').item.json.body.ia.coherencia.prompt }}",
               "type": "string"
             }
           ]
@@ -177,21 +43,24 @@
         1000,
         140
       ],
-      "notes": "Aquí vive el prompt de sistema. Edita el texto para mejorar el comportamiento de la IA."
+      "notes": "El texto de este prompt ya no se edita aquí: lo manda skygroup en body.ia.coherencia.prompt (APU → Plantillas).",
+      "notesInFlow": false
     },
     {
       "parameters": {
         "model": {
           "__rl": true,
-          "mode": "list",
-          "value": "gpt-5-mini"
+          "mode": "id",
+          "value": "={{ $('Webhook').first().json.body.ia.coherencia.modelo }}"
         },
         "builtInTools": {},
-        "options": {},
+        "options": {
+          "reasoningEffort": "={{ $('Webhook').first().json.body.ia.coherencia.razonamiento }}"
+        },
         "responsesApiEnabled": false
       },
       "id": "f6f46de5-05cf-405b-94f2-9b77f59112de",
-      "name": "Modelo mini ",
+      "name": "Modelo coherencia",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
@@ -203,12 +72,13 @@
           "id": "W8XaJvGwacT4HUqW",
           "name": "OpenAI account"
         }
-      }
+      },
+      "notes": "El modelo y el razonamiento llegan en body.ia.coherencia (se eligen en APU → Plantillas)."
     },
     {
       "parameters": {
         "schemaType": "manual",
-        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"coherente\": {\n      \"type\": \"boolean\"\n    },\n    \"razon\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"coherente\",\n    \"razon\"\n  ]\n}"
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"coherente\": {\n      \"type\": \"boolean\"\n    },\n    \"razon\": {\n      \"type\": \"string\"\n    },\n    \"actividad_ajustada\": {\n      \"type\": \"string\"\n    },\n    \"alcance\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"coherente\",\n    \"razon\"\n  ]\n}"
       },
       "id": "2054317f-3900-4a2e-b8fd-d95a2fe76719",
       "name": "Esquema · Coherencia",
@@ -295,7 +165,7 @@
             {
               "id": "a137ebd9-92dc-4fe6-b905-b158662c4018",
               "name": "system_prompt",
-              "value": "Eres un especialista en construcción. Clasifica técnicamente la actividad indicada en cinco campos breves:\n- sistema_constructivo: p. ej. «Mampostería de ladrillo», «Hormigón armado», «Estructura metálica».\n- tipo_elemento: p. ej. «Muro», «Losa», «Viga», «Cimiento», «Revoque».\n- material_principal: el material que define la actividad.\n- proceso_principal: el proceso de ejecución, p. ej. «Asentado», «Vaciado», «Pintado».\n- categoria: una de «Obra gruesa», «Acabados», «Instalaciones», «Movimiento de tierras», «Estructuras», «Otros».\nUsa términos técnicos habituales en obra. Responde SOLO con el JSON pedido.",
+              "value": "={{ $('Webhook').item.json.body.ia.clasificacion.prompt }}",
               "type": "string"
             }
           ]
@@ -311,18 +181,19 @@
         1760,
         40
       ],
-      "notes": "Aquí vive el prompt de sistema. Edita el texto para mejorar el comportamiento de la IA."
+      "notes": "El texto de este prompt ya no se edita aquí: lo manda skygroup en body.ia.clasificacion.prompt (APU → Plantillas).",
+      "notesInFlow": false
     },
     {
       "parameters": {
         "model": {
           "__rl": true,
-          "mode": "list",
-          "value": "gpt-5.1"
+          "mode": "id",
+          "value": "={{ $('Webhook').first().json.body.ia.clasificacion.modelo }}"
         },
         "builtInTools": {},
         "options": {
-          "reasoningEffort": "low"
+          "reasoningEffort": "={{ $('Webhook').first().json.body.ia.clasificacion.razonamiento }}"
         },
         "responsesApiEnabled": false
       },
@@ -339,12 +210,13 @@
           "id": "W8XaJvGwacT4HUqW",
           "name": "OpenAI account"
         }
-      }
+      },
+      "notes": "El modelo y el razonamiento llegan en body.ia.clasificacion (se eligen en APU → Plantillas)."
     },
     {
       "parameters": {
         "schemaType": "manual",
-        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"sistema_constructivo\": {\n      \"type\": \"string\"\n    },\n    \"tipo_elemento\": {\n      \"type\": \"string\"\n    },\n    \"material_principal\": {\n      \"type\": \"string\"\n    },\n    \"proceso_principal\": {\n      \"type\": \"string\"\n    },\n    \"categoria\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"sistema_constructivo\",\n    \"tipo_elemento\",\n    \"material_principal\",\n    \"proceso_principal\",\n    \"categoria\"\n  ]\n}"
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"sistema_constructivo\": {\n      \"type\": \"string\"\n    },\n    \"tipo_elemento\": {\n      \"type\": \"string\"\n    },\n    \"material_principal\": {\n      \"type\": \"string\"\n    },\n    \"proceso_principal\": {\n      \"type\": \"string\"\n    },\n    \"categoria\": {\n      \"type\": \"string\"\n    },\n    \"resumen_alcance\": {\n      \"type\": \"string\"\n    },\n    \"consultas\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"id\": {\n            \"type\": \"string\"\n          },\n          \"tipo\": {\n            \"type\": \"string\",\n            \"enum\": [\n              \"opciones\",\n              \"dato\"\n            ]\n          },\n          \"pregunta\": {\n            \"type\": \"string\"\n          },\n          \"motivo\": {\n            \"type\": \"string\"\n          },\n          \"opciones\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"object\",\n              \"properties\": {\n                \"clave\": {\n                  \"type\": \"string\"\n                },\n                \"etiqueta\": {\n                  \"type\": \"string\"\n                }\n              },\n              \"required\": [\n                \"clave\",\n                \"etiqueta\"\n              ]\n            }\n          },\n          \"recomendada\": {\n            \"type\": \"string\"\n          },\n          \"por_que\": {\n            \"type\": \"string\"\n          }\n        },\n        \"required\": [\n          \"id\",\n          \"tipo\",\n          \"pregunta\",\n          \"recomendada\"\n        ]\n      }\n    }\n  },\n  \"required\": [\n    \"sistema_constructivo\",\n    \"tipo_elemento\",\n    \"material_principal\",\n    \"proceso_principal\",\n    \"categoria\",\n    \"resumen_alcance\"\n  ]\n}"
       },
       "id": "4ab781f1-5211-491e-b58d-b52b500fb8dd",
       "name": "Esquema · Clasificación",
@@ -359,7 +231,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Actividad: {{ $('Webhook').item.json.body.actividad }}\nUnidad de medida: {{ $('Webhook').item.json.body.unidad }}\nDetalles: {{ $('Webhook').item.json.body.descripcion }}",
+        "text": "=Proyecto: {{ $('Webhook').item.json.body.proyecto.nombre }} ({{ $('Webhook').item.json.body.proyecto.tipo }}, {{ $('Webhook').item.json.body.proyecto.ciudad }})\nDescripción del proyecto: {{ $('Webhook').item.json.body.proyecto.descripcion }}\nActividad: {{ $('Webhook').item.json.body.actividad }}\nUnidad de medida: {{ $('Webhook').item.json.body.unidad }}\nDetalles: {{ $('Webhook').item.json.body.descripcion }}\nCantidad total detectada (solo para dimensionar): {{ $('Agente · Coherencia').item.json.output.alcance || 'no consta' }}\nPreguntas tuyas ya respondidas: {{ JSON.stringify($('Webhook').item.json.body.historial || []) }}\nultima_ronda: {{ $('Webhook').item.json.body.ultima_ronda }}",
         "hasOutputParser": true,
         "options": {
           "systemMessage": "={{ $json.system_prompt }}"
@@ -377,7 +249,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"coherente\": true, \"sistema_constructivo\": $json.output.sistema_constructivo, \"tipo_elemento\": $json.output.tipo_elemento, \"material_principal\": $json.output.material_principal, \"proceso_principal\": $json.output.proceso_principal, \"categoria\": $json.output.categoria, \"ejecucion_id\": $execution.id } }}",
+        "responseBody": "={{ { \"coherente\": true, \"sistema_constructivo\": $json.output.sistema_constructivo, \"tipo_elemento\": $json.output.tipo_elemento, \"material_principal\": $json.output.material_principal, \"proceso_principal\": $json.output.proceso_principal, \"categoria\": $json.output.categoria, \"actividad_ajustada\": $('Agente · Coherencia').item.json.output.actividad_ajustada || '', \"alcance\": $('Agente · Coherencia').item.json.output.alcance || '', \"resumen_alcance\": $json.output.resumen_alcance || '', \"consultas\": $json.output.consultas || [], \"ejecucion_id\": $execution.id } }}",
         "options": {}
       },
       "id": "c3fa7f5b-b7bf-4140-9fca-df976d52d774",
@@ -392,7 +264,7 @@
     },
     {
       "parameters": {
-        "content": "Paso 1 · Coherencia\nTres revisiones en cadena: ¿la descripción del proyecto alcanza?, ¿la actividad es coherente?, y su clasificación técnica. Cada prompt está en su nodo «Prompt · …» (Edit Fields). Entrada: actividad, unidad, descripcion, region, proyecto{nombre,descripcion,tipo,ciudad}.",
+        "content": "Paso 1 · Coherencia\nDos revisiones en cadena: ¿la actividad es coherente con su unidad, sus detalles y el proyecto? y su clasificación técnica. El proyecto y su descripción se dan por correctos (se validan al habilitar el proyecto para APU): aquí nunca se cuestionan. Cada prompt llega en body.ia.<paso> (APU → Plantillas). Entrada: actividad, unidad, descripcion, region, proyecto{nombre,descripcion,tipo,ciudad}.",
         "height": 190,
         "width": 520,
         "color": 4
@@ -412,29 +284,7 @@
       "main": [
         [
           {
-            "node": "Prompt · Proyecto claro",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prompt · Proyecto claro": {
-      "main": [
-        [
-          {
-            "node": "Agente · Proyecto claro",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Agente · Proyecto claro": {
-      "main": [
-        [
-          {
-            "node": "¿Proyecto claro?",
+            "node": "Prompt · Coherencia",
             "type": "main",
             "index": 0
           }
@@ -485,24 +335,6 @@
         ]
       ]
     },
-    "¿Proyecto claro?": {
-      "main": [
-        [
-          {
-            "node": "Prompt · Coherencia",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Responder · Proyecto poco claro",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "¿Es coherente?": {
       "main": [
         [
@@ -521,45 +353,12 @@
         ]
       ]
     },
-    "Modelo mini": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Agente · Proyecto claro",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Modelo mini ": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Agente · Coherencia",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Modelo principal": {
       "ai_languageModel": [
         [
           {
             "node": "Agente · Clasificación",
             "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Esquema · Proyecto claro": {
-      "ai_outputParser": [
-        [
-          {
-            "node": "Agente · Proyecto claro",
-            "type": "ai_outputParser",
             "index": 0
           }
         ]
@@ -582,6 +381,17 @@
           {
             "node": "Agente · Clasificación",
             "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modelo coherencia": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente · Coherencia",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]

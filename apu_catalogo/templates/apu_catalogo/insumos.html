@@ -1,5 +1,5 @@
 {% extends "shell.html" %}
-{% load apu_tags %}
+{% load apu_tags static %}
 {% block page_title %}Insumos · APU{% endblock %}
 {% block wrap_class %}space-y-6{% endblock %}
 {% block content_main %}
@@ -36,6 +36,21 @@
   </form>
 </div>
 
+
+{% if es_super and grupos %}
+<form id="form-bulk" method="post" action="{% url 'apu_catalogo:insumos_eliminar_varios' %}" hidden>{% csrf_token %}
+  <input type="hidden" name="q" value="{{ q }}"><input type="hidden" name="tipo" value="{{ tipo_sel }}">
+  <input type="hidden" name="sin_precio" value="{% if solo_sin_precio %}1{% endif %}"><input type="hidden" name="todos" value="" data-todos>
+</form>
+<div class="flex flex-wrap items-center gap-3 rounded-2xl border border-base-300 bg-base-100 px-4 py-2.5 text-sm" data-bulk data-total="{{ n_filtrados }}" data-en-pagina="{{ pagina.object_list|length }}">
+  <label class="flex cursor-pointer items-center gap-2 font-medium"><input type="checkbox" class="checkbox checkbox-sm" data-sel-pagina> Seleccionar todos</label>
+  <span class="badge badge-sm badge-outline badge-plat-super" title="Solo el superusuario ve y usa esta acción">Superusuario</span>
+  <span class="text-base-content/60" data-contador>0 seleccionados</span>
+  <button type="button" class="link hidden text-sm" data-sel-filtrados>Seleccionar los {{ n_filtrados }} insumo{{ n_filtrados|pluralize }} {% if hay_filtros %}que cumplen el filtro{% else %}de todas las páginas{% endif %}</button>
+  <button type="button" class="btn btn-sm btn-error gap-1.5 sm:ml-auto" data-eliminar disabled>{% include "components/icon.html" with name="trash" cls="size-4" %} Eliminar seleccionados</button>
+</div>
+{% endif %}
+
 {% for g in grupos %}
 <section class="table-card">
   <div class="flex items-center justify-between gap-3 border-b border-base-300 px-5 py-3.5">
@@ -45,10 +60,11 @@
     </h2>
   </div>
   <table class="table">
-    <thead><tr><th class="w-32">Código</th><th>Descripción</th><th class="w-24">Unidad</th><th class="text-right">Precio nacional vigente</th>{% if puede_editar %}<th class="w-px"></th>{% endif %}</tr></thead>
+    <thead><tr>{% if es_super %}<th class="w-px"></th>{% endif %}<th class="w-32">Código</th><th>Descripción</th><th class="w-24">Unidad</th><th class="text-right">Precio nacional vigente</th>{% if puede_editar %}<th class="w-px"></th>{% endif %}</tr></thead>
     <tbody>
     {% for i in g.insumos %}
       <tr class="{% if puede_editar %}hover:bg-base-content/5{% endif %}{% if not i.activo %} opacity-60{% endif %}">
+        {% if es_super %}<td class="w-px"><input type="checkbox" class="checkbox checkbox-sm" form="form-bulk" name="ids" value="{{ i.pk }}" data-fila aria-label="Seleccionar {{ i.descripcion }}"></td>{% endif %}
         <td class="font-mono text-sm text-base-content/60">{{ i.codigo }}</td>
         <td>
           {% if puede_editar %}<a href="{% url 'apu_catalogo:insumo_editar' i.pk %}" class="font-medium hover:underline">{{ i.descripcion }}</a>{% else %}<span class="font-medium">{{ i.descripcion }}</span>{% endif %}
@@ -94,3 +110,4 @@
 </nav>
 {% endif %}
 {% endblock %}
+{% block extra_scripts %}{% if es_super %}<script src="{% static 'js/apu-insumos.js' %}?v=1" defer></script>{% endif %}{% endblock %}

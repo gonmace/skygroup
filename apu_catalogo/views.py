@@ -1,7 +1,10 @@
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlencode
 
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count, Prefetch, ProtectedError, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -13,7 +16,7 @@ from proyectos.models import Proyecto
 
 from apu_motor import PerfilInvalido, validar_perfil
 
-from . import categorias as cats, editor
+from . import categorias as cats, conversion, editor, unidades
 from .acceso import acceso_apu
 from .forms import MODOS, InsumoForm, PerfilDatosForm
 from . import calculo
@@ -261,8 +264,8 @@ def proyecto_pdf(request, pk):
 
 @acceso_apu('apu.perfiles.manage')
 def habilitar(request):
-    """Habilita un proyecto para APU: elige su perfil de cálculo (siempre uno de la empresa; una plantilla se copia) y
-    deja su descripción lista para la IA. Es el primer paso del módulo."""
+    """Habilita un proyecto para APU: elige su perfil de cálculo (siempre uno de la empresa; una plantilla se copia) y la región
+    de sus precios. La descripción del proyecto es la que ya tiene: no se pide ni se valida aquí. Es el primer paso del módulo."""
     from apu_generador import asistente
     empresa = request.empresa
     pendientes = Proyecto.objects.de_empresa(empresa).activos().filter(apu__isnull=True).order_by('nombre')
@@ -272,27 +275,19 @@ def habilitar(request):
         if elegido is None:
             messages.error(request, 'Elige un proyecto de tu empresa que aún no esté habilitado.')
         else:
-            descripcion = request.POST.get('descripcion', '').strip()
-            elegido.descripcion = descripcion
-            if not asistente.descripcion_suficiente(elegido):
-                messages.error(request, f'Describe brevemente el proyecto (al menos {asistente.MIN_PALABRAS_DESCRIPCION} '
-                                        'palabras): qué se construye, dónde y para qué. La IA la usa para ajustar cada APU.')
+            try:
+                asistente.asegurar_proyecto_apu(elegido, request.POST.get('perfil'), empresa, request.POST.get('region'))
+            except asistente.ErrorPaso as e:
+                messages.error(request, str(e))
             else:
-                try:
-                    asistente.asegurar_proyecto_apu(elegido, request.POST.get('perfil'), empresa, request.POST.get('region'))
-                except asistente.ErrorPaso as e:
-                    messages.error(request, str(e))
-                else:
-                    elegido.save(update_fields=['descripcion'])
-                    messages.success(request, f'Se habilitó «{elegido.nombre}» para APU. Ya puedes generar sus APU.')
-                    return redirect('apu_generador:nuevo')
+                messages.success(request, f'Se habilitó «{elegido.nombre}» para APU. Ya puedes generar sus APU.')
+                return redirect('apu_generador:nuevo')
     return render(request, 'apu_catalogo/habilitar.html', {
-        'pendientes': pendientes, 'elegido': elegido, 'descripcion': request.POST.get('descripcion', elegido.descripcion if elegido else ''),
+        'pendientes': pendientes, 'elegido': elegido,
         'perfil_sel': request.POST.get('perfil', ''), 'region': request.POST.get('region', ''), 'perfiles': PerfilCalculo.propios(empresa),
         'plantillas': PerfilCalculo.objects.filter(empresa__isnull=True, activo=True),
         'hay_proyectos': Proyecto.objects.de_empresa(empresa).activos().exists(),
-        'puede_proyectos': tiene_capacidad(request.user, 'proyectos.manage', empresa),
-        'minimo': asistente.MIN_PALABRAS_DESCRIPCION})
+        'puede_proyectos': tiene_capacidad(request.user, 'proyectos.manage', empresa)})
 
 
 def _pct(valor):
@@ -371,20 +366,26 @@ def incidencias(request, pk):
         'ajustados': set(nuevos), 'vista_previa': vista_previa, 'huerfanos': huerfanos, 'n_apu': ItemModelo.objects.filter(proyecto=proyecto).count()})
 
 
+def _insumos_filtrados(empresa, q, tipo, solo_sin_precio):
+    """Insumos de la empresa según los filtros de la lista (los mismos para listar y para eliminar en bloque)."""
+    qs = Insumo.objects.filter(empresa=empresa)
+    if q:
+        qs = qs.filter(Q(codigo__icontains=q) | Q(descripcion__icontains=q))
+    if tipo in Tipo.values:
+        qs = qs.filter(tipo=tipo)
+    if solo_sin_precio:
+        qs = qs.filter(precios__isnull=True)
+    return qs
+
+
 @acceso_apu('apu.ver')
 def insumos(request):
     empresa = request.empresa
     q = request.GET.get('q', '').strip()
     tipo = request.GET.get('tipo', '')
-    qs = Insumo.objects.filter(empresa=empresa).prefetch_related(
-        Prefetch('precios', queryset=PrecioInsumo.objects.filter(region='').order_by('-fecha'), to_attr='precios_nacionales'))
-    if q:
-        qs = qs.filter(Q(codigo__icontains=q) | Q(descripcion__icontains=q))
-    if tipo in Tipo.values:
-        qs = qs.filter(tipo=tipo)
     solo_sin_precio = request.GET.get('sin_precio') == '1'
-    if solo_sin_precio:
-        qs = qs.filter(precios__isnull=True)
+    qs = _insumos_filtrados(empresa, q, tipo, solo_sin_precio).prefetch_related(
+        Prefetch('precios', queryset=PrecioInsumo.objects.filter(region='', proyecto__isnull=True).order_by('-fecha'), to_attr='precios_nacionales'))
     todos = Insumo.objects.filter(empresa=empresa)
     conteos = dict(todos.values_list('tipo').annotate(n=Count('pk')))
     pagina = Paginator(qs.order_by('tipo', 'codigo'), 40).get_page(request.GET.get('page'))
@@ -394,8 +395,8 @@ def insumos(request):
     grupos = [{'tipo': v, 'nombre': l, 'insumos': [i for i in pagina if i.tipo == v]} for v, l in Tipo.choices]
     return render(request, 'apu_catalogo/insumos.html', {
         'grupos': [g for g in grupos if g['insumos']],
-        'puede_editar': tiene_capacidad(request.user, 'apu.catalogo.manage', empresa),
-        'pagina': pagina, 'q': q, 'tipo_sel': tipo, 'tipos': Tipo.choices, 'qs_filtros': params.urlencode(),
+        'puede_editar': tiene_capacidad(request.user, 'apu.catalogo.manage', empresa), 'es_super': request.user.is_superuser,
+        'n_filtrados': pagina.paginator.count, 'pagina': pagina, 'q': q, 'tipo_sel': tipo, 'tipos': Tipo.choices, 'qs_filtros': params.urlencode(),
         'tipos_conteo': [(v, l, conteos.get(v, 0)) for v, l in Tipo.choices], 'n_total': sum(conteos.values()),
         'solo_sin_precio': solo_sin_precio,
         'n_sin_precio': todos.filter(precios__isnull=True).count(),
@@ -405,10 +406,25 @@ def insumos(request):
 @acceso_apu('apu.catalogo.manage')
 def insumo_editar(request, pk):
     insumo = get_object_or_404(Insumo, pk=pk, empresa=request.empresa)
+    antes = insumo.unidad
     form = InsumoForm(request.empresa, request.POST or None, instance=insumo)
     if request.method == 'POST' and form.is_valid():
-        form.save()
-        messages.success(request, f'Se guardó el insumo «{insumo.descripcion}».')
+        nueva = unidades.normalizar(form.cleaned_data['unidad'])[:20]
+        factor = unidades.factor(antes, nueva) if nueva != unidades.normalizar(antes) else None
+        if factor:      # unidad convertible (p. ej. m² → pie²): sus cantidades y precios se recalculan para no cambiar el costo
+            insumo.unidad = antes
+            form.save()
+            lineas, precios = conversion.cambiar_unidad(insumo, nueva, factor)
+            messages.success(request, f'Se guardó el insumo «{insumo.descripcion}». La unidad pasó de «{antes}» a «{nueva}» (×{factor:.4f}): '
+                                      f'se convirtieron {lineas} línea(s) de APU y {precios} precio(s).')
+        else:
+            form.save()
+            messages.success(request, f'Se guardó el insumo «{insumo.descripcion}».')
+            if unidades.normalizar(antes) != unidades.normalizar(insumo.unidad) and (
+                    insumo.usos.exists() or insumo.precios.exists()):
+                messages.warning(request, f'Cambiaste la unidad de «{antes}» a «{insumo.unidad}», pero no se pueden convertir solas: '
+                                          'las cantidades y los precios que ya tiene siguen como estaban. Revísalos. '
+                                          'Para convertirlos, edita el insumo desde la ficha del APU e indica el factor.')
         return redirect('apu_catalogo:insumos')
     return render(request, 'apu_catalogo/insumo_form.html', {'form': form, 'insumo': insumo})
 
@@ -427,6 +443,47 @@ def insumo_eliminar(request, pk):
         messages.success(request, f'Se eliminó el insumo «{nombre}».')
     return redirect('apu_catalogo:insumos')
 
+
+
+@acceso_apu('apu.catalogo.manage')
+@require_POST
+def insumos_eliminar_varios(request):
+    """Eliminación en bloque: SOLO el superusuario. Recibe `ids` (los marcados) o `todos=1` (todos los que cumplen los filtros
+    de la lista: q, tipo, sin_precio). Un insumo que usa algún APU no se puede borrar (protegido): se salta y se informa."""
+    if not request.user.is_superuser:
+        raise PermissionDenied
+    empresa = request.empresa
+    filtros = {'q': request.POST.get('q', '').strip(), 'tipo': request.POST.get('tipo', ''), 'solo_sin_precio': request.POST.get('sin_precio') == '1'}
+    if request.POST.get('todos') == '1':
+        qs = _insumos_filtrados(empresa, **filtros)
+    else:
+        ids = [int(i) for i in request.POST.getlist('ids') if i.isdigit()]
+        if not ids:
+            messages.warning(request, 'No marcaste ningún insumo para eliminar.')
+            return redirect(_volver_a_insumos(filtros))
+        qs = Insumo.objects.filter(empresa=empresa, pk__in=ids)
+    eliminados = protegidos = 0
+    for insumo in list(qs.distinct()):
+        try:
+            with transaction.atomic():
+                insumo.delete()
+        except ProtectedError:
+            protegidos += 1
+        else:
+            eliminados += 1
+    if eliminados:
+        messages.success(request, f'Se eliminaron {eliminados} insumo(s).')
+    if protegidos:
+        messages.warning(request, f'{protegidos} insumo(s) no se eliminaron porque los usan APU existentes. Puedes desactivarlos desde «Editar».')
+    if not eliminados and not protegidos:
+        messages.info(request, 'No había insumos que eliminar con esa selección.')
+    return redirect(_volver_a_insumos(filtros))
+
+
+def _volver_a_insumos(filtros):
+    params = {k: v for k, v in (('q', filtros['q']), ('tipo', filtros['tipo']), ('sin_precio', '1' if filtros['solo_sin_precio'] else '')) if v}
+    base = reverse('apu_catalogo:insumos')
+    return f'{base}?{urlencode(params)}' if params else base
 
 
 # ── Categorías de APU ─────────────────────────────────────────────────────────

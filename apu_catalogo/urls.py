@@ -15,6 +15,7 @@ urlpatterns = [
     path('apu/proyectos/<int:pk>/cantidades/', views.cantidades_guardar, name='cantidades'),
     path('apu/proyectos/<int:pk>/incidencias/', views.incidencias, name='incidencias'),
     path('apu/insumos/', views.insumos, name='insumos'),
+    path('apu/insumos/eliminar-varios/', views.insumos_eliminar_varios, name='insumos_eliminar_varios'),
     path('apu/insumos/<int:pk>/editar/', views.insumo_editar, name='insumo_editar'),
     path('apu/insumos/<int:pk>/eliminar/', views.insumo_eliminar, name='insumo_eliminar'),
     path('apu/categorias/', views.categorias, name='categorias'),

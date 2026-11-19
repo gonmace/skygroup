@@ -23,7 +23,7 @@
     <div data-consultas class="space-y-3"></div>
 
     {% if tipo == 'mano_obra' %}
-    <div class="grid gap-4 rounded-box bg-base-200/50 p-4 sm:grid-cols-2">
+    <div class="grid gap-4 rounded-box bg-base-200/50 p-4 sm:grid-cols-2" data-resultados>
       <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Rendimiento de la cuadrilla ({{ borrador.unidad }} por jornada)</span>
         <input class="input input-bordered input-sm w-full tabular-nums" data-rendimiento inputmode="decimal" value="{{ mano_obra.rendimiento }}"></label>
       <label class="flex flex-col gap-1"><span class="text-xs font-medium text-base-content/70">Horas de la jornada</span>
@@ -31,7 +31,7 @@
     </div>
     {% endif %}
 
-    <div class="table-card">
+    <div class="table-card" data-resultados>
       <table class="table">
         <thead><tr>
           <th></th><th>{% if tipo == 'materiales' %}Material{% elif tipo == 'mano_obra' %}Oficio{% else %}Equipo{% endif %}</th>
@@ -47,7 +47,7 @@
     {% lista_unidades %}
     <datalist id="apu-catalogo-lista">{% for c in catalogo %}<option value="{{ c.descripcion }}">{{ c.codigo }} · {{ c.unidad }}</option>{% endfor %}</datalist>
 
-    <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-3" data-resultados>
       <div class="flex flex-wrap items-center gap-2">
         <button type="button" class="btn btn-sm gap-1" data-accion="agregar">{% include "components/icon.html" with name="plus" cls="size-4" %} Agregar fila</button>
         <button type="button" class="btn btn-sm btn-ghost gap-1" data-accion="repetir">{% include "components/icon.html" with name="sparkles" cls="size-4" %} Proponer de nuevo</button>
@@ -62,4 +62,4 @@
 {{ estado|json_script:"apu-estado" }}
 {{ catalogo|json_script:"apu-catalogo" }}
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=8" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/apu-generador.js' %}?v=15" defer></script>{% endblock %}

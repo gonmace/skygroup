@@ -27,7 +27,7 @@
             {
               "id": "73a20774-91a9-4bda-b6ad-e9c6d6b2cf12",
               "name": "system_prompt",
-              "value": "Eres un especialista en análisis de precios unitarios (APU) de construcción. Recibes un APU ya armado (materiales, mano de obra y equipos por UNA unidad de la actividad) y una instrucción de la persona para modificarlo.\n\nDevuelve el APU COMPLETO modificado, con la misma estructura: «materiales», «mano_obra» (con «rendimiento» y «horas_jornada») y «equipos». Cambia solo lo que la instrucción pide y mantén lo demás igual.\n- Conserva exactamente la descripción de las filas que no cambian. Usa los términos del catálogo de la empresa cuando existan (codigo_catalogo) y marca nuevo=true solo si agregas un término que no está en el catálogo.\n- Materiales y equipos: cantidad por unidad de la actividad (y desperdicio_pct en materiales). Mano de obra: «personas» por oficio y el rendimiento de la cuadrilla.\n- Si la instrucción es ambigua, aplica la interpretación más razonable y explícala en «resumen_cambios».\n- TÍTULO: devuelve «actividad» con el título del APU. Si tu modificación cambia lo que el título describe (resistencia, elemento, material, dimensiones, espesor, sistema…), ajústalo para que siga siendo fiel a la composición resultante (p. ej. «Hormigón H21 en columnas» → «Hormigón H25 en vigas»). Si no cambia lo que describe, devuelve el MISMO título exacto. Devuelve SOLO el título: sin la unidad, sin paréntesis ni aclaraciones, con el mismo estilo del original; no agregues datos que la composición no respalde.\n- ELIMINAR: si la instrucción pide quitar un insumo, esa fila NO debe aparecer en tu respuesta (omítela). Antes de responder, revisa que ninguna fila que debías quitar siga en las listas.\n- ALCANCE: tu propuesta debe ser coherente de punta a punta con la instrucción. Si la instrucción quita o agrega una parte del alcance (p. ej. la provisión o el suministro del equipo, la instalación, el transporte, la preparación), cambia TODO lo que depende de ello: los insumos, la cuadrilla, los equipos, el título y la unidad si corresponde.\n- «resumen_cambios»: 2-4 frases claras con lo que cambiaste (incluye el cambio de título si lo hubo).\nResponde SOLO con el JSON pedido. Los números van sin unidades.",
+              "value": "={{ $('Webhook').item.json.body.ia.modificar.prompt }}",
               "type": "string"
             }
           ]
@@ -43,18 +43,19 @@
         240,
         300
       ],
-      "notes": "Aquí vive el prompt de sistema. Edita el texto para mejorar el comportamiento de la IA."
+      "notes": "El texto de este prompt ya no se edita aquí: lo manda skygroup en body.ia.modificar.prompt (APU → Plantillas).",
+      "notesInFlow": false
     },
     {
       "parameters": {
         "model": {
           "__rl": true,
-          "mode": "list",
-          "value": "gpt-5.1"
+          "mode": "id",
+          "value": "={{ $('Webhook').first().json.body.ia.modificar.modelo }}"
         },
         "builtInTools": {},
         "options": {
-          "reasoningEffort": "low"
+          "reasoningEffort": "={{ $('Webhook').first().json.body.ia.modificar.razonamiento }}"
         },
         "responsesApiEnabled": false
       },
@@ -71,7 +72,8 @@
           "id": "W8XaJvGwacT4HUqW",
           "name": "OpenAI account"
         }
-      }
+      },
+      "notes": "El modelo y el razonamiento llegan en body.ia.modificar (se eligen en APU → Plantillas)."
     },
     {
       "parameters": {
@@ -91,7 +93,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Instrucción de la persona: {{ $('Webhook').item.json.body.instruccion }}\nActividad: {{ $('Webhook').item.json.body.actividad }} (unidad: {{ $('Webhook').item.json.body.unidad }})\nProyecto: {{ $('Webhook').item.json.body.proyecto.nombre }} ({{ $('Webhook').item.json.body.proyecto.tipo }}, {{ $('Webhook').item.json.body.proyecto.ciudad }})\nDescripción del proyecto: {{ $('Webhook').item.json.body.proyecto.descripcion }}\nAPU actual: {{ JSON.stringify($('Webhook').item.json.body.apu) }}\nCatálogo de la empresa: {{ JSON.stringify($('Webhook').item.json.body.catalogo) }}\nAPU del catálogo (posibles sub-análisis): {{ JSON.stringify($('Webhook').item.json.body.catalogo_items) }}",
+        "text": "=Instrucción de la persona: {{ $('Webhook').item.json.body.instruccion }}\nActividad: {{ $('Webhook').item.json.body.actividad }} (unidad: {{ $('Webhook').item.json.body.unidad }})\nAlcance del ítem (resumen: es todo el contexto de la obra y del trabajo; respétalo salvo que la instrucción lo cambie): {{ $('Webhook').item.json.body.resumen_alcance || 'no consta' }}\nAPU actual: {{ JSON.stringify($('Webhook').item.json.body.apu) }}\nCatálogo de la empresa: {{ JSON.stringify($('Webhook').item.json.body.catalogo) }}\nAPU del catálogo (posibles sub-análisis): {{ JSON.stringify($('Webhook').item.json.body.catalogo_items) }}",
         "hasOutputParser": true,
         "options": {
           "systemMessage": "={{ $json.system_prompt }}"
@@ -113,7 +115,7 @@
             {
               "id": "589fa8b5-5ddb-4f81-af26-adf5044f2d2f",
               "name": "system_prompt",
-              "value": "Eres un revisor de análisis de precios unitarios (APU) de construcción. Recibes el título y la unidad ORIGINALES de un APU, la instrucción de la persona para modificarlo, el resumen de lo que se cambió y los insumos de la composición RESULTANTE. Tu tarea es decidir el título y la unidad FINALES.\n\nREGLAS\n1. El título debe describir fielmente el alcance de la composición resultante y de la instrucción. Compara palabra por palabra el título original con el resultado: si el original menciona una parte del alcance que la instrucción quitó (p. ej. «Provisión e instalación de…» cuando ya no se provee el equipo, «Suministro y colocación», «con transporte»), quítala; si se agregó una parte relevante, inclúyela; si cambiaron la resistencia, el elemento, el material o las dimensiones, actualízalos.\n2. Ejemplos: «Provisión e instalación de aire acondicionado 18000 BTU» + «la empresa dota el equipo, solo instalación» → «Instalación de aire acondicionado 18000 BTU». «Hormigón H21 en columnas» + «usa H25 y que sea para vigas» → «Hormigón H25 en vigas». «Muro de ladrillo» + «sube el desperdicio» → el mismo título.\n3. Si nada cambia el alcance, devuelve EXACTAMENTE el título original. Conserva el estilo, el idioma y la ortografía del original (si no lleva tildes, no las agregues). Devuelve SOLO el título: sin unidad, sin paréntesis ni aclaraciones.\n4. La unidad: devuelve la original, salvo que la instrucción o el nuevo alcance cambien lo que se mide (p. ej. de «pza» a «m2»). Escríbela corta (m2, m3, ml, kg, pza, glb, h).\n5. «motivo»: una frase corta que explique por qué cambiaste el título o la unidad, o «Sin cambios en el alcance» si no cambiaste nada.\nResponde SOLO con el JSON pedido.",
+              "value": "={{ $('Webhook').item.json.body.ia.verificar_titulo.prompt }}",
               "type": "string"
             }
           ]
@@ -129,17 +131,20 @@
         800,
         300
       ],
-      "notes": "Aquí vive el prompt de sistema. Edita el texto para mejorar el comportamiento de la IA."
+      "notes": "El texto de este prompt ya no se edita aquí: lo manda skygroup en body.ia.verificar_titulo.prompt (APU → Plantillas).",
+      "notesInFlow": false
     },
     {
       "parameters": {
         "model": {
           "__rl": true,
-          "mode": "list",
-          "value": "gpt-5-mini"
+          "mode": "id",
+          "value": "={{ $('Webhook').first().json.body.ia.verificar_titulo.modelo }}"
         },
         "builtInTools": {},
-        "options": {},
+        "options": {
+          "reasoningEffort": "={{ $('Webhook').first().json.body.ia.verificar_titulo.razonamiento }}"
+        },
         "responsesApiEnabled": false
       },
       "id": "8c4c3903-7368-4bb3-b803-1b28ed0c283b",
@@ -155,7 +160,8 @@
           "id": "W8XaJvGwacT4HUqW",
           "name": "OpenAI account"
         }
-      }
+      },
+      "notes": "El modelo y el razonamiento llegan en body.ia.verificar_titulo (se eligen en APU → Plantillas)."
     },
     {
       "parameters": {
